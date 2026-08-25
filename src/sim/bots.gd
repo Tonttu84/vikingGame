@@ -1,0 +1,77 @@
+class_name Bots
+extends RefCounted
+## Headless controllers for the sim harness and tests.
+
+
+## Plays no cards at all — the "no-card baseline" from docs/combat-design.md,
+## which tuning should keep at a narrow loss. It never acts, never scraps,
+## never saves anyone.
+class NoCardBot:
+	func choose_action(_state: BattleState) -> Dictionary:
+		return {"op": "end"}
+
+	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
+		return false
+
+
+## Plays random affordable cards with simple deterministic target heuristics.
+## Deliberately dumb: it exists to exercise the rules and set a floor, not to
+## play well.
+class RandomBot:
+	var rng: RandomNumberGenerator
+
+	func _init(p_rng: RandomNumberGenerator) -> void:
+		rng = p_rng
+
+	func choose_action(state: BattleState) -> Dictionary:
+		# Refill a thinned line first.
+		if state.player_field.size() < 4 and state.momentum >= 2:
+			for c in state.player_reserve:
+				if c.weapon.kind != Weapon.Kind.BOW:
+					return {"op": "commit", "character": c}
+		var playable: Array[CardData] = []
+		for card in state.hand:
+			if not card.playable or card.reaction_save or card.cost > state.momentum:
+				continue
+			if card.target_type != CardData.TargetType.NONE and _target_for(card, state) == null:
+				continue
+			playable.append(card)
+		if playable.is_empty():
+			return _scrap_or_end(state)
+		if rng.randf() < 0.2:
+			return _scrap_or_end(state)
+		var card: CardData = playable[rng.randi_range(0, playable.size() - 1)]
+		return {"op": "play", "card": card, "target": _target_for(card, state)}
+
+	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
+		return true
+
+	func _scrap_or_end(state: BattleState) -> Dictionary:
+		if not state.scrapped_this_turn:
+			for card in state.hand:
+				if card.is_loot:
+					return {"op": "scrap", "card": card}
+		return {"op": "end"}
+
+	func _target_for(card: CardData, state: BattleState) -> Character:
+		match card.target_type:
+			CardData.TargetType.ENEMY:
+				if state.enemy_captain_targetable():
+					return state.enemy_captain
+				var best: Character = null
+				for c in state.enemy_field:
+					if best == null or c.hp < best.hp:
+						best = c
+				return best
+			CardData.TargetType.ALLY:
+				var pick: Character = null
+				for c in state.player_field:
+					var wants_heal := card.id == "rally"
+					if wants_heal:
+						if c.hp < c.max_hp and (pick == null or c.hp < pick.hp):
+							pick = c
+					else:
+						if not c.is_captain and (pick == null or c.strength > pick.strength):
+							pick = c
+				return pick
+		return null
