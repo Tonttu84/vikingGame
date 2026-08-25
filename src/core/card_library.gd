@@ -71,6 +71,36 @@ static func loot(p_id: String, p_name: String, p_scrap: int = 1) -> CardData:
 			[] as Array[Dictionary], false, true)
 
 
+## Every buildable card id, for by_id lookups and the debug roster editor.
+static func card_ids() -> Array[String]:
+	return [
+		"spear_volley", "concentrated_attack", "shield_wall", "rally",
+		"drag_him_back", "break_the_line", "challenge", "push_them_back",
+		"battle_fury", "feint", "war_cry", "terrifying_bellow",
+		"loot_silver_a", "loot_silver_b", "loot_cauldron",
+	]
+
+
+static func by_id(p_id: String) -> CardData:
+	match p_id:
+		"spear_volley": return spear_volley()
+		"concentrated_attack": return concentrated_attack()
+		"shield_wall": return shield_wall()
+		"rally": return rally()
+		"drag_him_back": return drag_him_back()
+		"break_the_line": return break_the_line()
+		"challenge": return challenge()
+		"push_them_back": return push_them_back()
+		"battle_fury": return battle_fury()
+		"feint": return feint()
+		"war_cry": return war_cry()
+		"terrifying_bellow": return terrifying_bellow()
+		"loot_silver_a": return loot("loot_silver_a", "Plundered Silver")
+		"loot_silver_b": return loot("loot_silver_b", "Plundered Silver")
+		"loot_cauldron": return loot("loot_cauldron", "Iron Cauldron")
+	return null
+
+
 ## The v0 starter deck: 19 tactics + 3 pieces of loot clogging it.
 static func starter_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []

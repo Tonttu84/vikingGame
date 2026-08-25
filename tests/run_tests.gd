@@ -12,7 +12,12 @@ func _init() -> void:
 	for file in files:
 		if not file.begins_with("test_") or not file.ends_with(".gd") or file == "test_case.gd":
 			continue
-		var suite = load("res://tests/" + file).new()
+		var script: Script = load("res://tests/" + file)
+		if script == null or not script.can_instantiate():
+			all_failures.append("%s: suite failed to load (parse error?)" % file)
+			print("FAIL %-28s did not load" % file)
+			continue
+		var suite = script.new()
 		var methods: Array[String] = []
 		for m in suite.get_method_list():
 			if m["name"].begins_with("test_"):

@@ -123,3 +123,18 @@ func test_loot_is_not_playable() -> void:
 	eng.state.momentum = 5
 	await eng._play_card(card, null)
 	assert_true(eng.state.hand.has(card), "dead weight cannot be played, only scrapped")
+
+
+func test_card_library_builds_cards_by_id() -> void:
+	var card := CardLibrary.by_id("spear_volley")
+	assert_true(card != null)
+	assert_eq(card.id, "spear_volley")
+	assert_eq(CardLibrary.by_id("no_such_card"), null)
+	for id in CardLibrary.card_ids():
+		var built := CardLibrary.by_id(id)
+		assert_true(built != null and built.id == id, "every listed id builds: " + id)
+
+
+func test_starter_deck_ids_all_resolve() -> void:
+	for card in CardLibrary.starter_deck():
+		assert_true(CardLibrary.by_id(card.id) != null, "starter card resolvable: " + card.id)
