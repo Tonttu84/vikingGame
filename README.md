@@ -23,5 +23,32 @@ combat engine is built to fit into.
 
 ## Status
 
-Planning complete for the combat core. Next: **M0**, a headless combat engine
-with unit tests and a battle-simulation harness, no UI.
+**M0 (headless combat core) is built.** The full boarding-action ruleset —
+momentum, morale and routs, deterministic targeting, captain exposure, cards,
+the death-cancel reaction — runs as pure GDScript logic with no UI, covered
+by 65 unit checks and a battle-simulation harness. At the v0 tuning numbers,
+the no-card baseline loses ~64% of fights while a random card-player wins
+~89% — cards are the margin of victory, as designed.
+
+Next: **M1**, the playable Godot UI on top of this core.
+
+## Running it
+
+Requires [Godot 4.5](https://godotengine.org/download) (the standard editor
+download works; everything below runs headless).
+
+```sh
+scripts/test.sh                       # unit tests (tests/)
+scripts/sim.sh                        # 200 battles, random card-playing bot
+scripts/sim.sh --bot=none --n=1000    # the no-card baseline
+scripts/sim.sh --n=1 --verbose        # print one battle's turn-by-turn log
+```
+
+## Layout
+
+```
+src/core/    the rules engine — pure logic, no UI, deterministic per seed
+src/sim/     bots and the headless balance harness
+tests/       unit tests + minimal runner (godot --headless -s tests/run_tests.gd)
+docs/        design documents
+```

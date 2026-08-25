@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.5
+        run: |
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          sudo mv Godot_v4.5-stable_linux.x86_64 /usr/local/bin/godot
+          godot --version
+      - name: Unit tests
+        run: scripts/test.sh
+      - name: Baseline balance sim
+        run: scripts/sim.sh --n=200 --bot=none
+      - name: Random-bot balance sim
+        run: scripts/sim.sh --n=200 --bot=random
