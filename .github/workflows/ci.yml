@@ -21,3 +21,7 @@ jobs:
         run: scripts/sim.sh --n=200 --bot=none
       - name: Random-bot balance sim
         run: scripts/sim.sh --n=200 --bot=random
+      - name: Install xvfb for UI smoke test
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri
+      - name: UI smoke test (real clicks and drags under xvfb)
+        run: scripts/ui_smoke.sh
