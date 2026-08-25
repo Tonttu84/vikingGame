@@ -36,5 +36,5 @@ func test_shield_wall_reduces_melee_hits() -> void:
 	var ec := TestHelpers.grunt(E, "ec", 12, 6, 3, 3, Weapon.sword(), 0)
 	var eng := TestHelpers.engine_for({"player_field": [pc], "enemy_field": [ec]})
 	eng.state.shield_wall_active = true
-	eng._attack(ec, pc)
+	await eng._attack(ec, pc)
 	assert_eq(pc.hp, 12 - 3, "5 damage reduced by 2 behind the wall")

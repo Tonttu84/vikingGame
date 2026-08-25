@@ -22,7 +22,7 @@ func test_spreads_to_unengaged_enemies() -> void:
 	# Reserve present so the two-man field does not expose a (nonexistent) captain.
 	var eng := TestHelpers.engine_for({"player_field": [p1, p2], "enemy_field": [e1, e2]})
 	assert_eq(eng._pick_target(p1), e1, "front-most first")
-	eng._attack(p1, e1)
+	await eng._attack(p1, e1)
 	assert_eq(eng._pick_target(p2), e2, "second attacker takes the unengaged enemy")
 
 

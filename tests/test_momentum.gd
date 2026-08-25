@@ -8,7 +8,7 @@ const E := Character.Side.ENEMY
 func test_turn_start_income() -> void:
 	var crew := TestHelpers.grunt(P, "crew")
 	var eng := TestHelpers.engine_for({"player_field": [crew]})
-	eng._player_turn()
+	await eng._player_turn()
 	assert_eq(eng.state.momentum, 1, "+1 at the start of the player turn")
 
 
@@ -16,7 +16,7 @@ func test_kill_grants_momentum() -> void:
 	var strong := TestHelpers.grunt(P, "strong", 12, 6, 10, 3)
 	var weak := TestHelpers.grunt(E, "weak", 1, 6)
 	var eng := TestHelpers.engine_for({"player_field": [strong], "enemy_field": [weak]})
-	eng._fight_phase(P)
+	await eng._fight_phase(P)
 	assert_eq(eng.state.momentum, 1, "+1 for the kill")
 
 
@@ -25,7 +25,7 @@ func test_war_cry_doubles_kill_income() -> void:
 	var weak := TestHelpers.grunt(E, "weak", 1, 6)
 	var eng := TestHelpers.engine_for({"player_field": [strong], "enemy_field": [weak]})
 	eng.state.war_cry_active = true
-	eng._fight_phase(P)
+	await eng._fight_phase(P)
 	assert_eq(eng.state.momentum, 2, "war cry adds +1 per kill")
 
 

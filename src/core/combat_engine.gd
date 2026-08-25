@@ -13,6 +13,12 @@ extends RefCounted
 ##   choose_reaction_save(state: BattleState, dying: Character) -> bool
 ##     asked when a non-captain fighter would die and a reaction-save card
 ##     (Drag Him Back!) is in hand and affordable.
+##
+## Both calls are awaited, so a controller may suspend (e.g. the UI waiting
+## for a click); bots that return immediately keep working unchanged. A
+## controller may also expose an optional pace(state) hook — awaited after
+## each resolution step (attack, tactic, reinforcement) so a UI can animate
+## the battle instead of resolving it in one frame.
 
 enum Outcome { NONE, VICTORY, DEFEAT, RETREAT, STALEMATE }
 
@@ -55,9 +61,9 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 func run() -> Dictionary:
 	while outcome == Outcome.NONE and state.turn < MAX_TURNS:
 		state.turn += 1
-		_player_turn()
+		await _player_turn()
 		if outcome == Outcome.NONE:
-			_enemy_turn()
+			await _enemy_turn()
 	if outcome == Outcome.NONE:
 		outcome = Outcome.STALEMATE
 	return summary()
@@ -87,12 +93,12 @@ func _player_turn() -> void:
 	var actions := 0
 	while outcome == Outcome.NONE and actions < MAX_ACTIONS_PER_TURN:
 		actions += 1
-		var action: Dictionary = controller.choose_action(state)
+		var action: Dictionary = await controller.choose_action(state)
 		if action.get("op", "end") == "end":
 			break
-		_apply_action(action)
+		await _apply_action(action)
 	if outcome == Outcome.NONE:
-		_fight_phase(Character.Side.PLAYER)
+		await _fight_phase(Character.Side.PLAYER)
 	state.captain_forced_exposed = false
 	state.focus_target = null
 	for c in state.player_field:
@@ -102,13 +108,15 @@ func _player_turn() -> void:
 
 
 func _enemy_turn() -> void:
-	_resolve_tactic(state.next_tactic)
+	await _resolve_tactic(state.next_tactic)
+	await _pace()
 	if outcome != Outcome.NONE:
 		return
-	_fight_phase(Character.Side.ENEMY)
+	await _fight_phase(Character.Side.ENEMY)
 	if outcome != Outcome.NONE:
 		return
 	_reinforce()
+	await _pace()
 	state.surge_active = false
 	state.duel_active = false
 	state.next_tactic = _pick_tactic()
@@ -119,7 +127,7 @@ func _enemy_turn() -> void:
 func _apply_action(action: Dictionary) -> void:
 	match action.get("op", "end"):
 		"play":
-			_play_card(action.get("card"), action.get("target"))
+			await _play_card(action.get("card"), action.get("target"))
 		"scrap":
 			_scrap_card(action.get("card"))
 		"commit":
@@ -141,7 +149,7 @@ func _play_card(card: CardData, target: Character) -> void:
 	state.discard.append(card)
 	state.log_event("Played %s." % card.display_name)
 	for effect in card.effects:
-		_apply_effect(effect, target)
+		await _apply_effect(effect, target)
 		if outcome != Outcome.NONE:
 			return
 
@@ -152,7 +160,7 @@ func _apply_effect(effect: Dictionary, target: Character) -> void:
 		CardData.EffectType.DAMAGE_ALL_ENEMIES:
 			# Card damage is true damage: volleys and thrown cargo ignore armor.
 			for c in state.enemy_field.duplicate():
-				_deal_true_damage(c, amount)
+				await _deal_true_damage(c, amount)
 				if outcome != Outcome.NONE:
 					return
 		CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES:
@@ -222,7 +230,8 @@ func _fight_phase(side: Character.Side) -> void:
 			var target := _pick_target(attacker)
 			if target == null:
 				break
-			_attack(attacker, target)
+			await _attack(attacker, target)
+			await _pace()
 
 
 ## Deterministic resolution order: speed descending, spawn order as tiebreak.
@@ -313,7 +322,7 @@ func _attack(attacker: Character, defender: Character) -> void:
 	state.log_event("%s hits %s for %d (%d HP left)." %
 			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
 	if defender.hp <= 0:
-		_handle_death(defender)
+		await _handle_death(defender)
 
 
 ## Card/tactic damage that bypasses armor and engagement.
@@ -326,7 +335,7 @@ func _deal_true_damage(c: Character, amount: int) -> void:
 	c.hp -= amount
 	state.log_event("%s takes %d (%d HP left)." % [c.display_name, amount, maxi(0, c.hp)])
 	if c.hp <= 0:
-		_handle_death(c)
+		await _handle_death(c)
 
 
 func _deal_morale_damage(c: Character, amount: int) -> void:
@@ -341,7 +350,7 @@ func _handle_death(dead: Character) -> void:
 	# Reaction window: Drag Him Back! cancels the killing blow on a crew member.
 	if dead.side == Character.Side.PLAYER and not dead.is_captain and state.player_field.has(dead):
 		var save := _affordable_reaction_save()
-		if save != null and controller.choose_reaction_save(state, dead):
+		if save != null and await controller.choose_reaction_save(state, dead):
 			state.momentum -= save.cost
 			state.hand.erase(save)
 			state.discard.append(save)
@@ -423,7 +432,7 @@ func _resolve_tactic(tactic: String) -> void:
 				return
 			state.log_event("Arrows fall on the boarding party.")
 			for c in state.player_field.duplicate():
-				_deal_true_damage(c, 1)
+				await _deal_true_damage(c, 1)
 				if outcome != Outcome.NONE:
 					return
 		"fear_horn":
@@ -454,6 +463,11 @@ func _reinforce() -> void:
 
 
 # --- Helpers -----------------------------------------------------------------
+
+func _pace() -> void:
+	if controller.has_method("pace"):
+		await controller.pace(state)
+
 
 func _gain_momentum(amount: int) -> void:
 	state.momentum = mini(BattleState.MOMENTUM_CAP, state.momentum + amount)

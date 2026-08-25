@@ -37,7 +37,7 @@ func _init() -> void:
 		bot_rng.seed = base_seed + i
 		var bot = Bots.NoCardBot.new() if bot_kind == "none" else Bots.RandomBot.new(bot_rng)
 		engine.setup(Scenarios.default_skirmish(), bot, base_seed + i)
-		var result := engine.run()
+		var result: Dictionary = await engine.run()
 		if verbose and i == 0:
 			for line in engine.state.battle_log:
 				print(line)
