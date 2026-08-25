@@ -4,8 +4,16 @@ config_version=5
 [application]
 
 config/name="Sons of the North"
+run/main_scene="res://src/ui/battle_ui.tscn"
 config/features=PackedStringArray("4.5")
 
 [debug]
 
 gdscript/warnings/untyped_declaration=0
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"

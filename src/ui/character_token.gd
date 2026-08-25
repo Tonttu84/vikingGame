@@ -1,0 +1,124 @@
+class_name CharacterToken
+extends PanelContainer
+## One fighter on the board: name, HP and morale bars, stats, engagement.
+## Also a drop target for cards and (in the reserve row) a commit button.
+
+signal clicked(character: Character)
+
+var character: Character
+var battle_ui: Control
+var compact := false  ## reserve rows use a smaller face
+
+
+static func create(p_character: Character, p_ui: Control, p_compact := false) -> CharacterToken:
+	var token := CharacterToken.new()
+	token.character = p_character
+	token.battle_ui = p_ui
+	token.compact = p_compact
+	token._build()
+	return token
+
+
+func _build() -> void:
+	custom_minimum_size = Vector2(104, 64) if compact else Vector2(128, 96)
+	var is_player := character.side == Character.Side.PLAYER
+	var trim := UIPalette.GOLD if is_player else UIPalette.IRON
+	if character.is_captain:
+		trim = UIPalette.GOLD if is_player else UIPalette.BLOOD
+	var bg := UIPalette.SEA if is_player else UIPalette.IRON_DARK
+	add_theme_stylebox_override("panel", UIPalette.panel(bg, trim, 2 if character.is_captain else 1))
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(box)
+
+	var name_size := UIPalette.FONT_SMALL if compact else UIPalette.FONT_BODY
+	var name_label := UIPalette.label(character.display_name, name_size,
+			UIPalette.PARCHMENT if is_player else UIPalette.PARCHMENT_DIM)
+	name_label.clip_text = true
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(name_label)
+
+	box.add_child(_bar(character.hp, character.max_hp, UIPalette.BLOOD, "HP"))
+	if character.morale_immune():
+		box.add_child(UIPalette.label("fearless", UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+	else:
+		box.add_child(_bar(character.morale, character.max_morale, UIPalette.GOLD, "MOR"))
+
+	if not compact:
+		var stats := "%s · STR %d · SPD %d" % [character.weapon.display_name, character.strength, character.speed]
+		if character.armor > 0:
+			stats += " · ARM %d" % character.armor
+		box.add_child(UIPalette.label(stats, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+		var foe := character.engaged_with
+		var extra := ""
+		if character.bonus_attacks > 0:
+			extra = "  (+%d attack)" % character.bonus_attacks
+		if foe != null and foe.is_alive():
+			box.add_child(UIPalette.label("fighting %s%s" % [foe.display_name, extra],
+					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+		elif not extra.is_empty():
+			box.add_child(UIPalette.label(extra.strip_edges(), UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+	tooltip_text = _tooltip()
+
+
+func _bar(value: int, max_value: int, color: Color, tag: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tag_label := UIPalette.label(tag, 9, UIPalette.PARCHMENT_DIM)
+	tag_label.custom_minimum_size.x = 26
+	row.add_child(tag_label)
+	var bar := ProgressBar.new()
+	bar.max_value = max_value
+	bar.value = maxi(0, value)
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 10)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.add_theme_stylebox_override("background", UIPalette.bar_style(UIPalette.SEA_DARK))
+	bar.add_theme_stylebox_override("fill", UIPalette.bar_style(color))
+	row.add_child(bar)
+	var value_label := UIPalette.label("%d" % maxi(0, value), 9, UIPalette.PARCHMENT_DIM)
+	value_label.custom_minimum_size.x = 16
+	row.add_child(value_label)
+	return row
+
+
+func _tooltip() -> String:
+	var lines := [
+		"%s — %s" % [character.display_name, "captain" if character.is_captain else
+				("berserker" if character.is_berserker else "fighter")],
+		"HP %d/%d · Morale %s · STR %d · SPD %d · Armor %d" % [
+			maxi(0, character.hp), character.max_hp,
+			"immune" if character.morale_immune() else "%d/%d" % [character.morale, character.max_morale],
+			character.strength, character.speed, character.armor],
+		"%s: %s" % [character.weapon.display_name, _weapon_note()],
+	]
+	return "\n".join(lines)
+
+
+func _weapon_note() -> String:
+	match character.weapon.kind:
+		Weapon.Kind.SPEAR: return "+1 damage against a fresh opponent"
+		Weapon.Kind.AXE: return "ignores 2 armor"
+		Weapon.Kind.BOW: return "shoots from the reserve row"
+		Weapon.Kind.SWORD: return "+2 damage, no tricks"
+	return "no weapon"
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		clicked.emit(character)
+
+
+func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+	return data is Dictionary and data.has("card") \
+			and battle_ui.can_drop_card_on(data["card"], character)
+
+
+func _drop_data(_at: Vector2, data: Variant) -> void:
+	battle_ui.play_card(data["card"], character)
