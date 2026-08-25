@@ -25,8 +25,9 @@ Keep v0 flat and readable — no grid, no lanes yet:
   refill the field up to the cap.
 - The enemy captain is **exposed** (attackable) when their field drops to ≤ 2,
   when the reserve pool is empty, or when a card forces it (`Break the Line`,
-  a duel challenge). This creates the central tactical question: grind through
-  the whole crew, or burst a window open and go for the head.
+  a duel challenge). This creates the central tactical question: kill through
+  the whole crew, break their morale until the line routs, or burst a window
+  open and go straight for the head.
 
 Lanes (2–3 gangplanks with separate fronts) are a v2 idea if the flat field
 feels too mushy. Don't build them speculatively.
@@ -54,8 +55,9 @@ Momentum is battle tempo — a snowball resource that rewards aggression:
 - **+1** per enemy your side kills (including on the enemy's turn).
 - **Carries over** between turns, **cap 10**. No reset — killing sprees bank
   into big turns.
-- Losing one of your characters: **−2** (morale shock). This punishes
-  trading bodies, which permadeath already wants you not to do.
+- Losing a character costs **no momentum** — that pain flows through the
+  morale system instead (next section). Momentum stays pure tempo: kills and
+  turns feed it, nothing drains it.
 - **Discard for momentum:** once per turn you may discard cards for their
   printed **scrap value** instead of playing them. Tactic cards scrap for
   0–1. **Loot cards scrap for 1** — so the loot clogging your deck has a use
@@ -65,6 +67,29 @@ Momentum is battle tempo — a snowball resource that rewards aggression:
 Tuning lever: if snowballing makes won fights unloseable, add decay (lose 1
 momentum per turn above 5) — but try without it first; "unstoppable once
 rolling" is on-fantasy for a boarding action.
+
+## Morale (the second track)
+
+Every character has **Morale** alongside HP. HP is the body; morale is the
+will to stay on that deck — and it makes both sides breakable, not just
+killable.
+
+- **Morale damage** comes from: an allied death (−2 to every fielded
+  character on that side), a rout (−1 to remaining fielded allies — this is
+  what lets a line collapse in an avalanche), and fear effects (war cries,
+  the dragon figurehead, cards).
+- A character at **0 morale routs** and leaves the field. Not dead: enemies
+  dive overboard or surrender; your fighters fall back to your ship, alive
+  but **Shaken** (reduced morale) for the rest of the raid.
+- **Kill vs. break is a real tradeoff:** kills feed your momentum engine,
+  routs don't — fear tactics clear the deck faster and without bloodying
+  your crew, but starve your card economy.
+- Routed enemies count as off the field for **captain exposure** — breaking
+  their line is the second road to their captain, alongside killing through
+  it.
+- **Captains never rout.** Yours fights to the death (that's the game-over
+  rule); theirs stands his ground when his crew breaks.
+- Berserkers are immune to morale damage. Of course they are.
 
 ## Cards = the captain's voice
 
@@ -84,21 +109,24 @@ Cards come from your captain's skills, crew abilities, ship fittings, and
 | Push Them Back | 2 | No enemy reinforcements next turn |
 | Battle Fury | 1 | A character attacks twice this turn |
 | Feint | 0 | Draw 2 cards |
+| Terrifying Bellow | 1 | 2 morale damage to every fielded enemy |
 | War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball) |
 
 Design rules: damage cards should rarely beat just letting characters fight —
 cards **bend** the fight (tempo, protection, targeting, windows), they don't
 replace it. Death prevention must exist but be scarce.
 
-## Character control: autobattler with card override (decision + rationale)
+## Character control: autobattler with card override (adopted — on probation)
 
-The open question was directed attacks vs. autobattler. **Recommendation:
-autobattler bodies, card-controlled battle.**
+Decision: **autobattler bodies, card-controlled battle** — adopted for v0,
+explicitly to be validated in M2 playtests (see the watchlist at the end).
 
-- Characters pick targets themselves with dumb, predictable rules: keep your
-  current engagement; otherwise attack the nearest/front-most enemy;
-  berserkers charge the biggest enemy; etc. Predictable AI is a feature — you
-  plan around it.
+- **Targeting is deterministic and instant.** Every character always has a
+  target, assigned by fixed, published priority: keep your current
+  engagement → otherwise the front-most open enemy slot → lowest HP as
+  tiebreak. Who gets hit is never lucky or unlucky; targeting RNG would
+  undermine the no-dice rule below. Predictable AI is a feature — you plan
+  around it like a puzzle, and the sim harness can verify it.
 - **All player agency flows through cards.** Want focus fire? That's
   `Concentrated Attack`. Want someone safe? `Drag Him Back!`. This makes the
   hand genuinely matter every turn (if you could freely order everyone, half
@@ -114,6 +142,8 @@ autobattler bodies, card-controlled battle.**
 Deliberately small sheet — the mechanics budget is spent elsewhere:
 
 - **HP** (10–20). Wounds persist between battles in a raid; heal at home.
+- **Morale** (5–10). Veterans high, fresh hands low; Shaken from a previous
+  rout lowers it for the rest of the raid.
 - **Strength** — base damage.
 - **Speed** — attack resolution order (fast units can kill before being hit).
 - **Weapon** (1 slot): damage + one trait. Spear: strikes first when newly
@@ -153,10 +183,23 @@ artifacts as debug toggles.
 ## Tuning baseline (v0 starting numbers)
 
 Hand 5 · momentum cap 10 · your field 6 + 2 reserve · enemy field 4, reserve
-6, reinforce 2/turn · grunt: 12 HP / 3 Str / speed 3 · enemy captain: 25 HP /
-5 Str · your captain: 20 HP / 4 Str. A fight should run ~6–10 turns and a
-no-card baseline (never playing cards) should be a **narrow loss** — cards
+6, reinforce 2/turn · grunt: 12 HP / 6 morale / 3 Str / speed 3 · enemy
+captain: 25 HP / 5 Str (never routs) · your captain: 20 HP / 4 Str · ally
+death −2 morale to fielded side, rout −1. A fight should run ~6–10 turns and
+a no-card baseline (never playing cards) should be a **narrow loss** — cards
 are the margin of victory.
+
+## Playtest watchlist (decided, but on probation)
+
+Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
+
+- **Cards-only control** — no manual retargeting. Fallback if fights feel
+  like spectating: a generic `Order` (1 momentum: retarget one character).
+- **Keep-hand rule** — hand persists between turns, draw back up to 5.
+  Alternatives if banking cards proves degenerate: hand cap 7 with overflow
+  burn, or full discard-each-turn.
+- **Morale cascade tuning** — avalanche routs should be a dramatic
+  occasional payoff, not the default way every fight ends.
 
 ## What "fun" means here (evaluation checklist for the prototype)
 
