@@ -105,9 +105,12 @@ Main
 
 - All randomness through one seeded RNG service → reproducible raids, easier
   balancing and bug reports.
-- **GUT** (Godot Unit Test) on the pure-logic layer: card resolver, weight
-  math, loot conversion, generation transitions. The card resolver is the one
-  part of this game that must never be wrong.
+- **TDD on all rules code** (see CLAUDE.md): failing test first, minimum
+  implementation to green, refactor. A lightweight custom runner
+  (`tests/run_tests.gd`, headless, ~2s) covers the pure-logic layer; the
+  effect resolver and combat engine are the parts of this game that must
+  never be wrong. UI scenes are exempt, but any logic that creeps into a UI
+  script gets extracted into the core and tested there.
 
 ### Content pipeline
 
