@@ -6,6 +6,7 @@ extends SceneTree
 ##
 ## --bot=random (default) plays random affordable cards; --bot=none is the
 ## no-card baseline, which tuning should keep at a narrow loss.
+## --artifacts=raven_banner,serpent_prow equips artifacts for every battle.
 ## --verbose prints the full battle log of the first battle.
 
 
@@ -14,6 +15,7 @@ func _init() -> void:
 	var bot_kind := "random"
 	var base_seed := 1
 	var verbose := false
+	var artifact_ids: Array[String] = []
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--n="):
 			n = int(arg.trim_prefix("--n="))
@@ -21,6 +23,13 @@ func _init() -> void:
 			bot_kind = arg.trim_prefix("--bot=")
 		elif arg.begins_with("--seed="):
 			base_seed = int(arg.trim_prefix("--seed="))
+		elif arg.begins_with("--artifacts="):
+			for id in arg.trim_prefix("--artifacts=").split(",", false):
+				if ArtifactLibrary.by_id(id) == null:
+					push_error("unknown artifact '%s' (known: %s)" % [id, ", ".join(ArtifactLibrary.artifact_ids())])
+					quit(2)
+					return
+				artifact_ids.append(id)
 		elif arg == "--verbose":
 			verbose = true
 
@@ -36,7 +45,12 @@ func _init() -> void:
 		var bot_rng := RandomNumberGenerator.new()
 		bot_rng.seed = base_seed + i
 		var bot = Bots.NoCardBot.new() if bot_kind == "none" else Bots.RandomBot.new(bot_rng)
-		engine.setup(Scenarios.default_skirmish(), bot, base_seed + i)
+		var scenario := Scenarios.default_skirmish()
+		var artifacts: Array[ArtifactData] = []
+		for id in artifact_ids:
+			artifacts.append(ArtifactLibrary.by_id(id))
+		scenario["artifacts"] = artifacts
+		engine.setup(scenario, bot, base_seed + i)
 		var result: Dictionary = await engine.run()
 		if verbose and i == 0:
 			for line in engine.state.battle_log:

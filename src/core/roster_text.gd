@@ -12,6 +12,8 @@ extends RefCounted
 ##   2x spear_volley
 ##   [tactics]
 ##   arrow_volley
+##   [artifacts]
+##   raven_banner
 ##
 ## Stat tokens may appear in any order and fall back to a standard grunt
 ## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. Flags:
@@ -36,6 +38,7 @@ static func parse(text: String) -> Dictionary:
 	var deck: Array[CardData] = []
 	var deck_section_seen := false
 	var tactics: Array[String] = []
+	var artifacts: Array[ArtifactData] = []
 	var section := ""
 	var serial := 0
 
@@ -49,7 +52,7 @@ static func parse(text: String) -> Dictionary:
 			section = line.substr(1, line.length() - 2).strip_edges().to_lower()
 			if section == "deck":
 				deck_section_seen = true
-			elif not CHARACTER_SECTIONS.has(section) and section != "tactics":
+			elif not CHARACTER_SECTIONS.has(section) and section != "tactics" and section != "artifacts":
 				errors.append("line %d: unknown section [%s]" % [lineno, section])
 				section = ""
 			continue
@@ -63,6 +66,12 @@ static func parse(text: String) -> Dictionary:
 					tactics.append(line)
 				else:
 					errors.append("line %d: unknown tactic '%s' (known: %s)" % [lineno, line, ", ".join(KNOWN_TACTICS)])
+			"artifacts":
+				var artifact := ArtifactLibrary.by_id(line)
+				if artifact != null:
+					artifacts.append(artifact)
+				else:
+					errors.append("line %d: unknown artifact '%s' (known: %s)" % [lineno, line, ", ".join(ArtifactLibrary.artifact_ids())])
 			_:
 				serial += 1
 				var c := _parse_character(line, lineno, section, serial, errors)
@@ -89,6 +98,7 @@ static func parse(text: String) -> Dictionary:
 		"enemy_captain": enemy_captains[0] if not enemy_captains.is_empty() else null,
 		"deck": deck if deck_section_seen else CardLibrary.starter_deck(),
 		"enemy_tactics": tactics if not tactics.is_empty() else ["press_the_attack"],
+		"artifacts": artifacts,
 	}
 	return {"scenario": scenario, "errors": errors}
 
@@ -114,6 +124,12 @@ static func serialize(scenario: Dictionary) -> String:
 	for t: String in scenario.get("enemy_tactics", []):
 		out.append(t)
 	out.append("")
+	var artifacts: Array = scenario.get("artifacts", [])
+	if not artifacts.is_empty():
+		out.append("[artifacts]")
+		for a: ArtifactData in artifacts:
+			out.append(a.id)
+		out.append("")
 	out.append("[deck]")
 	var order: Array[String] = []
 	var counts := {}

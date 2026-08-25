@@ -56,6 +56,32 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	_shuffle(state.deck)
 	enemy_tactics.assign(scenario.get("enemy_tactics", ["press_the_attack"]))
 	state.next_tactic = _pick_tactic()
+	state.artifacts.assign(scenario.get("artifacts", []))
+	_apply_battle_start_artifacts()
+
+
+func _apply_battle_start_artifacts() -> void:
+	for artifact in state.artifacts:
+		match artifact.hook:
+			ArtifactData.Hook.ALLY_DEATH_WAVE:
+				if artifact.effect_type == ArtifactData.EffectType.SUPPRESS_WAVE:
+					state.death_wave_suppressions += artifact.amount
+			ArtifactData.Hook.BATTLE_START:
+				state.log_event("%s: %s" % [artifact.display_name, artifact.description])
+				match artifact.effect_type:
+					ArtifactData.EffectType.GAIN_MOMENTUM:
+						_gain_momentum(artifact.amount)
+					ArtifactData.EffectType.ENEMY_MORALE_DAMAGE:
+						for c in state.enemy_field:
+							_deal_morale_damage(c, artifact.amount)
+						_check_routs(Character.Side.ENEMY)
+					ArtifactData.EffectType.ALLY_MORALE_BONUS:
+						for c in state.player_field:
+							c.max_morale += artifact.amount
+							c.morale += artifact.amount
+						for c in state.player_reserve:
+							c.max_morale += artifact.amount
+							c.morale += artifact.amount
 
 
 func run() -> Dictionary:
@@ -383,8 +409,13 @@ func _handle_death(dead: Character) -> void:
 
 
 ## An allied death shakes every fielded character on that side; routs can
-## cascade (each rout costs the remaining line another point).
+## cascade (each rout costs the remaining line another point). The Raven
+## Banner (SUPPRESS_WAVE) swallows the first player-side wave(s) whole.
 func _morale_wave(side: Character.Side, amount: int) -> void:
+	if side == Character.Side.PLAYER and state.death_wave_suppressions > 0:
+		state.death_wave_suppressions -= 1
+		state.log_event("The raven banner holds the line.")
+		return
 	for c in state.fielded(side):
 		_deal_morale_damage(c, amount)
 	_check_routs(side)

@@ -30,6 +30,10 @@ var deck: Array[CardData] = []
 var hand: Array[CardData] = []
 var discard: Array[CardData] = []
 
+var artifacts: Array[ArtifactData] = []
+## Remaining player-side death waves the Raven Banner will swallow.
+var death_wave_suppressions := 0
+
 var turn := 0
 var scrapped_this_turn := false
 var shield_wall_active := false
