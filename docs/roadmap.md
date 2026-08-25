@@ -1,65 +1,69 @@
 # Roadmap
 
-## The scope warning (read first)
+## Framing
 
-As designed, this is three games in a trenchcoat: a deckbuilder, a dynasty
-sim, and a city builder. The design already contains the scope control —
-**the card raid is the game; everything else is menus** — but the build order
-below is what actually enforces it. Each milestone ends in something playable.
-Do not start the next one early; the graveyard of solo roguelites is full of
-projects that built the meta layer before the core loop was fun.
+This is a portfolio / AI-assisted-coding project, not a shipping game. That
+changes the priorities: **the combat engine is the product**, and clean
+architecture, tests, and a readable repo matter more than content volume.
+The plan is combat-first — build the boarding-action engine, tune it until
+it's fun, and only then decide whether any outer layer (raid map, settlement,
+dynasty) gets built. Every milestone leaves the repo in a demo-able state.
 
-## M0 — Card table skeleton (1–2 weeks)
+## M0 — Headless combat core (1–2 weeks)
 
-- Godot project, folder layout, `CardData`/`CardEffect` resources.
-- Draw pile → hand → play → discard, with drag-and-drop and hover tweens.
-- One enemy with an intent, damage/block effects. Placeholder rects + icons.
-- **Done when:** you can win or lose a single fight and it feels okay to click.
+The entire combat ruleset (`docs/combat-design.md`) as pure logic with **no
+UI dependency**: turn engine, momentum economy, card resolver, auto-targeting,
+reinforcements, exposure rules, artifact hooks. Seeded RNG throughout.
 
-## M1 — One raid, vertical slice (3–4 weeks)
+- Runs headless: a script plays a full battle from a JSON/`.tres` setup and
+  prints a turn-by-turn log.
+- GUT unit tests on every rule (momentum caps, death → −2 morale, `Drag Him
+  Back!` timing, captain exposure conditions).
+- A dumb bot (plays random affordable cards) lets us **simulate 1,000 battles
+  and print win rates** — the balance harness, and frankly the best
+  interview-demo artifact in the project.
+- **Done when:** the sim harness runs and the no-card baseline is a narrow
+  loss at the v0 tuning numbers.
 
-- Route of 5–6 nodes: 2 fights, an event, a storm (skill check), a trading
-  post, a target village. Push-on-or-go-home choice at each node.
-- Loot cards with weight/value, cargo limit, deck clogging, compacting trade,
-  one dual-use weapon, jettison in the storm.
-- Raid summary: survive → loot becomes a silver number.
-- **Done when:** a stranger plays one raid and makes at least one interesting
-  greed decision. This milestone proves or kills the game's signature
-  mechanic — if dead weight isn't fun here, redesign before building on it.
+## M1 — Playable combat UI (2–3 weeks)
 
-## M2 — Season loop (2–3 weeks)
+Godot scene on top of the core: character tokens with HP bars, hand of cards
+with drag-to-play, momentum meter, enemy intent icons, reserve rows.
+Placeholder art per the icon+palette strategy in `tech-plan.md`.
 
-- Settlement screen: 4 buildings (Longhouse, Shipyard, Mead Hall, Market)
-  as a menu. Silver spends. Crew hiring with officer slots (First Mate,
-  Navigator, Quartermaster, Cook).
-- Multiple raids per saga, escalating routes. Save/load.
-- **Done when:** "one more season" pull exists across 3+ raids.
+- Debug panel: restart with seed, edit rosters, toggle artifacts.
+- **Done when:** a full boarding fight is playable with mouse only and a
+  stranger understands the rules without being told.
 
-## M3 — Dynasty (3–4 weeks)
+## M2 — The fun pass (2–3 weeks, open-ended)
 
-- Captain aging, injuries, death (in bed and mid-raid), heir succession.
-- Children: birth events, traits, teachable skills, family members in officer
-  roles, side-raids (auto-resolved), the family skill pool. Grilling.
-- Three-generation saga structure with era shifts and final scoring.
-- **Done when:** losing a captain mid-raid feels like a story beat, not a
-  game over.
+Tune against the "what fun means here" checklist in the combat doc.
 
-## M4 — Meta layer (2–3 weeks)
+- 25–30 cards, 6–8 enemy grunt types, 3 enemy captains with tactic decks,
+  3–4 artifacts.
+- Settle the control question with real playtests (autobattler + card
+  override is the starting position; the 1-momentum `Order` escape hatch is
+  the fallback).
+- A "skirmish mode" menu: pick a scenario, fight, see results — this makes
+  the project a complete, self-contained demo.
+- **Decision gate:** if combat isn't fun here, iterate or stop — do not
+  build outward around a weak core.
 
-- Conquest map with 5–6 historical locations across the eras (Lindisfarne,
-  Dublin, Danelaw, Normandy, Miklagarð, Vinland), each with a distinct
-  end-of-route challenge, unlock boon, and content injection.
-- Cross-saga persistence, saga scoring, unlock presentation.
-- **Done when:** finishing a saga makes you immediately start the next one.
+## M3+ — Outer layers (only if M2 passes, in this order)
 
-## M5 — Content & polish (ongoing)
+1. **Raid loop** — a node route between fights, loot entering the deck as
+   dead weight, wounds persisting, retreat-vs-push-on decisions. First outer
+   layer because it directly feeds the combat deck.
+2. **Artifact map hook** — conquer a historical location once → permanent
+   campaign boost; revisit on later runs → benefit. (Engine hook exists
+   from M0.)
+3. **Settlement / dynasty / generations** — per `game-design.md`. Explicitly
+   stretch content; the project is complete without it.
 
-- Content pass: fill each location's decks/events to target counts.
-- Art pass within the icon+palette system; audio (Kenney/freesound); juice
-  (screenshake, card whooshes); balance from playtest telemetry.
-- itch.io web build for playtesting.
+## Portfolio notes
 
-## Rough content targets for a 1.0-ish
-
-- ~80–100 action/fitting cards, ~40 loot cards, ~25 crew archetypes
-- ~15 traits, ~12 skills, ~60 events, 6 historical locations, 8 buildings
+- Keep commits small and message-descriptive — the git history is part of
+  the exhibit.
+- The headless core + sim harness demonstrates architecture and testing; the
+  Godot layer demonstrates shipping. Both should be linked prominently from
+  the README with screenshots/GIFs once they exist.

@@ -1,4 +1,11 @@
-# Game Design — Sons of the North
+# Game Design — Sons of the North (long-term frame)
+
+> **Status:** this document is the long-term vision. Development is
+> combat-first — the authoritative, current design is
+> [combat-design.md](combat-design.md) (boarding actions, momentum, permadeath),
+> and battles described below are boarding actions in that system. The loops,
+> loot economy, and dynasty here are the frame those fights slot into, built
+> only if the combat core proves fun (see [roadmap.md](roadmap.md)).
 
 Roguelite deckbuilder. One full playthrough (a **saga**) spans **3 generations**
 of a viking family. Between sagas, historical conquests you achieved stay
