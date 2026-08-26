@@ -17,9 +17,6 @@ class AsyncBot:
 		await decided
 		return {"op": "end"}
 
-	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
-		return false
-
 
 ## A bot exposing the optional pace() hook the UI uses to animate steps.
 class PacedBot:
@@ -27,9 +24,6 @@ class PacedBot:
 
 	func choose_action(_state: BattleState) -> Dictionary:
 		return {"op": "end"}
-
-	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
-		return false
 
 	func pace(_state: BattleState) -> void:
 		paces += 1

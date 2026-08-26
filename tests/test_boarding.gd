@@ -33,7 +33,7 @@ func test_default_maneuver_grants_opening_momentum() -> void:
 		"maneuvers": [CardLibrary.maneuver_by_id("grapple_rush")],
 	})
 	await eng._boarding_phase()
-	assert_eq(eng.state.momentum, 5, "the crash of the boarding is the surge")
+	assert_eq(eng.state.momentum, 6, "the crash of the boarding is the surge")
 
 
 func test_controller_chooses_the_maneuver() -> void:
@@ -52,7 +52,7 @@ func test_controller_chooses_the_maneuver() -> void:
 func test_maneuver_shield_wall_survives_turn_one() -> void:
 	# No stock maneuver raises a wall right now; the engine mechanism must
 	# still hold for future ones, so test it with a handmade maneuver card.
-	var walled := CardData.new("test_walled_landing", "Walled Landing", 0, 0,
+	var walled := CardData.new("test_walled_landing", "Walled Landing", 0,
 			CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2}])
 	var crew := TestHelpers.grunt(P, "crew")

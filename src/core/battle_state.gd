@@ -45,7 +45,6 @@ var player_armor_bonus := 0
 var death_wave_suppressions := 0
 
 var turn := 0
-var scrapped_this_turn := false
 var shield_wall_active := false
 var war_cry_active := false
 var captain_forced_exposed := false

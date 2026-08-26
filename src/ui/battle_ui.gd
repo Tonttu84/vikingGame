@@ -26,12 +26,9 @@ var _hand_row: HBoxContainer
 var _momentum_pips: HBoxContainer
 var _momentum_label: Label
 var _piles_label: Label
-var _scrap_zone: PanelContainer
-var _scrap_label: Label
 var _end_turn_button: Button
 var _retreat_button: Button
 var _log_text: RichTextLabel
-var _reaction_dialog: ConfirmationDialog
 var _rules_dialog: AcceptDialog
 var _retreat_dialog: ConfirmationDialog
 var _outcome_layer: Control
@@ -107,14 +104,6 @@ func on_player_decision_start(state: BattleState) -> void:
 func on_pace(state: BattleState) -> void:
 	_turn_label.text = "Turn %d — steel rings" % state.turn
 	refresh(state)
-
-
-func on_reaction_prompt(state: BattleState, dying: Character) -> void:
-	refresh(state)
-	_reaction_dialog.dialog_text = (
-			"%s is about to fall!\n\nPlay Drag Him Back! (1 momentum, %d left) " +
-			"to pull them out at 1 HP?") % [dying.display_name, state.momentum]
-	_reaction_dialog.popup_centered()
 
 
 func submit(action: Dictionary) -> void:
@@ -270,8 +259,7 @@ func _refresh_hand(state: BattleState) -> void:
 		child.queue_free()
 	for card in state.hand:
 		var affordable := _can_pay(card)
-		var can_scrap := not state.scrapped_this_turn
-		var view := CardView.create(card, self, _awaiting_action and (affordable or can_scrap), affordable)
+		var view := CardView.create(card, self, _awaiting_action and affordable, affordable)
 		_hand_row.add_child(view)
 
 
@@ -281,8 +269,6 @@ func _refresh_hud(state: BattleState) -> void:
 		var pip: ColorRect = _momentum_pips.get_child(i)
 		pip.color = UIPalette.GOLD if i < state.momentum else UIPalette.SEA_LIGHT
 	_piles_label.text = "Deck %d · Discard %d" % [state.deck.size(), state.discard.size()]
-	_scrap_label.text = "Scrap pile\n(drop a card: +momentum)" if not state.scrapped_this_turn \
-			else "Scrap pile\n(spent this turn)"
 	_end_turn_button.disabled = not _awaiting_action
 	_retreat_button.disabled = not _awaiting_action
 	_status_label.text = " · ".join(_active_effects(state))
@@ -500,15 +486,6 @@ func _build_hud() -> Control:
 	momentum_box.add_child(_piles_label)
 	hud.add_child(momentum_box)
 
-	_scrap_zone = ScrapZone.new()
-	_scrap_zone.battle_ui = self
-	_scrap_zone.custom_minimum_size = Vector2(190, 52)
-	_scrap_zone.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.SEA_DARK, UIPalette.IRON, 1))
-	_scrap_label = UIPalette.label("Scrap pile", UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
-	_scrap_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_scrap_zone.add_child(_scrap_label)
-	hud.add_child(_scrap_zone)
-
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -574,14 +551,6 @@ func _build_log_panel() -> Control:
 
 
 func _build_dialogs() -> void:
-	_reaction_dialog = ConfirmationDialog.new()
-	_reaction_dialog.title = "A shield-brother falls"
-	_reaction_dialog.ok_button_text = "Drag him back!"
-	_reaction_dialog.cancel_button_text = "Let him die"
-	_reaction_dialog.confirmed.connect(func() -> void: controller.reaction_submitted.emit(true))
-	_reaction_dialog.canceled.connect(func() -> void: controller.reaction_submitted.emit(false))
-	add_child(_reaction_dialog)
-
 	_retreat_dialog = ConfirmationDialog.new()
 	_retreat_dialog.title = "Cut the ropes?"
 	_retreat_dialog.dialog_text = "Fall back to the ship and end the raid?\nEveryone still standing gets out."
@@ -702,15 +671,3 @@ func _maneuver_option(maneuver: CardData) -> Control:
 	return option
 
 
-## Scrap drop target: one card a turn becomes momentum.
-class ScrapZone:
-	extends PanelContainer
-	var battle_ui: BattleUI
-
-	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-		return data is Dictionary and data.has("card") \
-				and battle_ui._awaiting_action \
-				and not battle_ui.engine.state.scrapped_this_turn
-
-	func _drop_data(_at: Vector2, data: Variant) -> void:
-		battle_ui.submit({"op": "scrap", "card": data["card"]})

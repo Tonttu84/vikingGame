@@ -1,12 +1,13 @@
 class_name HumanController
 extends RefCounted
 ## The player as a combat-engine controller: every engine decision suspends
-## on a signal the battle UI emits when the player clicks. One controller
-## per battle; aborting (debug restart) makes every pending and future
-## decision resolve instantly so the old engine unwinds and is dropped.
+## on a signal the battle UI emits when the player clicks. Death saves fire
+## automatically in the engine, so the only decisions here are actions. One
+## controller per battle; aborting (debug restart) makes every pending and
+## future decision resolve instantly so the old engine unwinds and is
+## dropped.
 
 signal action_submitted(action: Dictionary)
-signal reaction_submitted(save: bool)
 signal maneuver_submitted(card: CardData)
 
 const PACE_SECONDS := 0.3
@@ -35,14 +36,6 @@ func choose_action(state: BattleState) -> Dictionary:
 	return action
 
 
-func choose_reaction_save(state: BattleState, dying: Character) -> bool:
-	if aborted:
-		return false
-	ui.on_reaction_prompt(state, dying)
-	var save: bool = await reaction_submitted
-	return save
-
-
 func pace(state: BattleState) -> void:
 	if aborted:
 		return
@@ -58,4 +51,3 @@ func abort() -> void:
 	aborted = true
 	maneuver_submitted.emit(null)  # engine falls back to the first maneuver
 	action_submitted.emit({"op": "retreat"})
-	reaction_submitted.emit(false)

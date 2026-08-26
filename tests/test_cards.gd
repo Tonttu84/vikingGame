@@ -82,16 +82,14 @@ func test_battle_fury_grants_extra_attack() -> void:
 func test_drag_him_back_cancels_a_killing_blow() -> void:
 	var crew := TestHelpers.grunt(P, "crew", 2)
 	var e1 := TestHelpers.grunt(E, "e1", 12, 6, 5, 3)
-	var bot := TestHelpers.ScriptedBot.new()
-	bot.save_reaction = true
-	var eng := TestHelpers.engine_for({"player_field": [crew], "enemy_field": [e1]}, bot)
+	var eng := TestHelpers.engine_for({"player_field": [crew], "enemy_field": [e1]})
 	eng.state.hand.append(CardLibrary.drag_him_back())
 	eng.state.momentum = 1
 	await eng._attack(e1, crew)
 	assert_true(eng.state.player_dead.is_empty(), "the blow is cancelled")
 	assert_true(eng.state.player_reserve.has(crew), "dragged back to the ship")
 	assert_eq(crew.hp, 1, "at death's door")
-	assert_eq(eng.state.momentum, 0, "the reaction still costs its momentum")
+	assert_eq(eng.state.momentum, 0, "the automatic save still costs its momentum")
 
 
 func test_terrifying_bellow_breaks_shaky_enemies() -> void:
@@ -122,7 +120,7 @@ func test_loot_is_not_playable() -> void:
 	eng.state.hand.append(card)
 	eng.state.momentum = 5
 	await eng._play_card(card, null)
-	assert_true(eng.state.hand.has(card), "dead weight cannot be played, only scrapped")
+	assert_true(eng.state.hand.has(card), "dead weight cannot be played; it just clogs the draw")
 
 
 func test_card_library_builds_cards_by_id() -> void:

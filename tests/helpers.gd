@@ -5,7 +5,6 @@ extends RefCounted
 
 class ScriptedBot:
 	var queue: Array = []
-	var save_reaction := false
 
 	func _init(actions: Array = []) -> void:
 		queue = actions.duplicate()
@@ -14,9 +13,6 @@ class ScriptedBot:
 		if queue.is_empty():
 			return {"op": "end"}
 		return queue.pop_front()
-
-	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
-		return save_reaction
 
 
 static func grunt(side: Character.Side, id: String, hp := 12, morale := 6,

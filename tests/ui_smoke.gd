@@ -143,26 +143,25 @@ func _run() -> void:
 	var bad := RosterText.parse("[player field]\nGuy | flail")
 	check(bad["errors"].size() >= 1, "parser reports errors for the panel")
 
-	# Real drag-and-drop with synthesized mouse events: scrap a card.
+	# The hand cycles: end a turn and the non-retained cards are replaced.
 	var guard2 := 0
 	while guard2 < 600 and not ui._awaiting_action:
 		guard2 += 1
 		await process_frame
-	check(ui._awaiting_action, "awaiting input before drag test")
-	var hand_before: int = ui.engine.state.hand.size()
-	var momentum_before: int = ui.engine.state.momentum
-	var card_view = ui._hand_row.get_child(0)
-	var scrap_value: int = card_view.card.scrap_value
-	var from: Vector2 = card_view.get_global_rect().get_center()
-	var to: Vector2 = ui._scrap_zone.get_global_rect().get_center()
-	await _drag(from, to)
-	for i in 10:
-		await process_frame
-	check(ui.engine.state.hand.size() == hand_before - 1,
-			"drag to scrap removed a card from hand (%d -> %d)" % [hand_before, ui.engine.state.hand.size()])
-	check(ui.engine.state.momentum == momentum_before + scrap_value,
-			"scrap paid %d momentum" % scrap_value)
-	check(ui.engine.state.scrapped_this_turn, "scrap flag set")
+	check(ui._awaiting_action, "awaiting input before the hand-cycle test")
+	var old_cyclers: Array = []
+	for card: CardData in ui.engine.state.hand:
+		if not card.retained:
+			old_cyclers.append(card)
+	check(old_cyclers.size() > 0, "some non-retained cards in hand to cycle")
+	ui._end_turn_button.pressed.emit()
+	await _await_until(func() -> bool: return ui._awaiting_action,
+		"next turn after the hand-cycle end-turn")
+	if ui.engine.outcome == CombatEngine.Outcome.NONE:
+		for card: CardData in old_cyclers:
+			check(not ui.engine.state.hand.has(card),
+					"non-retained card cycled out of hand: " + card.id)
+		check(ui.engine.state.hand.size() == 5, "hand refilled to 5")
 
 	# Drag a targeted card onto a token (heal an ally).
 	guard2 = 0

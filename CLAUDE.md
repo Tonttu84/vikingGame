@@ -64,10 +64,14 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: headless engine (momentum, morale/routs, deterministic targeting),
+Done: the hand-model redesign — a fresh hand of 5 every turn, the Retained
+keyword (Reinforce/Swap/Drag Him Back! wait in hand, eat draw room), the
+automatic death-save (no reaction prompt; the engine controller contract
+lost choose_reaction_save), scrapping removed everywhere (engine, bots, UI
+scrap pile). Also: headless engine (momentum, morale/routs, deterministic targeting),
 artifact hooks (4 artifacts), playable battle UI, and the boarding redesign —
 maneuvers as strategy cards (Grapple & Rush / Dawn Raid / Covering Volley /
-Careful Assault, forced-maneuver win rates 64–73%), deck-driven reinforcement
+Careful Assault, forced-maneuver win rates 56–74% post hand-model), deck-driven reinforcement
 (Reinforce/Swap), enemy captain as final reinforcement, repulsed-boarding
 retreat, the maneuver picker UI (modal at battle start; smoke test picks
 Dawn Raid to prove the choice reaches the engine), and the web build
@@ -77,10 +81,10 @@ Compatibility renderer everywhere). `docs/combat-design.md` has the full
 rules and a playtest watchlist.
 
 Agreed next slices, in rough priority:
-1. **Hand-model redesign (own slice, do not bundle)** — user leans toward
-   full draw-play-discard-each-turn over the current keep-hand rule; reprices
-   every card and the scrap mechanic.
-2. Officer system (prowman is currently just a strong named crewman).
+1. Officer system (prowman is currently just a strong named crewman; one
+   role is tied to the boarding, event rolls planned).
+2. Raid loop (node route between fights, loot into the deck, wounds
+   persisting, retreat-vs-push-on).
 
 The user prefers being asked (AskUserQuestion) about real design forks with a
 recommendation, rather than having them decided silently; deterministic

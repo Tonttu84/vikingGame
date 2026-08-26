@@ -58,16 +58,18 @@ battle plays (one plain-bonus option is allowed):
 
 | Maneuver | Effect |
 | --- | --- |
-| Grapple & Rush | +5 momentum. The vanilla crash. |
+| Grapple & Rush | +6 momentum. The vanilla crash. |
 | Dawn Raid | +4 momentum; 3 defenders are caught below decks — they rejoin the BACK of their reserve queue, shaken (−2 morale). Their line is briefly thinner than your wave. |
 | Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with 2 true damage to the lowest-HP fielded defender, all battle. They hold fire during a duel. |
 | Careful Assault | +2 momentum; a shieldwall-like discipline: your side takes −1 damage from every hit, all battle. Drawback: 2 extra defenders have time to form up (their deck — this may crowd past their field cap) and the watch stands composed (+1 morale, blunting rout cascades). |
 
 The choice is deliberate and deterministic (no draw): pick the maneuver that
-fits this enemy. Forced-maneuver sims (400 battles each, random bot) sit at
-63.8 / 65.2 / 67.5 / 73.2% — close enough that no pick is trivial, and the
-bot understates the real differences since it can't exploit synergies (a
-human bursts Dawn Raid's briefly-exposed captain on turn 1).
+fits this enemy. Forced-maneuver sims (300 battles each, random bot, post
+hand-model redesign) sit at 56.0 / 61.7 / 74.3 / 71.7% — no pick is trivial.
+The bot overrates the passive maneuvers (volley and armor generate value
+with no decisions) and underrates raw momentum, so the human spread is
+tighter than these numbers suggest (a human bursts Dawn Raid's
+briefly-exposed captain on turn 1).
 
 ## Officers and the prowman (planned)
 
@@ -87,9 +89,8 @@ with event rolls comes later.)
 BOARDING (once)
   0. Choose and resolve a boarding maneuver (free card from its own deck).
 PLAYER TURN
-  1. Gain +1 momentum. Draw up to hand size (5).
-  2. Play any number of cards (pay momentum), and/or
-     discard cards for their scrap value (see momentum).
+  1. Gain +1 momentum. Discard the hand (Retained cards stay), draw to 5.
+  2. Play any number of cards (pay momentum).
   3. Commit a reserve to the field (costs 1 momentum), optional fallback.
   4. Fight: all characters resolve attacks (see character control).
 ENEMY TURN
@@ -111,11 +112,15 @@ fight rich and act from strength, exactly as a boarder should.
 - Losing a character costs **no momentum** — that pain flows through the
   morale system instead (next section). Momentum stays pure tempo: kills and
   turns feed it, nothing drains it.
-- **Discard for momentum:** once per turn you may discard cards for their
-  printed **scrap value** instead of playing them. Tactic cards scrap for
-  0–1. **Loot cards scrap for 1** — so the loot clogging your deck has a use
-  in a desperate moment, but it's deliberately mediocre (you're literally
-  throwing cargo around to buy time).
+
+The hand cycles: at the start of every turn the old hand is discarded and a
+fresh 5 drawn — except **Retained** cards (Reinforce, Swap, Drag Him Back!),
+which wait in hand for their moment and occupy draw room while they do.
+Drag Him Back! **fires automatically** when a killing blow lands on a
+non-captain crew member and its cost is affordable — no prompt; holding it
+(and the momentum for it) IS the decision. Scrapping (discard-for-momentum)
+was removed with the keep-hand rule it existed to relieve: loot now costs
+you draws, nothing else, until the raid layer prices it in silver.
 
 Tuning lever: if snowballing makes won fights unloseable, add decay (lose 1
 momentum per turn above 5) — but try without it first; "unstoppable once
@@ -156,15 +161,15 @@ Cards come from your captain's skills, crew abilities, ship fittings, and
 | Concentrated Attack | 2 | All your characters strike one target this turn |
 | Shield Wall | 1 | Your side takes −2 damage per hit until your next turn |
 | Rally | 1 | Heal a character 4 |
-| Drag Him Back! | 1 | Pull a character to reserve; cancel their death if played in response to a killing blow (the permadeath safety valve — expensive to have, priceless to use) |
+| Drag Him Back! | 1 | Retained. Fires automatically when a killing blow lands on a crew member: cancels it, pulls them to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) |
 | Break the Line | 3 | Enemy captain is exposed until end of turn |
 | Challenge | 3 | Your captain and theirs duel 1v1 this round; no one else may interfere |
 | Push Them Back | 2 | No enemy reinforcements next turn |
 | Battle Fury | 1 | A character attacks twice this turn |
 | Feint | 0 | Draw 2 cards |
 | Terrifying Bellow | 1 | 2 morale damage to every fielded enemy |
-| Reinforce | 1 | Field a man from your ship (default: first in reserve) |
-| Swap | 1 | A fielded fighter trades places with one on your ship |
+| Reinforce | 1 | Retained. Field a man from your ship (default: first in reserve) |
+| Swap | 1 | Retained. A fielded fighter trades places with one on your ship |
 | War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball) |
 
 Design rules: damage cards should rarely beat just letting characters fight —
@@ -238,7 +243,7 @@ artifacts as debug toggles.
 ## Tuning baseline (v0 starting numbers)
 
 Hand 5 · momentum cap 10 · first wave 3, your field cap 5, 5 in reserve ·
-enemy: 5 fielded, cap 6, reserve 5, reinforce 2/turn, captain last · your
+enemy: 5 fielded, cap 6, reserve 6, reinforce 2/turn, captain last · your
 grunts: 12 HP / 6 morale / 3 Str / speed 3; defender grunts steadier at 7
 morale (they are home) · enemy captain: 30 HP / 5 Str (never routs) · your
 captain: 20 HP / 4 Str · ally death −2 morale to fielded side,
@@ -246,7 +251,9 @@ rout −1. A fight should run ~6–10 turns. With reinforcement living in the
 deck, the no-card bot is structurally crippled (it never crosses a second
 man) — it is a floor metric now, expected to lose heavily, not narrowly; the
 tuning target moves to the random card-playing bot sitting near an even
-fight (~50–65% wins).
+fight. Post hand-model redesign it sits at 70.2% mixed / 6.7 avg turns —
+above the notional 50–65% band, accepted because the bot exploits the
+passive maneuvers harder than a human would; revisit against real play.
 
 ## Playtest watchlist (decided, but on probation)
 
@@ -254,10 +261,9 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
 
 - **Cards-only control** — no manual retargeting. Fallback if fights feel
   like spectating: a generic `Order` (1 momentum: retarget one character).
-- **Keep-hand rule** — hand persists between turns, draw back up to 5.
-  Current leaning: full draw-play-discard each turn is probably the more fun
-  loop. That change is its own slice (it reprices every card and the scrap
-  mechanic) — do not bundle it into other work.
+- **Hand model (RESOLVED)** — full draw-play-discard each turn, with the
+  Retained keyword (Reinforce, Swap, Drag Him Back!) and the automatic
+  death-save. Scrapping removed with it.
 - **Morale cascade tuning** — avalanche routs should be a dramatic
   occasional payoff, not the default way every fight ends.
 - **Momentum storage** — currently unspent momentum carries over in full.
@@ -275,7 +281,7 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
   window to the captain.
 - Momentum swings are legible: you can feel a turn where the boarding "tips".
 - A character death makes you angry at yourself, not at dice.
-- Loot-scrapping happens sometimes and feels like a real (bad) choice.
+- A retained card held for the right moment feels like discipline, not hoarding.
 - A fight fits in ~5 minutes.
 
 If three of five fail after tuning, the combat core gets redesigned before

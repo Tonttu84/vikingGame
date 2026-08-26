@@ -3,15 +3,11 @@ extends RefCounted
 ## Headless controllers for the sim harness and tests.
 
 
-## Plays no cards at all — the "no-card baseline" from docs/combat-design.md,
-## which tuning should keep at a narrow loss. It never acts, never scraps,
-## never saves anyone.
+## Plays no cards at all — the "no-card baseline" floor metric from
+## docs/combat-design.md. It never acts.
 class NoCardBot:
 	func choose_action(_state: BattleState) -> Dictionary:
 		return {"op": "end"}
-
-	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
-		return false
 
 
 ## Plays random affordable cards with simple deterministic target heuristics.
@@ -45,9 +41,9 @@ class RandomBot:
 				continue
 			playable.append(card)
 		if playable.is_empty():
-			return _scrap_or_end(state)
+			return {"op": "end"}
 		if rng.randf() < 0.2:
-			return _scrap_or_end(state)
+			return {"op": "end"}
 		var card: CardData = playable[rng.randi_range(0, playable.size() - 1)]
 		return {"op": "play", "card": card, "target": _target_for(card, state)}
 
@@ -59,16 +55,6 @@ class RandomBot:
 			if c.weapon.kind != Weapon.Kind.BOW:
 				return c
 		return null
-
-	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
-		return true
-
-	func _scrap_or_end(state: BattleState) -> Dictionary:
-		if not state.scrapped_this_turn:
-			for card in state.hand:
-				if card.is_loot:
-					return {"op": "scrap", "card": card}
-		return {"op": "end"}
 
 	func _target_for(card: CardData, state: BattleState) -> Character:
 		match card.target_type:

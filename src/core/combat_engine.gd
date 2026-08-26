@@ -7,14 +7,14 @@ extends RefCounted
 ## Controller contract (duck-typed):
 ##   choose_action(state: BattleState) -> Dictionary
 ##     {"op": "play", "card": CardData, "target": Character (optional)}
-##     {"op": "scrap", "card": CardData}
 ##     {"op": "commit", "character": Character}
 ##     {"op": "retreat"} | {"op": "end"}
-##   choose_reaction_save(state: BattleState, dying: Character) -> bool
-##     asked when a non-captain fighter would die and a reaction-save card
-##     (Drag Him Back!) is in hand and affordable.
 ##
-## Both calls are awaited, so a controller may suspend (e.g. the UI waiting
+## Reaction saves (Drag Him Back!) need no controller: they fire
+## automatically when a killing blow lands on a non-captain crew member,
+## the card is in hand, and its cost is affordable.
+##
+## choose_action is awaited, so a controller may suspend (e.g. the UI waiting
 ## for a click); bots that return immediately keep working unchanged. A
 ## controller may also expose an optional pace(state) hook — awaited after
 ## each resolution step (attack, tactic, reinforcement) so a UI can animate
@@ -148,13 +148,18 @@ func summary() -> Dictionary:
 # --- Turn flow ---------------------------------------------------------------
 
 func _player_turn() -> void:
-	state.scrapped_this_turn = false
 	if _maneuver_shield:
 		_maneuver_shield = false
 	else:
 		state.shield_wall_active = false
 	state.war_cry_active = false
 	_gain_momentum(1)
+	# A fresh hand every turn: everything not Retained is discarded, then the
+	# hand refills to size. Retained cards wait in hand and eat draw room.
+	for card in state.hand.duplicate():
+		if not card.retained:
+			state.hand.erase(card)
+			state.discard.append(card)
 	_draw_to_hand_size()
 	var actions := 0
 	while outcome == Outcome.NONE and actions < MAX_ACTIONS_PER_TURN:
@@ -194,8 +199,6 @@ func _apply_action(action: Dictionary) -> void:
 	match action.get("op", "end"):
 		"play":
 			await _play_card(action.get("card"), action.get("target"), action.get("second_target"))
-		"scrap":
-			_scrap_card(action.get("card"))
 		"commit":
 			_commit_reserve(action.get("character"))
 		"retreat":
@@ -329,16 +332,6 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 			incoming.engaged_with = null
 			state.log_event("%s falls back; %s takes his place." %
 					[target.display_name, incoming.display_name])
-
-
-func _scrap_card(card: CardData) -> void:
-	if card == null or not state.hand.has(card) or state.scrapped_this_turn:
-		return
-	state.scrapped_this_turn = true
-	state.hand.erase(card)
-	state.discard.append(card)
-	_gain_momentum(card.scrap_value)
-	state.log_event("Scrapped %s for %d momentum." % [card.display_name, card.scrap_value])
 
 
 func _commit_reserve(character: Character) -> void:
@@ -513,10 +506,11 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 # --- Death, morale and routing ----------------------------------------------
 
 func _handle_death(dead: Character) -> void:
-	# Reaction window: Drag Him Back! cancels the killing blow on a crew member.
+	# Drag Him Back! fires automatically: an affordable save in hand cancels
+	# the killing blow on a crew member, no prompt, no controller.
 	if dead.side == Character.Side.PLAYER and not dead.is_captain and state.player_field.has(dead):
 		var save := _affordable_reaction_save()
-		if save != null and await controller.choose_reaction_save(state, dead):
+		if save != null:
 			state.momentum -= save.cost
 			state.hand.erase(save)
 			state.discard.append(save)

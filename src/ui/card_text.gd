@@ -6,12 +6,14 @@ extends RefCounted
 
 static func describe(card: CardData) -> String:
 	if card.is_loot:
-		return "Dead weight from the last raid. Scrap it for %d momentum." % card.scrap_value
+		return "Dead weight from the last raid. It clogs your draws until you sail home."
 	var lines: Array[String] = []
 	for effect in card.effects:
 		lines.append(_effect_line(effect))
 	if card.reaction_save:
-		lines.append("Reaction: when a fighter would fall, pay %d to drag them back at 1 HP instead." % card.cost)
+		lines.append("Fires by itself: when a fighter would fall, pays %d to drag them back at 1 HP." % card.cost)
+	if card.retained:
+		lines.append("Retained: waits in hand instead of discarding at turn end.")
 	return "\n".join(lines)
 
 
@@ -81,11 +83,11 @@ static func rules_summary() -> String:
 	return """[b]The boarding action[/b]
 You are the raid captain. Your crew fights on its own — your cards are the orders you shout over the noise.
 
-[b]Momentum[/b] powers cards: +1 each turn, +1 per enemy slain. Scrap one card a turn for its scrap value instead of playing it.
+[b]Momentum[/b] powers cards: +1 each turn, +1 per enemy slain.
 
-[b]Each turn[/b]: draw to 5, play cards, then both lines fight. Fastest strikes first; fighters keep hacking at whoever they are engaged with. Spears hit +1 on a fresh foe, axes ignore 2 armor, bows shoot from the reserve rows.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards, then both lines fight. Fastest strikes first; fighters keep hacking at whoever they are engaged with. Spears hit +1 on a fresh foe, axes ignore 2 armor, bows shoot from the reserve rows.
 
-[b]The enemy captain[/b] is sheltered behind his line. Thin it to 2 fielded enemies, empty his reserves, or force a window with a card — then your whole crew goes for him. Kill him and his crew yields. Lose your own captain and the raid is over.
+[b]The enemy captain[/b] is sheltered behind his line. Thin it to 2 fielded enemies or force a window with a card — then your whole crew goes for him. When his hold empties he steps into the line himself. Kill him and his crew yields. Lose your own captain and the raid is over.
 
 [b]Morale[/b]: every death shakes the fallen side (-2 morale on deck, captains and berserkers excepted). At 0 a fighter routs, shaking the line further. Routs win battles as surely as blood.
 

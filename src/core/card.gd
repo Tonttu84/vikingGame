@@ -32,23 +32,25 @@ enum EffectType {
 var id: String
 var display_name: String
 var cost: int
-var scrap_value: int
 var playable: bool
 var is_loot: bool
 var target_type: CardData.TargetType
 ## Array of { "type": EffectType, "amount": int }
 var effects: Array[Dictionary]
-## Bots hold this card for the death-cancel reaction instead of playing it proactively.
+## Retained cards are exempt from the end-of-turn discard: once drawn they
+## wait in hand (and occupy hand space) until played.
+var retained: bool = false
+## Reaction-save cards (Drag Him Back!) fire AUTOMATICALLY when a killing
+## blow lands on a non-captain crew member and the cost is affordable.
 var reaction_save: bool = false
 
 
-func _init(p_id: String, p_name: String, p_cost: int, p_scrap: int,
+func _init(p_id: String, p_name: String, p_cost: int,
 		p_target: CardData.TargetType, p_effects: Array[Dictionary],
 		p_playable: bool = true, p_is_loot: bool = false) -> void:
 	id = p_id
 	display_name = p_name
 	cost = p_cost
-	scrap_value = p_scrap
 	target_type = p_target
 	effects = p_effects
 	playable = p_playable

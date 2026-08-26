@@ -1,11 +1,11 @@
 class_name CardView
 extends PanelContainer
 ## One card in the hand: cost, name, rules text; drag it onto the deck (or a
-## fighter, for targeted cards) to play it, or onto the scrap pile.
+## fighter, for targeted cards) to play it.
 
 var card: CardData
 var battle_ui: Control
-var draggable := false  ## can be picked up at all (to play or to scrap)
+var draggable := false  ## can be picked up to play
 var bright := true      ## affordable right now; dimmed otherwise
 
 
@@ -54,7 +54,7 @@ func _build() -> void:
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(body)
 
-	var foot_text := "scrap: +%d momentum" % card.scrap_value
+	var foot_text := "retained" if card.retained else "discards at turn end"
 	if card.target_type == CardData.TargetType.ENEMY:
 		foot_text = "drag onto an enemy · " + foot_text
 	elif card.target_type == CardData.TargetType.ALLY:

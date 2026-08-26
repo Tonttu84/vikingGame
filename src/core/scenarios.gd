@@ -44,6 +44,7 @@ static func default_skirmish() -> Dictionary:
 		Character.new("e_res1", "Karl Hauk", E, 12, 7, 3, 3, Weapon.spear(), 0),
 		Character.new("e_res2", "Karl Geir", E, 12, 7, 3, 3, Weapon.sword(), 0),
 		Character.new("e_res3", "Karl Bodvar", E, 12, 7, 3, 3, Weapon.axe(), 0),
+		Character.new("e_res5", "Karl Steinn", E, 12, 7, 3, 3, Weapon.spear(), 0),
 		berserker,
 		Character.new("e_res4", "Old Ketil", E, 10, 5, 2, 2, Weapon.sword(), 1),
 	]
