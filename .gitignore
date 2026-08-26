@@ -1,7 +1,9 @@
 # Godot
 .godot/
 *.import
-export_presets.cfg
+
+# Web export output
+build/
 
 # Misc
 *.tmp

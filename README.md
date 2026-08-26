@@ -65,6 +65,12 @@ scripts/sim.sh --n=1 --verbose        # print one battle's turn-by-turn log
 scripts/ui_smoke.sh                   # boot the UI under xvfb and play it by synthetic mouse
 ```
 
+`scripts/export_web.sh` builds `build/sons-of-the-north-web.zip` (first run
+downloads ~1GB of Godot export templates); upload the zip to an unlisted
+itch.io page, kind "HTML", check "This file will be played in the browser" —
+no special header settings needed because the build is single-threaded. CI
+also attaches the zip as a `web-build` artifact on every push.
+
 ## Layout
 
 ```

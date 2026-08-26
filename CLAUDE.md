@@ -65,18 +65,18 @@ artifact hooks (4 artifacts), playable battle UI, and the boarding redesign —
 maneuvers as strategy cards (Grapple & Rush / Dawn Raid / Covering Volley /
 Careful Assault, forced-maneuver win rates 64–73%), deck-driven reinforcement
 (Reinforce/Swap), enemy captain as final reinforcement, repulsed-boarding
-retreat, and the maneuver picker UI (modal at battle start; smoke test picks
-Dawn Raid to prove the choice reaches the engine). `docs/combat-design.md`
-has the full rules and a playtest watchlist.
+retreat, the maneuver picker UI (modal at battle start; smoke test picks
+Dawn Raid to prove the choice reaches the engine), and the web build
+(`scripts/export_web.sh` → itch.io-ready zip, single-threaded so no special
+headers; CI uploads it as the `web-build` artifact; project now runs on the
+Compatibility renderer everywhere). `docs/combat-design.md` has the full
+rules and a playtest watchlist.
 
 Agreed next slices, in rough priority:
-1. **Web build for playtesting** — Godot HTML5 export preset +
-   `scripts/export_web.sh` + CI job; host on itch.io (unlisted) to hand out a
-   link. No server needed; use the Compatibility renderer.
-2. **Hand-model redesign (own slice, do not bundle)** — user leans toward
+1. **Hand-model redesign (own slice, do not bundle)** — user leans toward
    full draw-play-discard-each-turn over the current keep-hand rule; reprices
    every card and the scrap mechanic.
-3. Officer system (prowman is currently just a strong named crewman).
+2. Officer system (prowman is currently just a strong named crewman).
 
 The user prefers being asked (AskUserQuestion) about real design forks with a
 recommendation, rather than having them decided silently; deterministic

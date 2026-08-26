@@ -25,3 +25,26 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri
       - name: UI smoke test (real clicks and drags under xvfb)
         run: scripts/ui_smoke.sh
+
+  export-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.5
+        run: |
+          curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          sudo mv Godot_v4.5-stable_linux.x86_64 /usr/local/bin/godot
+          godot --version
+      - name: Cache export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-4.5-stable
+      - name: Export web build
+        run: scripts/export_web.sh
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/sons-of-the-north-web.zip
