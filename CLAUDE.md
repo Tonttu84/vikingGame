@@ -57,3 +57,27 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
   code; new effect types need tests in `test_cards.gd`.
 - Commit `.uid` files (Godot 4.4+ guidance); never commit `.godot/`.
 - No model identifiers in commits, code, or comments.
+
+## Where we are (keep this section current when finishing a work slice)
+
+Done: headless engine (momentum, morale/routs, deterministic targeting),
+artifact hooks (4 artifacts), playable battle UI, and the boarding redesign —
+maneuvers as strategy cards (Grapple & Rush / Dawn Raid / Covering Volley /
+Careful Assault, forced-maneuver win rates 64–73%), deck-driven reinforcement
+(Reinforce/Swap), enemy captain as final reinforcement, repulsed-boarding
+retreat. `docs/combat-design.md` has the full rules and a playtest watchlist.
+
+Agreed next slices, in rough priority:
+1. **Maneuver picker UI** — engine supports choosing; UI auto-plays the first
+   maneuver, so playtesters never see the choice. Needed before sharing.
+2. **Web build for playtesting** — Godot HTML5 export preset +
+   `scripts/export_web.sh` + CI job; host on itch.io (unlisted) to hand out a
+   link. No server needed; use the Compatibility renderer.
+3. **Hand-model redesign (own slice, do not bundle)** — user leans toward
+   full draw-play-discard-each-turn over the current keep-hand rule; reprices
+   every card and the scrap mechanic.
+4. Officer system (prowman is currently just a strong named crewman).
+
+The user prefers being asked (AskUserQuestion) about real design forks with a
+recommendation, rather than having them decided silently; deterministic
+mechanics over RNG is a standing principle (playtest constants, never dice).
