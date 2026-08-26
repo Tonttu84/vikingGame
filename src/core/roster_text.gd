@@ -39,6 +39,7 @@ static func parse(text: String) -> Dictionary:
 	var deck_section_seen := false
 	var tactics: Array[String] = []
 	var artifacts: Array[ArtifactData] = []
+	var maneuvers: Array[CardData] = []
 	var section := ""
 	var serial := 0
 
@@ -52,7 +53,8 @@ static func parse(text: String) -> Dictionary:
 			section = line.substr(1, line.length() - 2).strip_edges().to_lower()
 			if section == "deck":
 				deck_section_seen = true
-			elif not CHARACTER_SECTIONS.has(section) and section != "tactics" and section != "artifacts":
+			elif not CHARACTER_SECTIONS.has(section) and section != "tactics" \
+					and section != "artifacts" and section != "maneuvers":
 				errors.append("line %d: unknown section [%s]" % [lineno, section])
 				section = ""
 			continue
@@ -72,6 +74,12 @@ static func parse(text: String) -> Dictionary:
 					artifacts.append(artifact)
 				else:
 					errors.append("line %d: unknown artifact '%s' (known: %s)" % [lineno, line, ", ".join(ArtifactLibrary.artifact_ids())])
+			"maneuvers":
+				var maneuver := CardLibrary.maneuver_by_id(line)
+				if maneuver != null:
+					maneuvers.append(maneuver)
+				else:
+					errors.append("line %d: unknown maneuver '%s' (known: %s)" % [lineno, line, ", ".join(CardLibrary.maneuver_ids())])
 			_:
 				serial += 1
 				var c := _parse_character(line, lineno, section, serial, errors)
@@ -83,12 +91,15 @@ static func parse(text: String) -> Dictionary:
 		errors.append("[enemy captain] must hold exactly one character, found %d" % enemy_captains.size())
 	elif enemy_captains.is_empty():
 		errors.append("no [enemy captain] section: the battle needs an enemy captain")
+	# The captain may lead the boarding or wait on his own ship — either
+	# section is fine, but the crew needs exactly one of him.
 	var player_captains := 0
-	for c: Character in rosters["player field"]:
-		if c.is_captain:
-			player_captains += 1
+	for section_name in ["player field", "player reserve"]:
+		for c: Character in rosters[section_name]:
+			if c.is_captain:
+				player_captains += 1
 	if player_captains != 1:
-		errors.append("exactly one [player field] character must carry the 'captain' flag, found %d" % player_captains)
+		errors.append("exactly one player character (field or reserve) must carry the 'captain' flag, found %d" % player_captains)
 
 	var scenario := {
 		"player_field": rosters["player field"],
@@ -99,6 +110,7 @@ static func parse(text: String) -> Dictionary:
 		"deck": deck if deck_section_seen else CardLibrary.starter_deck(),
 		"enemy_tactics": tactics if not tactics.is_empty() else ["press_the_attack"],
 		"artifacts": artifacts,
+		"maneuvers": maneuvers if not maneuvers.is_empty() else CardLibrary.default_maneuvers(),
 	}
 	return {"scenario": scenario, "errors": errors}
 
@@ -129,6 +141,12 @@ static func serialize(scenario: Dictionary) -> String:
 		out.append("[artifacts]")
 		for a: ArtifactData in artifacts:
 			out.append(a.id)
+		out.append("")
+	var maneuvers: Array = scenario.get("maneuvers", [])
+	if not maneuvers.is_empty():
+		out.append("[maneuvers]")
+		for m: CardData in maneuvers:
+			out.append(m.id)
 		out.append("")
 	out.append("[deck]")
 	var order: Array[String] = []

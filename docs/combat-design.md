@@ -12,44 +12,90 @@ captain dies, the run is over. There is always a **retreat** option (cut the
 ropes, fall back to your ship): you keep your survivors, lose the prize and
 some momentum-related reward. Permadeath needs a coward's exit to be fair.
 
-## The battlefield
+## The battlefield: a boarding, not a pitched line
 
-Keep v0 flat and readable — no grid, no lanes yet:
+Keep v0 flat and readable — no grid, no lanes yet — but the shape of the
+fight is a boarding action: a small first wave over the rail into a larger,
+surprised crew, then both sides feeding men in.
 
-- **Your side:** boarding party of up to 6 characters on the field (your
-  captain + 5), plus up to 2 in **reserve** on your own deck.
-- **Their side:** a **field cap** of fielded fighters (e.g. 4), a **reserve
-  pool** behind it (e.g. 6), and the **enemy captain** in a command position
-  at the back.
-- At the end of the enemy turn they **reinforce**: up to 2 reserves step in to
-  refill the field up to the cap.
-- The enemy captain is **exposed** (attackable) when their field drops to ≤ 2,
-  when the reserve pool is empty, or when a card forces it (`Break the Line`,
-  a duel challenge). This creates the central tactical question: kill through
-  the whole crew, break their morale until the line routs, or burst a window
-  open and go straight for the head.
+- **Your side:** a small **first wave** (e.g. 3, chosen before the fight) on
+  their deck, the rest of the crew in **reserve** on your own ship. The rail
+  is a bottleneck: your field is capped (e.g. 5) — you can never stack their
+  deck with your whole crew at once.
+- **Their side:** the defenders are home, so they always field **more than
+  you** at the start (e.g. 5 on deck against your 3) but not their full
+  strength — the watch was surprised. The rest come up from below decks: a
+  **reserve pool** (e.g. 5) refilling their line at a fixed rate (2/turn now;
+  whether 1 or 2 feels right is a playtest question, never a die roll) up to
+  their deck's cap (e.g. 6, always ≥ yours).
+- **The enemy captain is the final reinforcement.** He commands from the
+  stern while he has men to send; when the hold is empty and his line has
+  room, he steps into it himself — attackable, and attacking. Before that he
+  can only be reached when his line thins to ≤ 2 or a card forces a window
+  (`Break the Line`, a duel). The old "exposed when reserves are spent" rule
+  is gone: behind a full line he is safe even with an empty hold.
+- Your reinforcements flow **through the deck**: `Reinforce` fields a man
+  from your ship, `Swap` rotates a wounded fighter out for a fresh one (also
+  how the captain trades places with his prowman — see officers). The
+  1-momentum commit action remains as a slow fallback so a bad hand never
+  strands the first wave alone; whether it survives playtesting is open.
 
 Lanes (2–3 gangplanks with separate fronts) are a v2 idea if the flat field
 feels too mushy. Don't build them speculatively.
 
+## The boarding maneuver
+
+Every battle opens with one free **boarding maneuver** — how you come over
+the rail. Mechanically it is a card (same data, same effect resolver) from a
+separate tiny deck that is set aside once played: functionally a menu,
+code-wise a card, so unlocking new maneuvers later (crew, ship fittings,
+conquests) is just adding cards to that deck. The maneuver is also where the
+opening **momentum surge** comes from — the crash of the boarding IS your
+starting momentum:
+
+| Maneuver | Effect |
+| --- | --- |
+| Grapple & Rush | +5 momentum |
+| Shield Roof | +3 momentum, Shield Wall until your next turn |
+| Screaming Charge | +3 momentum, 1 morale damage to every fielded defender |
+
+The choice is deliberate and deterministic (no draw): pick the maneuver that
+fits this enemy.
+
+## Officers and the prowman (planned)
+
+A few named characters will carry officer roles with outsized effects; the
+one that matters to boarding is the **prowman** (stafnbúi — the prow warrior
+who led the charge). You choose who leads the boarding: the captain up front
+fights and inspires but can die there — game over; the prowman up front
+keeps the captain safe on your ship at the cost of his presence. `Swap`
+trades them mid-fight. HP does not fully heal between a raid's battles, so
+both men's health is managed across the whole raid. (v0: the prowman is just
+a strong named crewman and Swap already works; the formal officer system
+with event rolls comes later.)
+
 ## Turn structure
 
 ```
+BOARDING (once)
+  0. Choose and resolve a boarding maneuver (free card from its own deck).
 PLAYER TURN
   1. Gain +1 momentum. Draw up to hand size (5).
   2. Play any number of cards (pay momentum), and/or
      discard cards for their scrap value (see momentum).
-  3. Commit a reserve to the field (costs 1 momentum), optional.
+  3. Commit a reserve to the field (costs 1 momentum), optional fallback.
   4. Fight: all characters resolve attacks (see character control).
 ENEMY TURN
   5. Enemy tactic resolves (was telegraphed as an intent last turn).
   6. Enemy characters attack.
-  7. Reinforce from reserves; reveal next turn's tactic intent.
+  7. Reinforce from below decks (the captain last); reveal next tactic.
 ```
 
 ## Momentum (the resource)
 
-Momentum is battle tempo — a snowball resource that rewards aggression:
+Momentum is battle tempo — a snowball resource that rewards aggression. The
+boarding maneuver supplies a large opening surge (see above): you start the
+fight rich and act from strength, exactly as a boarder should.
 
 - **+1** at the start of your turn.
 - **+1** per enemy your side kills (including on the enemy's turn).
@@ -110,6 +156,8 @@ Cards come from your captain's skills, crew abilities, ship fittings, and
 | Battle Fury | 1 | A character attacks twice this turn |
 | Feint | 0 | Draw 2 cards |
 | Terrifying Bellow | 1 | 2 morale damage to every fielded enemy |
+| Reinforce | 1 | Field a man from your ship (default: first in reserve) |
+| Swap | 1 | A fielded fighter trades places with one on your ship |
 | War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball) |
 
 Design rules: damage cards should rarely beat just letting characters fight —
@@ -182,12 +230,16 @@ artifacts as debug toggles.
 
 ## Tuning baseline (v0 starting numbers)
 
-Hand 5 · momentum cap 10 · your field 6 + 2 reserve · enemy field 4, reserve
-6, reinforce 2/turn · grunt: 12 HP / 6 morale / 3 Str / speed 3 · enemy
-captain: 25 HP / 5 Str (never routs) · your captain: 20 HP / 4 Str · ally
-death −2 morale to fielded side, rout −1. A fight should run ~6–10 turns and
-a no-card baseline (never playing cards) should be a **narrow loss** — cards
-are the margin of victory.
+Hand 5 · momentum cap 10 · first wave 3, your field cap 5, 5 in reserve ·
+enemy: 5 fielded, cap 6, reserve 5, reinforce 2/turn, captain last · your
+grunts: 12 HP / 6 morale / 3 Str / speed 3; defender grunts steadier at 7
+morale (they are home) · enemy captain: 30 HP / 5 Str (never routs) · your
+captain: 20 HP / 4 Str · ally death −2 morale to fielded side,
+rout −1. A fight should run ~6–10 turns. With reinforcement living in the
+deck, the no-card bot is structurally crippled (it never crosses a second
+man) — it is a floor metric now, expected to lose heavily, not narrowly; the
+tuning target moves to the random card-playing bot sitting near an even
+fight (~50–65% wins).
 
 ## Playtest watchlist (decided, but on probation)
 
@@ -196,10 +248,21 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
 - **Cards-only control** — no manual retargeting. Fallback if fights feel
   like spectating: a generic `Order` (1 momentum: retarget one character).
 - **Keep-hand rule** — hand persists between turns, draw back up to 5.
-  Alternatives if banking cards proves degenerate: hand cap 7 with overflow
-  burn, or full discard-each-turn.
+  Current leaning: full draw-play-discard each turn is probably the more fun
+  loop. That change is its own slice (it reprices every card and the scrap
+  mechanic) — do not bundle it into other work.
 - **Morale cascade tuning** — avalanche routs should be a dramatic
   occasional payoff, not the default way every fight ends.
+- **Momentum storage** — currently unspent momentum carries over in full.
+  Open: decay (lose half at end of turn?) to force spending the boarding
+  surge while it's hot. Undecided by design; try carryover first.
+- **Enemy reinforcement rate** — fixed 2/turn now; try 1/turn. A constant
+  either way, never random.
+- **The commit action** — the 1-momentum manual crossing may be redundant
+  next to Reinforce/Swap cards; keep it until playtests say the deck alone
+  never strands the first wave.
+- **Maneuver choice in the UI** — the engine supports choosing; the UI
+  auto-plays the first maneuver until a picker screen exists.
 
 ## What "fun" means here (evaluation checklist for the prototype)
 

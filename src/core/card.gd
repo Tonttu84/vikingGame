@@ -18,6 +18,9 @@ enum EffectType {
 	EXTRA_ATTACK,              ## targeted ally attacks one extra time this fight phase
 	DRAW,                      ## draw cards
 	WAR_CRY,                   ## +1 extra momentum per enemy killed this turn
+	GAIN_MOMENTUM,             ## +amount momentum (boarding maneuvers, rallying cards)
+	REINFORCE,                 ## field an ally from reserve (target optional; default first)
+	SWAP,                      ## targeted fielded ally trades places with a reserve ally
 }
 
 var id: String

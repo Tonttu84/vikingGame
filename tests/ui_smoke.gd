@@ -42,20 +42,33 @@ func _init() -> void:
 	call_deferred("_run")
 
 
+## The engine paces itself for animations (0.3s beats), so the smoke test
+## waits on conditions, never on fixed frame counts.
+func _await_until(predicate: Callable, what: String, max_frames := 300) -> void:
+	for i in max_frames:
+		if predicate.call():
+			return
+		await process_frame
+	failures.append("timed out waiting for: " + what)
+
+
 func _run() -> void:
 	var scene: PackedScene = load("res://src/ui/battle_ui.tscn")
 	check(scene != null, "battle scene loads")
 	var ui = scene.instantiate()
 	root.add_child(ui)
-	for i in 5:
-		await process_frame
+	await _await_until(func() -> bool:
+		return ui.engine != null and ui.engine.state.turn == 1 and ui._awaiting_action,
+		"battle running (boarding done) and waiting for the player")
 
 	check(ui.engine != null, "engine created")
 	check(ui.engine.state.turn == 1, "battle started on turn 1")
 	check(ui._awaiting_action, "UI is waiting for the player")
+	check(ui.engine.state.boarding_maneuver != null, "a boarding maneuver was played")
+	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
 	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
-	check(ui._player_field_row.get_child_count() == 6, "player field tokens")
-	check(ui._enemy_field_row.get_child_count() == 4, "enemy field tokens")
+	check(ui._player_field_row.get_child_count() == 3, "first wave of 3 on their deck")
+	check(ui._enemy_field_row.get_child_count() == 5, "5 surprised defenders fielded")
 	check(ui._momentum_pips.get_child_count() == 10, "momentum pips")
 
 	# Play a no-target card if one is affordable, exercising the drop path.
@@ -91,12 +104,13 @@ func _run() -> void:
 	var old_engine = ui.engine
 	ui.battle_seed = 777
 	ui.start_battle()
-	for i in 10:
-		await process_frame
+	await _await_until(func() -> bool:
+		return ui.engine != old_engine and ui.engine.state.turn >= 1,
+		"restarted battle running")
 	check(ui.engine != old_engine, "restart builds a fresh engine")
 	check(ui.engine.state.turn >= 1, "restarted battle is running")
-	for i in 60:
-		await process_frame
+	await _await_until(func() -> bool: return ui._awaiting_action,
+		"restarted battle waiting for player input")
 	check(ui._awaiting_action, "restarted battle waits for player input")
 
 	# Roster editing through the debug panel path.

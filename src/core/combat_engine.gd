@@ -31,6 +31,7 @@ var rng := RandomNumberGenerator.new()
 var outcome: Outcome = Outcome.NONE
 var enemy_tactics: Array[String] = []
 var _order_counter := 0
+var _maneuver_shield := false
 
 
 func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
@@ -56,8 +57,33 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	_shuffle(state.deck)
 	enemy_tactics.assign(scenario.get("enemy_tactics", ["press_the_attack"]))
 	state.next_tactic = _pick_tactic()
+	state.maneuvers.assign(scenario.get("maneuvers", []))
 	state.artifacts.assign(scenario.get("artifacts", []))
 	_apply_battle_start_artifacts()
+
+
+## The boarding opens every battle: one free maneuver card from its own tiny
+## deck (then set aside), chosen by the controller — functionally a menu. The
+## maneuver carries the opening momentum surge; no maneuvers configured (bare
+## test scenarios) means no surge.
+func _boarding_phase() -> void:
+	if state.maneuvers.is_empty():
+		return
+	var choice: CardData = state.maneuvers[0]
+	if controller.has_method("choose_maneuver"):
+		choice = await controller.choose_maneuver(state, state.maneuvers)
+		if choice == null or not state.maneuvers.has(choice):
+			choice = state.maneuvers[0]
+	state.boarding_maneuver = choice
+	state.log_event("Boarding: %s!" % choice.display_name)
+	for effect in choice.effects:
+		await _apply_effect(effect, null)
+		if outcome != Outcome.NONE:
+			return
+	# A shield wall raised during the crossing covers the first exchange too:
+	# it survives turn 1's start-of-turn cleanup, unlike a card-raised wall.
+	_maneuver_shield = state.shield_wall_active
+	await _pace()
 
 
 func _apply_battle_start_artifacts() -> void:
@@ -85,14 +111,25 @@ func _apply_battle_start_artifacts() -> void:
 
 
 func run() -> Dictionary:
+	await _boarding_phase()
 	while outcome == Outcome.NONE and state.turn < MAX_TURNS:
 		state.turn += 1
 		await _player_turn()
+		_check_repulsed()
 		if outcome == Outcome.NONE:
 			await _enemy_turn()
+		_check_repulsed()
 	if outcome == Outcome.NONE:
 		outcome = Outcome.STALEMATE
 	return summary()
+
+
+## No boarders left on their deck means the boarding failed: the survivors on
+## your own ship cut the ropes. A retreat, not a defeat — the crew lives.
+func _check_repulsed() -> void:
+	if outcome == Outcome.NONE and state.player_field.is_empty():
+		outcome = Outcome.RETREAT
+		state.log_event("The boarding is repulsed; the ropes are cut.")
 
 
 func summary() -> Dictionary:
@@ -112,7 +149,10 @@ func summary() -> Dictionary:
 
 func _player_turn() -> void:
 	state.scrapped_this_turn = false
-	state.shield_wall_active = false
+	if _maneuver_shield:
+		_maneuver_shield = false
+	else:
+		state.shield_wall_active = false
 	state.war_cry_active = false
 	_gain_momentum(1)
 	_draw_to_hand_size()
@@ -153,7 +193,7 @@ func _enemy_turn() -> void:
 func _apply_action(action: Dictionary) -> void:
 	match action.get("op", "end"):
 		"play":
-			await _play_card(action.get("card"), action.get("target"))
+			await _play_card(action.get("card"), action.get("target"), action.get("second_target"))
 		"scrap":
 			_scrap_card(action.get("card"))
 		"commit":
@@ -163,24 +203,46 @@ func _apply_action(action: Dictionary) -> void:
 			state.log_event("The crew cuts the ropes and falls back.")
 
 
-func _play_card(card: CardData, target: Character) -> void:
+func _play_card(card: CardData, target: Character, second_target: Character = null) -> void:
 	if card == null or not state.hand.has(card) or not card.playable:
 		return
 	if card.cost > state.momentum:
 		return
 	if card.target_type != CardData.TargetType.NONE and target == null:
 		return
+	if not _effect_preconditions_met(card, target):
+		return
 	state.momentum -= card.cost
 	state.hand.erase(card)
 	state.discard.append(card)
 	state.log_event("Played %s." % card.display_name)
 	for effect in card.effects:
-		await _apply_effect(effect, target)
+		await _apply_effect(effect, target, second_target)
 		if outcome != Outcome.NONE:
 			return
 
 
-func _apply_effect(effect: Dictionary, target: Character) -> void:
+## Crossing cards are refused outright (card kept, nothing paid) when they
+## cannot do their job — a fizzled Reinforce would feel like theft.
+func _effect_preconditions_met(card: CardData, target: Character) -> bool:
+	for effect in card.effects:
+		match effect.get("type"):
+			CardData.EffectType.REINFORCE:
+				if state.player_field.size() >= BattleState.PLAYER_FIELD_CAP:
+					return false
+				if state.player_reserve.is_empty():
+					return false
+				if target != null and not state.player_reserve.has(target):
+					return false
+			CardData.EffectType.SWAP:
+				if target == null or not state.player_field.has(target):
+					return false
+				if state.player_reserve.is_empty():
+					return false
+	return true
+
+
+func _apply_effect(effect: Dictionary, target: Character, second_target: Character = null) -> void:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):
 		CardData.EffectType.DAMAGE_ALL_ENEMIES:
@@ -216,6 +278,25 @@ func _apply_effect(effect: Dictionary, target: Character) -> void:
 			_draw(amount)
 		CardData.EffectType.WAR_CRY:
 			state.war_cry_active = true
+		CardData.EffectType.GAIN_MOMENTUM:
+			_gain_momentum(amount)
+		CardData.EffectType.REINFORCE:
+			var crosser := target if target != null else state.player_reserve[0]
+			state.player_reserve.erase(crosser)
+			state.player_field.append(crosser)
+			state.log_event("%s comes over the rail." % crosser.display_name)
+		CardData.EffectType.SWAP:
+			var incoming := second_target \
+					if second_target != null and state.player_reserve.has(second_target) \
+					else state.player_reserve[0]
+			state.player_field.erase(target)
+			state.player_reserve.append(target)
+			target.engaged_with = null
+			state.player_reserve.erase(incoming)
+			state.player_field.append(incoming)
+			incoming.engaged_with = null
+			state.log_event("%s falls back; %s takes his place." %
+					[target.display_name, incoming.display_name])
 
 
 func _scrap_card(card: CardData) -> void:
@@ -230,6 +311,8 @@ func _scrap_card(card: CardData) -> void:
 
 func _commit_reserve(character: Character) -> void:
 	if character == null or not state.player_reserve.has(character):
+		return
+	if state.player_field.size() >= BattleState.PLAYER_FIELD_CAP:
 		return
 	if state.momentum < BattleState.RESERVE_COMMIT_COST:
 		return
@@ -276,6 +359,7 @@ func _attack_order(side: Character.Side) -> Array[Character]:
 			attackers.append(c)
 	if side == Character.Side.ENEMY and state.enemy_captain != null \
 			and state.enemy_captain.is_alive() \
+			and not state.enemy_field.has(state.enemy_captain) \
 			and state.enemy_field.size() <= BattleState.CAPTAIN_EXPOSED_FIELD_SIZE:
 		attackers.append(state.enemy_captain)
 	attackers.sort_custom(func(a: Character, b: Character) -> bool:
@@ -490,7 +574,16 @@ func _reinforce() -> void:
 		var c: Character = state.enemy_reserve.pop_front()
 		state.enemy_field.append(c)
 		moved += 1
-		state.log_event("%s steps over the rail." % c.display_name)
+		state.log_event("%s comes up from below decks." % c.display_name)
+	# The captain is the final reinforcement: he steps in himself only when
+	# the hold was already empty when this step began (moved == 0), so there
+	# is always one full turn between the last man up and the jarl himself.
+	if moved == 0 and state.enemy_reserve.is_empty() \
+			and state.enemy_captain != null and state.enemy_captain.is_alive() \
+			and not state.enemy_field.has(state.enemy_captain) \
+			and state.enemy_field.size() < BattleState.ENEMY_FIELD_CAP:
+		state.enemy_field.append(state.enemy_captain)
+		state.log_event("%s himself steps into the line!" % state.enemy_captain.display_name)
 
 
 # --- Helpers -----------------------------------------------------------------

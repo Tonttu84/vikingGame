@@ -46,13 +46,17 @@ func test_captain_exposed_when_line_thins() -> void:
 	assert_true(eng.state.enemy_captain_targetable(), "field of 2 exposes him")
 
 
-func test_captain_exposed_when_reserves_spent() -> void:
+func test_empty_reserves_no_longer_expose_the_captain() -> void:
 	var cap := TestHelpers.captain_of(E, "cap")
 	var eng := TestHelpers.engine_for({
 		"enemy_field": [TestHelpers.grunt(E, "e1"), TestHelpers.grunt(E, "e2"), TestHelpers.grunt(E, "e3")],
 		"enemy_captain": cap,
 	})
-	assert_true(eng.state.enemy_captain_targetable(), "an empty reserve pool exposes him")
+	assert_false(eng.state.enemy_captain_targetable(),
+			"an empty hold does not expose him behind a 3-man line")
+	eng._reinforce()
+	assert_true(eng.state.enemy_field.has(cap), "instead he joins the line himself")
+	assert_true(eng.state.enemy_captain_targetable(), "and is reachable there")
 
 
 func test_forced_exposure() -> void:

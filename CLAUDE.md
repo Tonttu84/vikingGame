@@ -8,7 +8,7 @@ readable git history matter more than content volume.
 ## Commands
 
 ```sh
-scripts/test.sh                      # unit tests (160+ checks, ~2s)
+scripts/test.sh                      # unit tests (230+ checks, ~2s)
 scripts/sim.sh --n=500 --bot=none    # balance sim, no-card baseline
 scripts/sim.sh --n=1 --verbose       # one battle's full log
 scripts/ui_smoke.sh                  # boot + play the UI under xvfb (~20s)

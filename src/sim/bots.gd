@@ -23,12 +23,20 @@ class RandomBot:
 	func _init(p_rng: RandomNumberGenerator) -> void:
 		rng = p_rng
 
+	func choose_maneuver(_state: BattleState, options: Array[CardData]) -> CardData:
+		return options[rng.randi_range(0, options.size() - 1)]
+
 	func choose_action(state: BattleState) -> Dictionary:
-		# Refill a thinned line first.
-		if state.player_field.size() < 4 and state.momentum >= 2:
-			for c in state.player_reserve:
-				if c.weapon.kind != Weapon.Kind.BOW:
-					return {"op": "commit", "character": c}
+		# Crossing men is the highest priority: play Reinforce whenever the
+		# rail has room, fall back to the momentum commit if the hand lacks one.
+		var can_cross := state.player_field.size() < BattleState.PLAYER_FIELD_CAP \
+				and _has_meleer_in_reserve(state)
+		if can_cross:
+			for card in state.hand:
+				if card.id == "reinforce" and card.cost <= state.momentum:
+					return {"op": "play", "card": card, "target": _crosser_for(state)}
+			if state.player_field.size() < 3 and state.momentum >= 2:
+				return {"op": "commit", "character": _crosser_for(state)}
 		var playable: Array[CardData] = []
 		for card in state.hand:
 			if not card.playable or card.reaction_save or card.cost > state.momentum:
@@ -42,6 +50,15 @@ class RandomBot:
 			return _scrap_or_end(state)
 		var card: CardData = playable[rng.randi_range(0, playable.size() - 1)]
 		return {"op": "play", "card": card, "target": _target_for(card, state)}
+
+	func _has_meleer_in_reserve(state: BattleState) -> bool:
+		return _crosser_for(state) != null
+
+	func _crosser_for(state: BattleState) -> Character:
+		for c in state.player_reserve:
+			if c.weapon.kind != Weapon.Kind.BOW:
+				return c
+		return null
 
 	func choose_reaction_save(_state: BattleState, _dying: Character) -> bool:
 		return true
@@ -66,12 +83,19 @@ class RandomBot:
 			CardData.TargetType.ALLY:
 				var pick: Character = null
 				for c in state.player_field:
-					var wants_heal := card.id == "rally"
-					if wants_heal:
-						if c.hp < c.max_hp and (pick == null or c.hp < pick.hp):
-							pick = c
-					else:
-						if not c.is_captain and (pick == null or c.strength > pick.strength):
-							pick = c
+					match card.id:
+						"rally":
+							if c.hp < c.max_hp and (pick == null or c.hp < pick.hp):
+								pick = c
+						"swap":
+							# Only rotate someone genuinely worn down, and only
+							# if there is a fresh man to bring across.
+							if not c.is_captain and c.hp * 2 < c.max_hp \
+									and not state.player_reserve.is_empty() \
+									and (pick == null or c.hp < pick.hp):
+								pick = c
+						_:
+							if not c.is_captain and (pick == null or c.strength > pick.strength):
+								pick = c
 				return pick
 		return null

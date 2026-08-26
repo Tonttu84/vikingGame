@@ -130,9 +130,14 @@ func test_round_trip_default_skirmish() -> void:
 		assert_eq(scenario[key].size(), reference[key].size(), key + " size")
 	assert_eq(scenario["deck"].size(), reference["deck"].size(), "deck size")
 	assert_eq(scenario["enemy_tactics"], reference["enemy_tactics"], "tactics preserved")
-	var aslak: Character = scenario["player_field"][0]
-	assert_eq(aslak.display_name, "Captain Aslak")
-	assert_true(aslak.is_captain)
+	var sten: Character = scenario["player_field"][0]
+	assert_eq(sten.display_name, "Prowman Sten", "the prowman leads the default first wave")
+	var aslak: Character = null
+	for c: Character in scenario["player_reserve"]:
+		if c.is_captain:
+			aslak = c
+	assert_true(aslak != null and aslak.display_name == "Captain Aslak",
+			"the captain waits on his own ship, captain flag intact")
 
 
 func test_parsed_scenario_runs_a_full_battle() -> void:
