@@ -7,6 +7,7 @@ extends SceneTree
 ## --bot=random (default) plays random affordable cards; --bot=none is the
 ## no-card baseline, which tuning should keep at a narrow loss.
 ## --artifacts=raven_banner,serpent_prow equips artifacts for every battle.
+## --maneuver=dawn_raid forces one boarding maneuver (default: bot picks).
 ## --verbose prints the full battle log of the first battle.
 
 
@@ -16,6 +17,7 @@ func _init() -> void:
 	var base_seed := 1
 	var verbose := false
 	var artifact_ids: Array[String] = []
+	var maneuver_id := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--n="):
 			n = int(arg.trim_prefix("--n="))
@@ -30,6 +32,12 @@ func _init() -> void:
 					quit(2)
 					return
 				artifact_ids.append(id)
+		elif arg.begins_with("--maneuver="):
+			maneuver_id = arg.trim_prefix("--maneuver=")
+			if CardLibrary.maneuver_by_id(maneuver_id) == null:
+				push_error("unknown maneuver '%s' (known: %s)" % [maneuver_id, ", ".join(CardLibrary.maneuver_ids())])
+				quit(2)
+				return
 		elif arg == "--verbose":
 			verbose = true
 
@@ -50,6 +58,9 @@ func _init() -> void:
 		for id in artifact_ids:
 			artifacts.append(ArtifactLibrary.by_id(id))
 		scenario["artifacts"] = artifacts
+		if maneuver_id != "":
+			var forced: Array[CardData] = [CardLibrary.maneuver_by_id(maneuver_id)]
+			scenario["maneuvers"] = forced
 		engine.setup(scenario, bot, base_seed + i)
 		var result: Dictionary = await engine.run()
 		if verbose and i == 0:

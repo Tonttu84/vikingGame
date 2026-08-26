@@ -280,6 +280,38 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 			state.war_cry_active = true
 		CardData.EffectType.GAIN_MOMENTUM:
 			_gain_momentum(amount)
+		CardData.EffectType.SEND_DEFENDERS_BELOW:
+			for i in amount:
+				if state.enemy_field.size() <= 1:
+					break
+				var sleeper: Character = state.enemy_field.pop_back()
+				state.enemy_reserve.append(sleeper)
+				# Dragged from their hammocks: they return to the fight shaken.
+				if not sleeper.morale_immune():
+					sleeper.morale = maxi(1, sleeper.morale - 2)
+				state.log_event("%s is caught below decks by the surprise." % sleeper.display_name)
+		CardData.EffectType.DEFENDERS_FORM_UP:
+			# Their deck, their home: forming up may crowd past the field cap.
+			for i in amount:
+				if state.enemy_reserve.is_empty():
+					break
+				var ready: Character = state.enemy_reserve.pop_front()
+				state.enemy_field.append(ready)
+				state.log_event("%s has time to form up against the slow crossing." % ready.display_name)
+		CardData.EffectType.ARCHER_SUPPORT:
+			state.archer_support_damage = amount
+			state.log_event("Your archers hold the rail, bows drawn.")
+		CardData.EffectType.PLAYER_ARMOR_BONUS:
+			state.player_armor_bonus += amount
+		CardData.EffectType.ENEMY_MORALE_BONUS:
+			for c in state.enemy_field:
+				if not c.morale_immune():
+					c.max_morale += amount
+					c.morale += amount
+			for c in state.enemy_reserve:
+				if not c.morale_immune():
+					c.max_morale += amount
+					c.morale += amount
 		CardData.EffectType.REINFORCE:
 			var crosser := target if target != null else state.player_reserve[0]
 			state.player_reserve.erase(crosser)
@@ -325,6 +357,10 @@ func _commit_reserve(character: Character) -> void:
 # --- Fighting ----------------------------------------------------------------
 
 func _fight_phase(side: Character.Side) -> void:
+	if side == Character.Side.PLAYER:
+		await _archer_support_volley()
+		if outcome != Outcome.NONE:
+			return
 	var attackers := _attack_order(side)
 	for attacker in attackers:
 		if outcome != Outcome.NONE:
@@ -341,6 +377,24 @@ func _fight_phase(side: Character.Side) -> void:
 				break
 			await _attack(attacker, target)
 			await _pace()
+
+
+## Covering Volley: the archers on your rail open every player fight phase
+## with true damage to the lowest-HP fielded defender (spawn-order tiebreak).
+## They hold fire during a duel — no one may interfere.
+func _archer_support_volley() -> void:
+	if state.archer_support_damage <= 0 or state.duel_active:
+		return
+	var target: Character = null
+	for c in state.enemy_field:
+		if c.is_alive() and (target == null or c.hp < target.hp \
+				or (c.hp == target.hp and c.order_id < target.order_id)):
+			target = c
+	if target == null:
+		return
+	state.log_event("Arrows from your rail find %s." % target.display_name)
+	await _deal_true_damage(target, state.archer_support_damage)
+	await _pace()
 
 
 ## Deterministic resolution order: speed descending, spawn order as tiebreak.
@@ -425,6 +479,8 @@ func _attack(attacker: Character, defender: Character) -> void:
 	var dmg := attacker.damage_against(defender)
 	if defender.side == Character.Side.PLAYER and state.shield_wall_active:
 		dmg = maxi(1, dmg - 2)
+	if defender.side == Character.Side.PLAYER and state.player_armor_bonus > 0:
+		dmg = maxi(1, dmg - state.player_armor_bonus)
 	attacker.engaged_with = defender
 	if defender.engaged_with == null or not defender.engaged_with.is_alive():
 		defender.engaged_with = attacker

@@ -21,6 +21,12 @@ enum EffectType {
 	GAIN_MOMENTUM,             ## +amount momentum (boarding maneuvers, rallying cards)
 	REINFORCE,                 ## field an ally from reserve (target optional; default first)
 	SWAP,                      ## targeted fielded ally trades places with a reserve ally
+	SEND_DEFENDERS_BELOW,      ## amount fielded enemies go to the BACK of their reserve
+	DEFENDERS_FORM_UP,         ## amount enemy reserves are fielded immediately
+	ARCHER_SUPPORT,            ## battle-long: each player fight phase opens with an
+	                           ## arrow volley, amount true damage to the lowest-HP defender
+	PLAYER_ARMOR_BONUS,        ## battle-long: your side takes -amount per hit
+	ENEMY_MORALE_BONUS,        ## +amount morale (and cap) for the whole enemy crew
 }
 
 var id: String

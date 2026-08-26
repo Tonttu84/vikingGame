@@ -37,6 +37,10 @@ var artifacts: Array[ArtifactData] = []
 ## The boarding-maneuver options for this battle and the one that was played.
 var maneuvers: Array[CardData] = []
 var boarding_maneuver: CardData = null
+## Battle-long maneuver effects: arrows from your rail each player fight
+## phase (0 = none), and flat damage reduction for your whole side.
+var archer_support_damage := 0
+var player_armor_bonus := 0
 ## Remaining player-side death waves the Raven Banner will swallow.
 var death_wave_suppressions := 0
 

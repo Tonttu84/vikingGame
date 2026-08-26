@@ -38,29 +38,32 @@ func test_default_maneuver_grants_opening_momentum() -> void:
 
 func test_controller_chooses_the_maneuver() -> void:
 	var bot := ManeuverBot.new()
-	bot.pick_id = "shield_roof"
+	bot.pick_id = "careful_assault"
 	var crew := TestHelpers.grunt(P, "crew")
 	var eng := TestHelpers.engine_for({
 		"player_field": [crew],
-		"maneuvers": [CardLibrary.maneuver_by_id("grapple_rush"), CardLibrary.maneuver_by_id("shield_roof")],
+		"maneuvers": [CardLibrary.maneuver_by_id("grapple_rush"), CardLibrary.maneuver_by_id("careful_assault")],
 	}, bot)
 	await eng._boarding_phase()
-	assert_eq(eng.state.momentum, 3, "shield roof trades surge for cover")
-	assert_true(eng.state.shield_wall_active, "the roof is up for turn 1")
+	assert_eq(eng.state.momentum, 2, "careful assault trades most of the surge for protection")
+	assert_eq(eng.state.player_armor_bonus, 1, "the protection is battle-long armor, not a wall")
 
 
-func test_shield_roof_survives_turn_one() -> void:
-	var bot := ManeuverBot.new()
-	bot.pick_id = "shield_roof"
+func test_maneuver_shield_wall_survives_turn_one() -> void:
+	# No stock maneuver raises a wall right now; the engine mechanism must
+	# still hold for future ones, so test it with a handmade maneuver card.
+	var walled := CardData.new("test_walled_landing", "Walled Landing", 0, 0,
+			CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2}])
 	var crew := TestHelpers.grunt(P, "crew")
 	var eng := TestHelpers.engine_for({
 		"player_field": [crew],
-		"maneuvers": [CardLibrary.maneuver_by_id("shield_roof")],
-	}, bot)
+		"maneuvers": [walled],
+	})
 	await eng._boarding_phase()
 	eng.state.turn = 1
 	await eng._player_turn()
-	assert_true(eng.state.shield_wall_active, "the roof covers the crossing AND the first exchange")
+	assert_true(eng.state.shield_wall_active, "the wall covers the crossing AND the first exchange")
 	eng.state.turn = 2
 	await eng._player_turn()
 	assert_false(eng.state.shield_wall_active, "then it comes down as usual")
@@ -87,14 +90,90 @@ func test_no_maneuvers_means_no_surge() -> void:
 	assert_eq(eng.state.momentum, 0, "bare scenarios (unit tests) start cold")
 
 
-func test_screaming_charge_frightens_defenders() -> void:
+func test_dawn_raid_sends_defenders_below() -> void:
 	var e1 := TestHelpers.grunt(E, "e1")
+	var e2 := TestHelpers.grunt(E, "e2")
+	var e3 := TestHelpers.grunt(E, "e3")
+	var e4 := TestHelpers.grunt(E, "e4")
+	var r1 := TestHelpers.grunt(E, "r1")
 	var eng := TestHelpers.engine_for({
-		"enemy_field": [e1],
-		"maneuvers": [CardLibrary.maneuver_by_id("screaming_charge")],
+		"enemy_field": [e1, e2, e3, e4],
+		"enemy_reserve": [r1],
+		"maneuvers": [CardLibrary.maneuver_by_id("dawn_raid")],
 	})
 	await eng._boarding_phase()
-	assert_eq(e1.morale, 5, "1 morale damage as the screamers come over the rail")
+	assert_eq(eng.state.momentum, 4)
+	assert_eq(eng.state.enemy_field.size(), 1, "the surprised watch is 3 men thinner")
+	assert_true(eng.state.enemy_field.has(e1), "the front of their line stays")
+	assert_eq(eng.state.enemy_reserve.size(), 4, "nobody vanishes: they went below")
+	assert_eq(eng.state.enemy_reserve[0], r1,
+			"the sleepers join the BACK of the queue - delayed, not deleted")
+	assert_eq(e4.morale, 4, "dragged from his hammock: -2 morale")
+	assert_eq(e1.morale, 6, "the man still on watch is unshaken")
+
+
+func test_covering_volley_shoots_every_player_phase() -> void:
+	var archer_fodder := TestHelpers.grunt(P, "p1", 12, 6, 1, 3)
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var e2 := TestHelpers.grunt(E, "e2", 5)
+	var eng := TestHelpers.engine_for({
+		"player_field": [archer_fodder],
+		"enemy_field": [e1, e2],
+		"maneuvers": [CardLibrary.maneuver_by_id("covering_volley")],
+	})
+	await eng._boarding_phase()
+	assert_eq(eng.state.momentum, 2)
+	await eng._fight_phase(P)
+	assert_eq(e2.hp, 3, "the volley picks the lowest-HP defender, true damage")
+	await eng._fight_phase(P)
+	assert_eq(e2.hp, 1, "and looses again every player fight phase")
+
+
+func test_covering_volley_holds_fire_during_a_duel() -> void:
+	var cap := TestHelpers.captain_of(P, "cap")
+	var ecap := TestHelpers.captain_of(E, "ecap", 30)
+	var e1 := TestHelpers.grunt(E, "e1", 5)
+	var eng := TestHelpers.engine_for({
+		"player_field": [cap],
+		"enemy_field": [e1],
+		"enemy_captain": ecap,
+		"maneuvers": [CardLibrary.maneuver_by_id("covering_volley")],
+	})
+	await eng._boarding_phase()
+	eng.state.duel_active = true
+	await eng._fight_phase(P)
+	assert_eq(e1.hp, 5, "no one may interfere in a duel, archers included")
+
+
+func test_careful_assault_armors_the_crew() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1", 12, 6, 3, 3, Weapon.sword(), 0)
+	var eng := TestHelpers.engine_for({
+		"player_field": [p1],
+		"enemy_field": [e1],
+		"maneuvers": [CardLibrary.maneuver_by_id("careful_assault")],
+	})
+	await eng._boarding_phase()
+	assert_eq(eng.state.player_armor_bonus, 1)
+	await eng._attack(e1, p1)
+	assert_eq(p1.hp, 12 - 4, "5 damage, -1 careful armor, every hit, all battle")
+
+
+func test_careful_assault_lets_defenders_form_up() -> void:
+	var e1 := TestHelpers.grunt(E, "e1")
+	var r1 := TestHelpers.grunt(E, "r1")
+	var r2 := TestHelpers.grunt(E, "r2")
+	var eng := TestHelpers.engine_for({
+		"enemy_field": [e1],
+		"enemy_reserve": [r1, r2],
+		"maneuvers": [CardLibrary.maneuver_by_id("careful_assault")],
+	})
+	await eng._boarding_phase()
+	assert_eq(eng.state.enemy_field.size(), 3, "a slow crossing: two extra defenders are ready")
+	assert_true(eng.state.enemy_field.has(r1))
+	assert_true(eng.state.enemy_field.has(r2), "forming up may crowd past their field cap")
+	assert_eq(e1.morale, 7, "and nobody is frightened: the watch stands composed")
+	assert_eq(r2.morale, 7, "the whole crew is composed")
 
 
 func test_reinforce_card_fields_first_reserve_by_default() -> void:

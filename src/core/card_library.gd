@@ -90,27 +90,40 @@ static func grapple_rush() -> CardData:
 			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 5}])
 
 
-static func shield_roof() -> CardData:
-	return CardData.new("shield_roof", "Shield Roof", 0, 0, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
-			{"type": CardData.EffectType.SHIELD_WALL, "amount": 2}])
+static func dawn_raid() -> CardData:
+	return CardData.new("dawn_raid", "Dawn Raid", 0, 0, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 4},
+			{"type": CardData.EffectType.SEND_DEFENDERS_BELOW, "amount": 3}])
 
 
-static func screaming_charge() -> CardData:
-	return CardData.new("screaming_charge", "Screaming Charge", 0, 0, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
-			{"type": CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES, "amount": 1}])
+static func covering_volley() -> CardData:
+	return CardData.new("covering_volley", "Covering Volley", 0, 0, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 2},
+			{"type": CardData.EffectType.ARCHER_SUPPORT, "amount": 2}])
+
+
+static func careful_assault() -> CardData:
+	# A shieldwall-like bonus that lasts the whole battle: -1 damage on every
+	# hit your side takes. The price: a small surge, extra defenders ready at
+	# the rail, and nobody is frightened by a slow, orderly assault — the
+	# watch stands composed (+1 morale), blunting the rout cascades.
+	return CardData.new("careful_assault", "Careful Assault", 0, 0, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 2},
+			{"type": CardData.EffectType.PLAYER_ARMOR_BONUS, "amount": 1},
+			{"type": CardData.EffectType.DEFENDERS_FORM_UP, "amount": 2},
+			{"type": CardData.EffectType.ENEMY_MORALE_BONUS, "amount": 1}])
 
 
 static func maneuver_ids() -> Array[String]:
-	return ["grapple_rush", "shield_roof", "screaming_charge"]
+	return ["grapple_rush", "dawn_raid", "covering_volley", "careful_assault"]
 
 
 static func maneuver_by_id(p_id: String) -> CardData:
 	match p_id:
 		"grapple_rush": return grapple_rush()
-		"shield_roof": return shield_roof()
-		"screaming_charge": return screaming_charge()
+		"dawn_raid": return dawn_raid()
+		"covering_volley": return covering_volley()
+		"careful_assault": return careful_assault()
 	return null
 
 

@@ -53,14 +53,21 @@ conquests) is just adding cards to that deck. The maneuver is also where the
 opening **momentum surge** comes from — the crash of the boarding IS your
 starting momentum:
 
+Maneuvers are strategies, not stat packets — each changes how the whole
+battle plays (one plain-bonus option is allowed):
+
 | Maneuver | Effect |
 | --- | --- |
-| Grapple & Rush | +5 momentum |
-| Shield Roof | +3 momentum, Shield Wall until your next turn |
-| Screaming Charge | +3 momentum, 1 morale damage to every fielded defender |
+| Grapple & Rush | +5 momentum. The vanilla crash. |
+| Dawn Raid | +4 momentum; 3 defenders are caught below decks — they rejoin the BACK of their reserve queue, shaken (−2 morale). Their line is briefly thinner than your wave. |
+| Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with 2 true damage to the lowest-HP fielded defender, all battle. They hold fire during a duel. |
+| Careful Assault | +2 momentum; a shieldwall-like discipline: your side takes −1 damage from every hit, all battle. Drawback: 2 extra defenders have time to form up (their deck — this may crowd past their field cap) and the watch stands composed (+1 morale, blunting rout cascades). |
 
 The choice is deliberate and deterministic (no draw): pick the maneuver that
-fits this enemy.
+fits this enemy. Forced-maneuver sims (400 battles each, random bot) sit at
+63.8 / 65.2 / 67.5 / 73.2% — close enough that no pick is trivial, and the
+bot understates the real differences since it can't exploit synergies (a
+human bursts Dawn Raid's briefly-exposed captain on turn 1).
 
 ## Officers and the prowman (planned)
 
