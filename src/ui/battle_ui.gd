@@ -38,6 +38,8 @@ var _outcome_layer: Control
 var _outcome_title: Label
 var _outcome_body: Label
 var _outcome_again: Button
+var _maneuver_layer: Control
+var _maneuver_options: HBoxContainer
 var _debug_panel: DebugPanel
 
 
@@ -57,6 +59,7 @@ func start_battle() -> void:
 		_debug_panel.show_errors(parsed["errors"])
 		return
 	_outcome_layer.visible = false
+	_maneuver_layer.visible = false
 	_log_lines_shown = 0
 	_log_text.clear()
 	_awaiting_action = false
@@ -84,6 +87,16 @@ func _exit_tree() -> void:
 
 
 # --- Controller callbacks (engine is parked awaiting our signals) ------------
+
+func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
+	_turn_label.text = "The boarding — how do you come over the rail?"
+	refresh(state)
+	for child in _maneuver_options.get_children():
+		child.queue_free()
+	for maneuver in options:
+		_maneuver_options.add_child(_maneuver_option(maneuver))
+	_maneuver_layer.visible = true
+
 
 func on_player_decision_start(state: BattleState) -> void:
 	_awaiting_action = true
@@ -114,6 +127,18 @@ func submit(action: Dictionary) -> void:
 
 func _emit_action(action: Dictionary) -> void:
 	controller.action_submitted.emit(action)
+
+
+func _pick_maneuver(card: CardData) -> void:
+	if not _maneuver_layer.visible:
+		return
+	_maneuver_layer.visible = false
+	# Deferred so the engine resumes outside the button-pressed callback.
+	_emit_maneuver.call_deferred(card)
+
+
+func _emit_maneuver(card: CardData) -> void:
+	controller.maneuver_submitted.emit(card)
 
 
 # --- Card drops --------------------------------------------------------------
@@ -279,6 +304,10 @@ func _active_effects(state: BattleState) -> Array[String]:
 		chips.append("War Cry — kills pay double")
 	if state.surge_active:
 		chips.append("Enemy surge!")
+	if state.archer_support_damage > 0:
+		chips.append("Archers on the rail")
+	if state.player_armor_bonus > 0:
+		chips.append("Careful advance — hits softened")
 	return chips
 
 
@@ -355,6 +384,7 @@ func _build_layout() -> void:
 
 	_build_dialogs()
 	_build_outcome_layer()
+	_build_maneuver_layer()
 	_debug_panel = DebugPanel.create(self)
 	add_child(_debug_panel)
 
@@ -608,6 +638,68 @@ func _build_outcome_layer() -> void:
 		start_battle())
 	buttons.add_child(new_seed)
 	box.add_child(buttons)
+
+
+## The boarding maneuver is chosen before turn 1 on a modal layer: one panel
+## per maneuver, whole battle visible dimmed behind it. Options are rebuilt
+## from the engine's list each battle, so unlocking maneuvers later is free.
+func _build_maneuver_layer() -> void:
+	_maneuver_layer = Control.new()
+	_maneuver_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_maneuver_layer.visible = false
+	add_child(_maneuver_layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_maneuver_layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_maneuver_layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.SEA, UIPalette.GOLD, 2, 10))
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := UIPalette.label("How do you come over the rail?", 26, UIPalette.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var subtitle := UIPalette.label(
+			"The maneuver sets your opening surge — and how the whole battle plays.",
+			UIPalette.FONT_BODY, UIPalette.PARCHMENT_DIM)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(subtitle)
+	_maneuver_options = HBoxContainer.new()
+	_maneuver_options.alignment = BoxContainer.ALIGNMENT_CENTER
+	_maneuver_options.add_theme_constant_override("separation", 10)
+	box.add_child(_maneuver_options)
+
+
+func _maneuver_option(maneuver: CardData) -> Control:
+	var option := PanelContainer.new()
+	var style := UIPalette.panel(UIPalette.PARCHMENT, UIPalette.GOLD, 2, 8)
+	style.set_content_margin_all(10)
+	option.add_theme_stylebox_override("panel", style)
+	option.custom_minimum_size = Vector2(230, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	option.add_child(box)
+	var name_label := UIPalette.label(maneuver.display_name, UIPalette.FONT_TITLE, UIPalette.SEA_DARK)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(name_label)
+	var body := UIPalette.label(CardText.describe(maneuver), UIPalette.FONT_SMALL,
+			UIPalette.SEA_DARK.lightened(0.12))
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(body)
+	var choose := Button.new()
+	choose.text = "Board this way"
+	choose.pressed.connect(func() -> void: _pick_maneuver(maneuver))
+	box.add_child(choose)
+	# The smoke test finds options by id and presses their button.
+	option.set_meta("maneuver_id", maneuver.id)
+	option.set_meta("button", choose)
+	return option
 
 
 ## Scrap drop target: one card a turn becomes momentum.

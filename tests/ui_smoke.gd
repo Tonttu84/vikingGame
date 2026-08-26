@@ -42,6 +42,15 @@ func _init() -> void:
 	call_deferred("_run")
 
 
+## Press the choose button on the picker option for the given maneuver id.
+func _press_maneuver(ui, maneuver_id: String) -> void:
+	for option in ui._maneuver_options.get_children():
+		if option.get_meta("maneuver_id", "") == maneuver_id:
+			(option.get_meta("button") as Button).pressed.emit()
+			return
+	failures.append("maneuver option not found: " + maneuver_id)
+
+
 ## The engine paces itself for animations (0.3s beats), so the smoke test
 ## waits on conditions, never on fixed frame counts.
 func _await_until(predicate: Callable, what: String, max_frames := 300) -> void:
@@ -57,18 +66,33 @@ func _run() -> void:
 	check(scene != null, "battle scene loads")
 	var ui = scene.instantiate()
 	root.add_child(ui)
+
+	# The battle parks on the maneuver picker before turn 1.
 	await _await_until(func() -> bool:
-		return ui.engine != null and ui.engine.state.turn == 1 and ui._awaiting_action,
+		return ui.engine != null and ui._maneuver_layer.visible,
+		"maneuver picker shown")
+	check(ui.engine != null, "engine created")
+	check(ui.engine.state.boarding_maneuver == null, "nothing auto-played before the pick")
+	check(ui._maneuver_options.get_child_count() == 4,
+			"4 maneuvers offered, saw %d" % ui._maneuver_options.get_child_count())
+	# Pick Dawn Raid — NOT the engine's first-option fallback — to prove the
+	# player's choice reaches the engine.
+	_press_maneuver(ui, "dawn_raid")
+	await _await_until(func() -> bool:
+		return ui.engine.state.turn == 1 and ui._awaiting_action,
 		"battle running (boarding done) and waiting for the player")
 
-	check(ui.engine != null, "engine created")
 	check(ui.engine.state.turn == 1, "battle started on turn 1")
 	check(ui._awaiting_action, "UI is waiting for the player")
-	check(ui.engine.state.boarding_maneuver != null, "a boarding maneuver was played")
+	check(not ui._maneuver_layer.visible, "picker hidden after the pick")
+	check(ui.engine.state.boarding_maneuver != null
+			and ui.engine.state.boarding_maneuver.id == "dawn_raid",
+			"Dawn Raid is the maneuver that resolved")
 	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
 	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
 	check(ui._player_field_row.get_child_count() == 3, "first wave of 3 on their deck")
-	check(ui._enemy_field_row.get_child_count() == 5, "5 surprised defenders fielded")
+	check(ui._enemy_field_row.get_child_count() == 2,
+			"Dawn Raid caught 3 of 5 defenders below decks, saw %d fielded" % ui._enemy_field_row.get_child_count())
 	check(ui._momentum_pips.get_child_count() == 10, "momentum pips")
 
 	# Play a no-target card if one is affordable, exercising the drop path.
@@ -100,17 +124,19 @@ func _run() -> void:
 			"turns advance through the UI controller, saw %s" % str(turns_seen))
 	check(ui._log_lines_shown > 0, "battle log rendered lines")
 
-	# Debug restart with a different seed mid-battle.
+	# Debug restart with a different seed mid-battle: back to the picker.
 	var old_engine = ui.engine
 	ui.battle_seed = 777
 	ui.start_battle()
 	await _await_until(func() -> bool:
-		return ui.engine != old_engine and ui.engine.state.turn >= 1,
-		"restarted battle running")
+		return ui.engine != old_engine and ui._maneuver_layer.visible,
+		"restarted battle offers the maneuver picker")
 	check(ui.engine != old_engine, "restart builds a fresh engine")
-	check(ui.engine.state.turn >= 1, "restarted battle is running")
-	await _await_until(func() -> bool: return ui._awaiting_action,
+	_press_maneuver(ui, "grapple_rush")
+	await _await_until(func() -> bool:
+		return ui.engine.state.turn >= 1 and ui._awaiting_action,
 		"restarted battle waiting for player input")
+	check(ui.engine.state.turn >= 1, "restarted battle is running")
 	check(ui._awaiting_action, "restarted battle waits for player input")
 
 	# Roster editing through the debug panel path.

@@ -38,7 +38,13 @@ controller that the rules engine politely waits on. A debug drawer restarts
 any battle from a seed and lets you edit the whole setup (rosters, deck,
 enemy tactics) as plain text.
 
+Every battle now opens with the boarding-maneuver choice: four strategies for
+coming over the rail, each reshaping the whole fight, picked from a modal
+screen with the enemy line visible behind it.
+
 ![The battle table, mid-fight](docs/screenshots/battle.png)
+
+![Choosing the boarding maneuver](docs/screenshots/maneuver_picker.png)
 
 ![The debug drawer](docs/screenshots/debug_panel.png)
 

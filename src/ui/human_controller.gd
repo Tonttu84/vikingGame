@@ -7,6 +7,7 @@ extends RefCounted
 
 signal action_submitted(action: Dictionary)
 signal reaction_submitted(save: bool)
+signal maneuver_submitted(card: CardData)
 
 const PACE_SECONDS := 0.3
 
@@ -16,6 +17,14 @@ var aborted := false
 
 func _init(p_ui: Control) -> void:
 	ui = p_ui
+
+
+func choose_maneuver(state: BattleState, options: Array[CardData]) -> CardData:
+	if aborted:
+		return options[0]
+	ui.on_maneuver_prompt(state, options)
+	var choice: CardData = await maneuver_submitted
+	return choice
 
 
 func choose_action(state: BattleState) -> Dictionary:
@@ -47,5 +56,6 @@ func abort() -> void:
 	if aborted:
 		return
 	aborted = true
+	maneuver_submitted.emit(null)  # engine falls back to the first maneuver
 	action_submitted.emit({"op": "retreat"})
 	reaction_submitted.emit(false)

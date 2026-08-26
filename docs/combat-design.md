@@ -268,8 +268,6 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
 - **The commit action** — the 1-momentum manual crossing may be redundant
   next to Reinforce/Swap cards; keep it until playtests say the deck alone
   never strands the first wave.
-- **Maneuver choice in the UI** — the engine supports choosing; the UI
-  auto-plays the first maneuver until a picker screen exists.
 
 ## What "fun" means here (evaluation checklist for the prototype)
 

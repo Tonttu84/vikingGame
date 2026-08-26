@@ -42,6 +42,19 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "Draw %d cards." % amount
 		CardData.EffectType.WAR_CRY:
 			return "Gain 1 extra momentum for each enemy slain this turn."
+		CardData.EffectType.GAIN_MOMENTUM:
+			return "Gain %d momentum." % amount
+		CardData.EffectType.SEND_DEFENDERS_BELOW:
+			return "%d defenders are caught below decks — back of their reserve queue, shaken." % amount
+		CardData.EffectType.ARCHER_SUPPORT:
+			return ("All battle: your rail archers open each of your fight phases with " +
+					"%d true damage to the weakest fielded defender. They hold fire during a duel.") % amount
+		CardData.EffectType.PLAYER_ARMOR_BONUS:
+			return "All battle: your side takes %d less from every hit." % amount
+		CardData.EffectType.DEFENDERS_FORM_UP:
+			return "%d extra defenders have time to form up at the rail." % amount
+		CardData.EffectType.ENEMY_MORALE_BONUS:
+			return "The watch stands composed: every defender gains %d morale." % amount
 	return ""
 
 
