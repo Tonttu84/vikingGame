@@ -12,7 +12,11 @@ scripts/test.sh                      # unit tests (230+ checks, ~2s)
 scripts/sim.sh --n=500 --bot=none    # balance sim, no-card baseline
 scripts/sim.sh --n=1 --verbose       # one battle's full log
 scripts/ui_smoke.sh                  # boot + play the UI under xvfb (~20s)
+make serve                           # web build + playtest at localhost:8060
 ```
+
+Makefile targets wrap the scripts: `make test / sim ARGS=... / smoke / web /
+serve PORT=...`.
 
 If `godot` is missing (fresh container): download 4.5-stable linux from
 GitHub releases, unzip to /usr/local/bin/godot. Run `godot --headless
