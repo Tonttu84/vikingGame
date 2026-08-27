@@ -275,6 +275,8 @@ func _fill_enemy_reserve(state: BattleState) -> void:
 		var chip := "%s — %d HP · %s" % [c.display_name, c.hp, c.weapon.display_name]
 		if c.is_berserker:
 			chip += " · berserker"
+		if c.is_shieldman:
+			chip += " · shieldman"
 		_enemy_reserve_list.add_child(UIPalette.label(chip, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
 
 

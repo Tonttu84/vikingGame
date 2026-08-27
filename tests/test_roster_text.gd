@@ -69,6 +69,17 @@ func test_berserker_flag_and_reserves() -> void:
 	assert_true(glum.morale_immune())
 
 
+func test_shieldman_flag_parses_and_serializes() -> void:
+	var text := MINIMAL + "\n[player reserve]\nShield-bearer Ulf | hp 14 | morale 7 | str 2 | speed 2 | sword | armor 2 | shieldman\n"
+	var result := RosterText.parse(text)
+	assert_eq(result["errors"], [] as Array[String])
+	var ulf: Character = result["scenario"]["player_reserve"][0]
+	assert_true(ulf.is_shieldman)
+	var reparsed := RosterText.parse(RosterText.serialize(result["scenario"]))
+	assert_true(reparsed["scenario"]["player_reserve"][0].is_shieldman,
+			"the flag survives a round trip")
+
+
 func test_deck_section_builds_deck_by_card_id() -> void:
 	var text := MINIMAL + "\n[deck]\n2x spear_volley\nrally\n"
 	var result := RosterText.parse(text)

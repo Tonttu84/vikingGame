@@ -17,8 +17,9 @@ extends RefCounted
 ##
 ## Stat tokens may appear in any order and fall back to a standard grunt
 ## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. Flags:
-## `captain` (player side; the enemy captain has its own section) and
-## `berserker`. Field sections also take a slot token — `f1`..`f4` for the
+## `captain` (player side; the enemy captain has its own section),
+## `berserker` and `shieldman`. Field sections also take a slot token —
+## `f1`..`f4` for the
 ## front line, `b1`..`b4` for the second — naming the grid slot the man
 ## starts in; without one he auto-places front-left first. Lines starting
 ## with # and blank lines are ignored.
@@ -192,6 +193,8 @@ static func _character_line(c: Character, is_captain_section := false) -> String
 		parts.append("captain")
 	if c.is_berserker:
 		parts.append("berserker")
+	if c.is_shieldman:
+		parts.append("shieldman")
 	if c.deploy_slot >= 0:
 		parts.append(_slot_name(c.deploy_slot))
 	return " | ".join(parts)
@@ -209,6 +212,7 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 	var weapon: Weapon = null
 	var is_captain := false
 	var is_berserker := false
+	var is_shieldman := false
 	var deploy_slot := -1
 	# Token errors are reported but the character is still built with what
 	# parsed, so one typo doesn't cascade into missing-captain errors.
@@ -228,13 +232,15 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 			is_captain = true
 		elif token == "berserker":
 			is_berserker = true
+		elif token == "shieldman":
+			is_shieldman = true
 		elif _parse_slot_token(token) != -1:
 			if section == "player field" or section == "enemy field":
 				deploy_slot = _parse_slot_token(token)
 			else:
 				errors.append("line %d: slot '%s' means nothing in [%s] — only fielded men stand on the grid" % [lineno, token, section])
 		else:
-			errors.append("line %d: unknown token '%s' (stats, a weapon, a slot like f2/b3, 'captain' or 'berserker')" % [lineno, token])
+			errors.append("line %d: unknown token '%s' (stats, a weapon, a slot like f2/b3, 'captain', 'berserker' or 'shieldman')" % [lineno, token])
 	if is_captain and side == Character.Side.ENEMY:
 		errors.append("line %d: the enemy captain goes in its own [enemy captain] section" % lineno)
 		is_captain = false
@@ -242,6 +248,7 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 	var c := Character.new(id, name, side, stats["hp"], stats["morale"], stats["str"], stats["speed"], weapon, stats["armor"])
 	c.is_captain = is_captain or section == "enemy captain"
 	c.is_berserker = is_berserker
+	c.is_shieldman = is_shieldman
 	c.deploy_slot = deploy_slot
 	return c
 

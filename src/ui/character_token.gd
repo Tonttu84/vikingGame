@@ -119,7 +119,8 @@ func _bar(value: int, max_value: int, color: Color, tag: String) -> Control:
 func _tooltip() -> String:
 	var lines := [
 		"%s — %s" % [character.display_name, "captain" if character.is_captain else
-				("berserker" if character.is_berserker else "fighter")],
+				("berserker" if character.is_berserker else
+				("shieldman" if character.is_shieldman else "fighter"))],
 		"HP %d/%d · Morale %s · STR %d · SPD %d · Armor %d" % [
 			maxi(0, character.hp), character.max_hp,
 			"immune" if character.morale_immune() else "%d/%d" % [character.morale, character.max_morale],
