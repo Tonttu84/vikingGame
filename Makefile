@@ -2,7 +2,7 @@
 
 PORT ?= 8060
 
-.PHONY: test sim smoke web serve clean
+.PHONY: test sim smoke godot web serve clean
 
 test:            ## unit tests (~2s)
 	scripts/test.sh
@@ -12,6 +12,9 @@ sim:             ## balance sim; pass flags via ARGS="--n=500 --bot=none"
 
 smoke:           ## boot + play the UI under xvfb
 	scripts/ui_smoke.sh
+
+godot:           ## download portable Godot 4.5 into ./bin (no admin needed)
+	scripts/get_godot.sh
 
 web:             ## export the web build (build/web + itch.io zip)
 	scripts/export_web.sh

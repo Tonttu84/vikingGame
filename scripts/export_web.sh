@@ -2,6 +2,7 @@
 # Export the game to web (HTML5) and package it as an itch.io-ready zip.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/godot_bin.sh
 
 GODOT_VERSION="4.5.stable"
 TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}"
@@ -45,12 +46,12 @@ else
 	echo "Web export templates already present in ${TEMPLATE_DIR}, skipping download."
 fi
 
-godot --headless --import >/dev/null 2>&1 || true
+"$GODOT" --headless --import >/dev/null 2>&1 || true
 
 rm -rf build/web
 mkdir -p build/web
 
-godot --headless --export-release "Web" build/web/index.html
+"$GODOT" --headless --export-release "Web" build/web/index.html
 
 if [ ! -f build/web/index.html ] || [ ! -f build/web/index.wasm ]; then
 	echo "error: web export did not produce index.html/index.wasm in build/web" >&2

@@ -3,5 +3,6 @@
 #   scripts/sim.sh --n=1000 --bot=none --seed=7 --verbose
 set -euo pipefail
 cd "$(dirname "$0")/.."
-godot --headless --import >/dev/null 2>&1 || true
-godot --headless -s src/sim/simulate.gd -- "$@"
+source scripts/godot_bin.sh
+"$GODOT" --headless --import >/dev/null 2>&1 || true
+"$GODOT" --headless -s src/sim/simulate.gd -- "$@"

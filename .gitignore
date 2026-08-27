@@ -5,6 +5,9 @@
 # Web export output
 build/
 
+# Local portable Godot (make godot)
+bin/
+
 # Misc
 *.tmp
 .DS_Store

@@ -53,8 +53,11 @@ real playtests.
 
 ## Running it
 
-Requires [Godot 4.5](https://godotengine.org/download) (the standard editor
-download works; everything except the game itself runs headless).
+Requires [Godot 4.5](https://godotengine.org/download) — or no install at
+all: `make godot` downloads the portable binary into `./bin` (no admin
+rights needed), and every script finds it there automatically. A binary
+anywhere else works too via `GODOT=/path/to/godot make ...`. Everything
+except the game itself runs headless.
 
 ```sh
 godot                                 # play: a full boarding action, mouse only
