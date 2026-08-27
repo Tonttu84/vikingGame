@@ -115,10 +115,12 @@ func test_dawn_raid_sends_defenders_below() -> void:
 
 func test_covering_volley_shoots_every_player_phase() -> void:
 	var archer_fodder := TestHelpers.grunt(P, "p1", 12, 6, 1, 3)
+	var ship_archer := TestHelpers.grunt(P, "bow1", 10, 5, 2, 3, Weapon.bow())
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var e2 := TestHelpers.grunt(E, "e2", 5)
 	var eng := TestHelpers.engine_for({
 		"player_field": [archer_fodder],
+		"player_reserve": [ship_archer],
 		"enemy_field": [e1, e2],
 		"maneuvers": [CardLibrary.maneuver_by_id("covering_volley")],
 	})

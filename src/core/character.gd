@@ -16,8 +16,9 @@ var strength: int
 var speed: int
 var weapon: Weapon
 var armor: int
-var is_captain := false
-var is_berserker := false  ## immune to morale damage
+var is_captain := false    ## leader aura: line-neighbors strike +1 (CombatEngine)
+var is_berserker := false  ## immune to morale damage; his attacks cleave (CombatEngine)
+var is_shieldman := false  ## takes half damage (rounded up); aura: +1 armor to line-neighbors
 var shaken := false        ## routed earlier in the raid; reduced morale
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
@@ -51,10 +52,13 @@ func morale_immune() -> bool:
 
 
 ## Damage this character deals to `defender`, before side-wide modifiers.
-## Deterministic: Strength + weapon - armor (axe ignores 2), minimum 1.
-func damage_against(defender: Character) -> int:
-	var dmg := strength + weapon.damage_bonus
-	var effective_armor := defender.armor
+## Deterministic: Strength + weapon + aura bonus - armor, minimum 1. The axe
+## is the aura-breaker: it ignores 2 points of worn armor AND denies the
+## defender any aura armor. Aura amounts are positional; CombatEngine reads
+## them off the formations and passes them in.
+func damage_against(defender: Character, bonus_damage := 0, aura_armor := 0) -> int:
+	var dmg := strength + weapon.damage_bonus + bonus_damage
+	var effective_armor := defender.armor + aura_armor
 	if weapon.kind == Weapon.Kind.AXE:
-		effective_armor = maxi(0, effective_armor - 2)
+		effective_armor = maxi(0, defender.armor - 2)
 	return maxi(1, dmg - effective_armor)

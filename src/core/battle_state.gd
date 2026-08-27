@@ -15,6 +15,9 @@ const RESERVE_COMMIT_COST := 1
 const KILL_MOMENTUM := 2
 ## Fielded archers finish and harass; they do not carry. Flat, armor ignored.
 const ARCHER_SNIPE_DAMAGE := 2
+## The berserker's swing spills onto the target's line-neighbors: flat, never
+## armored, but softened and shield-halved like any physical hit.
+const CLEAVE_GRAZE_DAMAGE := 2
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the

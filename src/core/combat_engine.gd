@@ -426,17 +426,30 @@ func _fight_phase(side: Character.Side) -> void:
 			await _pace()
 
 
-## Covering Volley: the archers on your rail open every player fight phase
-## with true damage to the lowest-HP fielded defender (spawn-order tiebreak).
+## Covering Volley: the archers still on your ship open every player fight
+## phase with one arrow each — true damage to the lowest-HP fielded defender
+## (spawn-order tiebreak), re-aiming between arrows. Field your archer and
+## the rail loses her arrow; zero ship archers means a silent rail.
 func _archer_support_volley() -> void:
 	if state.archer_support_damage <= 0:
 		return
-	var target := _weakest_fielded(state.enemy_formation)
-	if target == null:
-		return
-	state.log_event("Arrows from your rail find %s." % target.display_name)
-	await _deal_true_damage(target, state.archer_support_damage)
-	await _pace()
+	for i in _ship_archers():
+		if outcome != Outcome.NONE:
+			return
+		var target := _weakest_fielded(state.enemy_formation)
+		if target == null:
+			return
+		state.log_event("Arrows from your rail find %s." % target.display_name)
+		await _deal_true_damage(target, state.archer_support_damage)
+		await _pace()
+
+
+func _ship_archers() -> int:
+	var count := 0
+	for c in state.player_reserve:
+		if c.weapon.kind == Weapon.Kind.BOW:
+			count += 1
+	return count
 
 
 ## Deterministic resolution order: speed descending, spawn order as tiebreak.
@@ -514,12 +527,34 @@ func _opposing_captain_fielded(side: Character.Side) -> bool:
 
 
 func _attack(attacker: Character, defender: Character) -> void:
+	# The cleave's arc is set before the blow lands: the neighbors are grazed
+	# even when the main target drops and his slot empties.
+	var grazed := state.formation_of(defender.side).line_neighbors(defender) \
+			if attacker.is_berserker else ([] as Array[Character])
 	var dmg := _melee_damage(attacker, defender)
 	defender.hp -= dmg
 	state.log_event("%s hits %s for %d (%d HP left)." %
 			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
+	for victim in grazed:
+		if outcome != Outcome.NONE:
+			return
+		await _cleave_graze(attacker, victim)
+
+
+## The berserker's swing spills over: flat damage to the target's
+## line-neighbors, never armored, but softened and shield-halved. A man who
+## routed or died mid-swing is already out of the arc.
+func _cleave_graze(attacker: Character, victim: Character) -> void:
+	if not victim.is_alive() or not state.formation_of(victim.side).has(victim):
+		return
+	var dmg := _shield_halved(_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim)
+	victim.hp -= dmg
+	state.log_event("%s's cleave grazes %s for %d (%d HP left)." %
+			[attacker.display_name, victim.display_name, dmg, maxi(0, victim.hp)])
+	if victim.hp <= 0:
+		await _handle_death(victim)
 
 
 ## The archer's arrow: flat LOW damage, armor and columns ignored — the one
@@ -534,11 +569,39 @@ func _snipe(attacker: Character, defender: Character) -> void:
 
 
 func _melee_damage(attacker: Character, defender: Character) -> int:
-	return _soften(attacker.damage_against(defender), defender)
+	var raw := attacker.damage_against(defender, _leader_bonus(attacker), _aura_armor(defender))
+	return _shield_halved(_soften(raw, defender), defender)
 
 
 func _snipe_damage(defender: Character) -> int:
-	return _soften(BattleState.ARCHER_SNIPE_DAMAGE, defender)
+	return _shield_halved(_soften(BattleState.ARCHER_SNIPE_DAMAGE, defender), defender)
+
+
+## The captain's leader aura: his line-neighbors strike +1 in melee.
+func _leader_bonus(attacker: Character) -> int:
+	var bonus := 0
+	for neighbor in state.formation_of(attacker.side).line_neighbors(attacker):
+		if neighbor.is_captain:
+			bonus += 1
+	return bonus
+
+
+## The shieldman's aura: +1 armor per shieldman standing beside the defender.
+## Worn armor only helps in melee, so the aura is melee-only by construction.
+func _aura_armor(defender: Character) -> int:
+	var bonus := 0
+	for neighbor in state.formation_of(defender.side).line_neighbors(defender):
+		if neighbor.is_shieldman:
+			bonus += 1
+	return bonus
+
+
+## The shieldman's own hide: physical hits (melee, snipes, grazes) halve on
+## his shield, rounded up, after every other reduction. Card and tactic true
+## damage goes around the shield — volleys are the shieldman counter-play.
+func _shield_halved(dmg: int, defender: Character) -> int:
+	@warning_ignore("integer_division")
+	return (dmg + 1) / 2 if defender.is_shieldman else dmg
 
 
 ## Side-wide protections (shield wall, careful advance) soften every hit

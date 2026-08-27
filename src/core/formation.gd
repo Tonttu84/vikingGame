@@ -135,6 +135,18 @@ func swap_positions(a: Character, b: Character) -> bool:
 
 # --- Combat queries -----------------------------------------------------------
 
+## Adjacency = same line, neighboring column: the men auras and cleaves touch.
+func line_neighbors(c: Character) -> Array[Character]:
+	var out: Array[Character] = []
+	var line := line_of(c)
+	if line == -1:
+		return out
+	for col in [column_of(c) - 1, column_of(c) + 1]:
+		var neighbor := at(line, col)
+		if neighbor != null:
+			out.append(neighbor)
+	return out
+
 ## The man an enemy attacking into this column hits: the front-liner shields
 ## the second line; a whole empty column means the swing finds no one.
 func column_melee_target(col: int) -> Character:

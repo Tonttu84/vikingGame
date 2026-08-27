@@ -168,7 +168,7 @@ func test_challenge_makes_fielded_captains_trade_blows() -> void:
 	assert_true(eng.state.challenge_active, "the gauntlet is down")
 	await eng._fight_phase(P)
 	assert_eq(ecap.hp, 30 - 4, "your captain strikes theirs across the columns")
-	assert_eq(e1.hp, 12 - 3, "everyone else fights his column as usual")
+	assert_eq(e1.hp, 12 - 4, "everyone else fights his column as usual (+1: he stands at the captain's shoulder)")
 	await eng._enemy_turn()
 	assert_eq(pcap.hp, 20 - 4, "their captain answers in their fight phase")
 	assert_false(eng.state.challenge_active, "the challenge is spent after their answer")
