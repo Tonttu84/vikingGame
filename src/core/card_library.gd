@@ -33,13 +33,17 @@ static func drag_him_back() -> CardData:
 
 
 static func break_the_line() -> CardData:
-	return CardData.new("break_the_line", "Break the Line", 3, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.EXPOSE_CAPTAIN, "amount": 0}])
+	# Repurposed by the lines redesign: you re-aim THEIR formation — shove a
+	# front-liner out of his column (out of his duel, into a worse one).
+	return CardData.new("break_the_line", "Break the Line", 1, CardData.TargetType.ENEMY,
+			[{"type": CardData.EffectType.SHOVE, "amount": 1}])
 
 
 static func challenge() -> CardData:
-	return CardData.new("challenge", "Challenge", 3, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.DUEL, "amount": 0}])
+	# Repurposed: only while both captains are fielded — they attack each
+	# other this round regardless of columns. Everyone else fights on.
+	return CardData.new("challenge", "Challenge", 2, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.CHALLENGE, "amount": 0}])
 
 
 static func push_them_back() -> CardData:

@@ -40,6 +40,7 @@ func test_victory_when_enemy_captain_falls() -> void:
 	var p1 := TestHelpers.grunt(P, "p1", 12, 6, 10, 3)
 	var cap := TestHelpers.captain_of(E, "cap", 1)
 	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_captain": cap})
+	eng._reinforce()  # the empty hold sends him into the line himself
 	await eng._fight_phase(P)
 	assert_eq(eng.outcome, CombatEngine.Outcome.VICTORY)
 

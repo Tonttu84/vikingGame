@@ -30,3 +30,10 @@ static func engine_for(scenario: Dictionary, bot = null, seed_value := 7) -> Com
 	var e := CombatEngine.new()
 	e.setup(scenario, bot if bot != null else ScriptedBot.new(), seed_value)
 	return e
+
+
+## Re-station a fielded character on an exact slot (tests build precise
+## formations; setup() itself auto-places scenario lists in reading order).
+static func station(formation: Formation, c: Character, line: int, col: int) -> void:
+	formation.remove(c)
+	formation.place(c, line, col)

@@ -51,15 +51,9 @@ func _build() -> void:
 		if character.armor > 0:
 			stats += " · ARM %d" % character.armor
 		box.add_child(UIPalette.label(stats, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
-		var foe := character.engaged_with
-		var extra := ""
 		if character.bonus_attacks > 0:
-			extra = "  (+%d attack)" % character.bonus_attacks
-		if foe != null and foe.is_alive():
-			box.add_child(UIPalette.label("fighting %s%s" % [foe.display_name, extra],
+			box.add_child(UIPalette.label("+%d attack" % character.bonus_attacks,
 					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
-		elif not extra.is_empty():
-			box.add_child(UIPalette.label(extra.strip_edges(), UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
 	tooltip_text = _tooltip()
 
 
@@ -102,9 +96,9 @@ func _tooltip() -> String:
 
 func _weapon_note() -> String:
 	match character.weapon.kind:
-		Weapon.Kind.SPEAR: return "+1 damage against a fresh opponent"
+		Weapon.Kind.SPEAR: return "reach — fights his column even from the second line"
 		Weapon.Kind.AXE: return "ignores 2 armor"
-		Weapon.Kind.BOW: return "shoots from the reserve row"
+		Weapon.Kind.BOW: return "from the second line, snipes the weakest enemy anywhere (2 dmg)"
 		Weapon.Kind.SWORD: return "+2 damage, no tricks"
 	return "no weapon"
 

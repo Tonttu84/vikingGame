@@ -27,15 +27,15 @@ static func _effect_line(effect: Dictionary) -> String:
 		CardData.EffectType.HEAL:
 			return "Heal an ally for %d." % amount
 		CardData.EffectType.FOCUS_FIRE:
-			return "Every fighter you have strikes the target this fight phase."
+			return "Everyone who can reach the target — his column, plus your archers — strikes it this fight phase."
 		CardData.EffectType.SHIELD_WALL:
 			return "Your side takes 2 less from every hit until your next turn. Stops arrow volleys."
 		CardData.EffectType.PULL_TO_RESERVE:
 			return "Pull an ally out of the fight, back to your ship."
-		CardData.EffectType.EXPOSE_CAPTAIN:
-			return "The enemy captain can be attacked until end of turn."
-		CardData.EffectType.DUEL:
-			return "Only the captains fight: yours this turn, theirs the next."
+		CardData.EffectType.SHOVE:
+			return "Shove an enemy front-liner one column sideways — re-aim THEIR line."
+		CardData.EffectType.CHALLENGE:
+			return "Both captains must be in the line: they attack each other this round, columns be damned."
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			return "The enemy gets no reinforcements next turn."
 		CardData.EffectType.EXTRA_ATTACK:
@@ -50,7 +50,7 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "%d defenders are caught below decks — back of their reserve queue, shaken." % amount
 		CardData.EffectType.ARCHER_SUPPORT:
 			return ("All battle: your rail archers open each of your fight phases with " +
-					"%d true damage to the weakest fielded defender. They hold fire during a duel.") % amount
+					"%d true damage to the weakest fielded defender.") % amount
 		CardData.EffectType.PLAYER_ARMOR_BONUS:
 			return "All battle: your side takes %d less from every hit." % amount
 		CardData.EffectType.DEFENDERS_FORM_UP:
@@ -83,12 +83,14 @@ static func rules_summary() -> String:
 	return """[b]The boarding action[/b]
 You are the raid captain. Your crew fights on its own — your cards are the orders you shout over the noise.
 
-[b]Momentum[/b] powers cards: +1 each turn, +1 per enemy slain.
+[b]The lines[/b]: each side fields 4 columns x 2 lines. A fighter attacks the nearest enemy in HIS OWN column — their front man first, then their second line. A whole empty column means his swing hits air: placement is targeting, and placement is defense. Spears reach from the second line; archers in the second line snipe the weakest enemy anywhere; everyone else must stand in front to fight.
 
-[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards, then both lines fight. Fastest strikes first; fighters keep hacking at whoever they are engaged with. Spears hit +1 on a fresh foe, axes ignore 2 armor, bows shoot from the reserve rows.
+[b]Momentum[/b] powers cards: +1 each turn, more for each enemy slain. Routs pay nothing — breaking men is free but earns no tempo.
 
-[b]The enemy captain[/b] is sheltered behind his line. Thin it to 2 fielded enemies or force a window with a card — then your whole crew goes for him. When his hold empties he steps into the line himself. Kill him and his crew yields. Lose your own captain and the raid is over.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards — most also move your men — then both formations fight, fastest first. Axes ignore 2 armor.
+
+[b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
 
 [b]Morale[/b]: every death shakes the fallen side (-2 morale on deck, captains and berserkers excepted). At 0 a fighter routs, shaking the line further. Routs win battles as surely as blood.
 
-[b]The rail[/b]: enemies reinforce 2 per turn from their reserve. Commit your own reserve for 1 momentum each. Retreat is always on the table — a live crew beats a dead legend."""
+[b]The rail[/b]: enemies reinforce 2 per turn into their front gaps. Commit your own reserve for 1 momentum each; the reserve itself never fights and is never hit. Retreat is always on the table — a live crew beats a dead legend."""

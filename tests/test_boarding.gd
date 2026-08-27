@@ -1,6 +1,7 @@
 extends TestCase
 ## The boarding redesign: maneuvers, deck-driven reinforcement (Reinforce /
-## Swap), the player field cap, and the enemy captain as final reinforcement.
+## Swap), the slot grid as the fielded cap, and the enemy captain as final
+## reinforcement.
 
 const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
@@ -103,8 +104,8 @@ func test_dawn_raid_sends_defenders_below() -> void:
 	})
 	await eng._boarding_phase()
 	assert_eq(eng.state.momentum, 4)
-	assert_eq(eng.state.enemy_field.size(), 1, "the surprised watch is 3 men thinner")
-	assert_true(eng.state.enemy_field.has(e1), "the front of their line stays")
+	assert_eq(eng.state.enemy_formation.size(), 1, "the surprised watch is 3 men thinner")
+	assert_true(eng.state.enemy_formation.has(e1), "the front of their line stays")
 	assert_eq(eng.state.enemy_reserve.size(), 4, "nobody vanishes: they went below")
 	assert_eq(eng.state.enemy_reserve[0], r1,
 			"the sleepers join the BACK of the queue - delayed, not deleted")
@@ -127,22 +128,6 @@ func test_covering_volley_shoots_every_player_phase() -> void:
 	assert_eq(e2.hp, 3, "the volley picks the lowest-HP defender, true damage")
 	await eng._fight_phase(P)
 	assert_eq(e2.hp, 1, "and looses again every player fight phase")
-
-
-func test_covering_volley_holds_fire_during_a_duel() -> void:
-	var cap := TestHelpers.captain_of(P, "cap")
-	var ecap := TestHelpers.captain_of(E, "ecap", 30)
-	var e1 := TestHelpers.grunt(E, "e1", 5)
-	var eng := TestHelpers.engine_for({
-		"player_field": [cap],
-		"enemy_field": [e1],
-		"enemy_captain": ecap,
-		"maneuvers": [CardLibrary.maneuver_by_id("covering_volley")],
-	})
-	await eng._boarding_phase()
-	eng.state.duel_active = true
-	await eng._fight_phase(P)
-	assert_eq(e1.hp, 5, "no one may interfere in a duel, archers included")
 
 
 func test_careful_assault_armors_the_crew() -> void:
@@ -169,9 +154,9 @@ func test_careful_assault_lets_defenders_form_up() -> void:
 		"maneuvers": [CardLibrary.maneuver_by_id("careful_assault")],
 	})
 	await eng._boarding_phase()
-	assert_eq(eng.state.enemy_field.size(), 3, "a slow crossing: two extra defenders are ready")
-	assert_true(eng.state.enemy_field.has(r1))
-	assert_true(eng.state.enemy_field.has(r2), "forming up may crowd past their field cap")
+	assert_eq(eng.state.enemy_formation.size(), 3, "a slow crossing: two extra defenders are ready")
+	assert_true(eng.state.enemy_formation.has(r1))
+	assert_true(eng.state.enemy_formation.has(r2), "they take their places in the line")
 	assert_eq(e1.morale, 7, "and nobody is frightened: the watch stands composed")
 	assert_eq(r2.morale, 7, "the whole crew is composed")
 
@@ -185,9 +170,21 @@ func test_reinforce_card_fields_first_reserve_by_default() -> void:
 	eng.state.hand.append(card)
 	eng.state.momentum = 1
 	await eng._play_card(card, null)
-	assert_true(eng.state.player_field.has(r1), "first in reserve crosses")
+	assert_true(eng.state.player_formation.has(r1), "first in reserve crosses")
 	assert_false(eng.state.player_reserve.has(r1))
 	assert_eq(eng.state.momentum, 0)
+
+
+func test_reinforce_card_places_into_a_chosen_slot() -> void:
+	var crew := TestHelpers.grunt(P, "crew")
+	var r1 := TestHelpers.grunt(P, "r1")
+	var eng := TestHelpers.engine_for({"player_field": [crew], "player_reserve": [r1]})
+	var card := CardLibrary.reinforce()
+	eng.state.hand.append(card)
+	eng.state.momentum = 1
+	await eng._play_card(card, r1, null, Formation.slot_index(Formation.BACK, 2))
+	assert_eq(eng.state.player_formation.at(Formation.BACK, 2), r1,
+			"Reinforce fields a man into the slot you choose")
 
 
 func test_reinforce_card_honors_an_explicit_target() -> void:
@@ -199,13 +196,13 @@ func test_reinforce_card_honors_an_explicit_target() -> void:
 	eng.state.hand.append(card)
 	eng.state.momentum = 1
 	await eng._play_card(card, r2)
-	assert_true(eng.state.player_field.has(r2), "the named man crosses")
+	assert_true(eng.state.player_formation.has(r2), "the named man crosses")
 	assert_true(eng.state.player_reserve.has(r1))
 
 
 func test_reinforce_refused_when_field_full_or_reserve_empty() -> void:
 	var field: Array[Character] = []
-	for i in BattleState.PLAYER_FIELD_CAP:
+	for i in Formation.SLOT_COUNT:
 		field.append(TestHelpers.grunt(P, "p%d" % i))
 	var r1 := TestHelpers.grunt(P, "r1")
 	var eng := TestHelpers.engine_for({"player_field": field, "player_reserve": [r1]})
@@ -213,7 +210,7 @@ func test_reinforce_refused_when_field_full_or_reserve_empty() -> void:
 	eng.state.hand.append(card)
 	eng.state.momentum = 5
 	await eng._play_card(card, null)
-	assert_true(eng.state.hand.has(card), "the rail is packed: refused, card kept")
+	assert_true(eng.state.hand.has(card), "every slot is taken: refused, card kept")
 	assert_eq(eng.state.momentum, 5, "nothing paid")
 	var eng2 := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "solo")]})
 	var card2 := CardLibrary.reinforce()
@@ -227,7 +224,6 @@ func test_swap_rotates_wounded_for_fresh() -> void:
 	var tired := TestHelpers.grunt(P, "tired")
 	tired.hp = 3
 	var e1 := TestHelpers.grunt(E, "e1", 30)
-	tired.engaged_with = e1
 	var fresh := TestHelpers.grunt(P, "fresh")
 	var eng := TestHelpers.engine_for({
 		"player_field": [tired],
@@ -239,8 +235,22 @@ func test_swap_rotates_wounded_for_fresh() -> void:
 	eng.state.momentum = 1
 	await eng._play_card(card, tired)
 	assert_true(eng.state.player_reserve.has(tired), "the wounded man falls back")
-	assert_true(eng.state.player_field.has(fresh), "a fresh man takes his place")
-	assert_eq(tired.engaged_with, null, "no one duels from the far ship")
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), fresh,
+			"a fresh man takes his exact slot")
+	assert_eq(eng.state.momentum, 0)
+
+
+func test_swap_trades_two_fielded_men() -> void:
+	var front := TestHelpers.grunt(P, "front")
+	var back := TestHelpers.grunt(P, "back", 12, 6, 3, 3, Weapon.spear())
+	var eng := TestHelpers.engine_for({"player_field": [front, back]})
+	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
+	var card := CardLibrary.swap()
+	eng.state.hand.append(card)
+	eng.state.momentum = 1
+	await eng._play_card(card, front, back)
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), back, "they trade slots")
+	assert_eq(eng.state.player_formation.at(Formation.BACK, 0), front)
 	assert_eq(eng.state.momentum, 0)
 
 
@@ -253,7 +263,7 @@ func test_swap_honors_explicit_second_target() -> void:
 	eng.state.hand.append(card)
 	eng.state.momentum = 1
 	await eng._play_card(card, out, r2)
-	assert_true(eng.state.player_field.has(r2), "the chosen man crosses")
+	assert_true(eng.state.player_formation.has(r2), "the chosen man crosses")
 	assert_true(eng.state.player_reserve.has(r1), "not the first in line")
 
 
@@ -267,15 +277,15 @@ func test_swap_refused_without_a_reserve() -> void:
 	assert_true(eng.state.hand.has(card), "no one to trade with: refused")
 
 
-func test_commit_respects_the_rail_cap() -> void:
+func test_commit_refused_when_every_slot_is_taken() -> void:
 	var field: Array[Character] = []
-	for i in BattleState.PLAYER_FIELD_CAP:
+	for i in Formation.SLOT_COUNT:
 		field.append(TestHelpers.grunt(P, "p%d" % i))
 	var r1 := TestHelpers.grunt(P, "r1")
 	var eng := TestHelpers.engine_for({"player_field": field, "player_reserve": [r1]})
 	eng.state.momentum = 5
 	eng._commit_reserve(r1)
-	assert_true(eng.state.player_reserve.has(r1), "the rail is a bottleneck")
+	assert_true(eng.state.player_reserve.has(r1), "the slots themselves are the cap")
 	assert_eq(eng.state.momentum, 5)
 
 
@@ -286,8 +296,7 @@ func test_enemy_captain_is_the_final_reinforcement() -> void:
 		"enemy_captain": cap,
 	})
 	eng._reinforce()
-	assert_true(eng.state.enemy_field.has(cap), "empty hold, room in the line: he steps in")
-	assert_true(eng.state.enemy_captain_targetable(), "and now he can be reached")
+	assert_true(eng.state.enemy_formation.has(cap), "empty hold, room in the line: he steps in")
 
 
 func test_enemy_captain_waits_while_reserves_remain() -> void:
@@ -299,20 +308,35 @@ func test_enemy_captain_waits_while_reserves_remain() -> void:
 		"enemy_captain": cap,
 	})
 	eng._reinforce()
-	assert_true(eng.state.enemy_field.has(r1), "the hold empties first")
-	assert_false(eng.state.enemy_field.has(cap), "he still commands from the stern")
+	assert_true(eng.state.enemy_formation.has(r1), "the hold empties first")
+	assert_false(eng.state.enemy_formation.has(cap), "he still commands from the stern")
 
 
 func test_enemy_captain_stays_back_behind_a_full_line() -> void:
 	var cap := TestHelpers.captain_of(E, "cap")
 	var field: Array[Character] = []
-	for i in BattleState.ENEMY_FIELD_CAP:
+	for i in Formation.SLOT_COUNT:
 		field.append(TestHelpers.grunt(E, "e%d" % i))
 	var eng := TestHelpers.engine_for({"enemy_field": field, "enemy_captain": cap})
 	eng._reinforce()
-	assert_false(eng.state.enemy_field.has(cap), "no room in the line")
-	assert_false(eng.state.enemy_captain_targetable(),
-			"an empty hold behind a full line no longer exposes him")
+	assert_false(eng.state.enemy_formation.has(cap), "no free slot: he waits below")
+
+
+func test_reinforcement_fills_front_gaps_left_to_right() -> void:
+	var e1 := TestHelpers.grunt(E, "e1")
+	var r1 := TestHelpers.grunt(E, "r1")
+	var r2 := TestHelpers.grunt(E, "r2")
+	var r3 := TestHelpers.grunt(E, "r3")
+	var eng := TestHelpers.engine_for({
+		"enemy_field": [e1],
+		"enemy_reserve": [r1, r2, r3],
+	})
+	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 2)
+	eng._reinforce()
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 0), r1, "leftmost front gap first")
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 1), r2)
+	eng._reinforce()
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 3), r3, "then the next gap along")
 
 
 func test_boarding_repulsed_when_field_empties() -> void:

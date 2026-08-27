@@ -42,6 +42,15 @@ func _init() -> void:
 	call_deferred("_run")
 
 
+## Only the real fighter tokens in a formation row (empty slots render too).
+func _tokens_in(row: Node) -> Array:
+	var tokens := []
+	for child in row.get_children():
+		if child is CharacterToken:
+			tokens.append(child)
+	return tokens
+
+
 ## Press the choose button on the picker option for the given maneuver id.
 func _press_maneuver(ui, maneuver_id: String) -> void:
 	for option in ui._maneuver_options.get_children():
@@ -90,9 +99,12 @@ func _run() -> void:
 			"Dawn Raid is the maneuver that resolved")
 	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
 	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
-	check(ui._player_field_row.get_child_count() == 3, "first wave of 3 on their deck")
-	check(ui._enemy_field_row.get_child_count() == 2,
-			"Dawn Raid caught 3 of 5 defenders below decks, saw %d fielded" % ui._enemy_field_row.get_child_count())
+	check(_tokens_in(ui._player_front_row).size() == 3, "first wave of 3 on their deck")
+	check(ui._player_front_row.get_child_count() == 4, "the front line renders all 4 column slots")
+	check(ui.engine.state.enemy_formation.size() == 2,
+			"Dawn Raid caught 3 of 5 defenders below decks, saw %d fielded" % ui.engine.state.enemy_formation.size())
+	check(_tokens_in(ui._enemy_front_row).size() + _tokens_in(ui._enemy_back_row).size() == 2,
+			"both fielded defenders drawn in the grid")
 	check(ui._momentum_pips.get_child_count() == 10, "momentum pips")
 
 	# Play a no-target card if one is affordable, exercising the drop path.
@@ -174,7 +186,7 @@ func _run() -> void:
 			rally = c
 	if rally != null:
 		var wounded: Character = null
-		for ch: Character in ui.engine.state.player_field:
+		for ch: Character in ui.engine.state.fielded(Character.Side.PLAYER):
 			if ch.hp < ch.max_hp:
 				wounded = ch
 		if wounded != null:
@@ -184,7 +196,7 @@ func _run() -> void:
 				if v.card == rally:
 					rally_view = v
 			var token = null
-			for t in ui._player_field_row.get_children():
+			for t in _tokens_in(ui._player_front_row) + _tokens_in(ui._player_back_row):
 				if t.character == wounded:
 					token = t
 			await _drag(rally_view.get_global_rect().get_center(), token.get_global_rect().get_center())

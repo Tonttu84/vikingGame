@@ -9,11 +9,11 @@ enum EffectType {
 	DAMAGE_ALL_ENEMIES,        ## flat damage to every fielded enemy (ignores armor)
 	MORALE_DAMAGE_ALL_ENEMIES, ## morale damage to every fielded enemy
 	HEAL,                      ## heal targeted ally
-	FOCUS_FIRE,                ## all your fielded characters attack the target this fight phase
+	FOCUS_FIRE,                ## everyone who can reach the target strikes it this fight phase
 	SHIELD_WALL,               ## your side takes -2 per hit until your next turn; blocks arrow volleys
 	PULL_TO_RESERVE,           ## move targeted ally from field to reserve
-	EXPOSE_CAPTAIN,            ## enemy captain targetable until end of your turn
-	DUEL,                      ## only the two captains fight, yours this turn and theirs next
+	SHOVE,                     ## shove a targeted enemy front-liner one column sideways
+	CHALLENGE,                 ## both fielded captains attack each other this round
 	BLOCK_REINFORCEMENTS,      ## enemy reinforcement step is skipped next enemy turn
 	EXTRA_ATTACK,              ## targeted ally attacks one extra time this fight phase
 	DRAW,                      ## draw cards

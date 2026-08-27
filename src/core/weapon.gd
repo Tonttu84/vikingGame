@@ -4,10 +4,10 @@ extends RefCounted
 
 enum Kind {
 	NONE,   ## bare hands
-	SPEAR,  ## +1 damage against a target this character was not already engaged with
+	SPEAR,  ## reach: fights his column even from the second line
 	AXE,    ## ignores 2 points of the defender's armor
 	SWORD,  ## plain damage bonus, no gimmick
-	BOW,    ## can attack while in reserve
+	BOW,    ## from the second line: snipes the weakest fielded enemy anywhere
 }
 
 var id: String

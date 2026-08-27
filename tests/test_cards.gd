@@ -47,24 +47,26 @@ func test_push_them_back_blocks_one_reinforcement() -> void:
 	eng.state.momentum = 2
 	await eng._play_card(card, null)
 	eng._reinforce()
-	assert_true(eng.state.enemy_field.is_empty(), "the first reinforcement step is denied")
+	assert_true(eng.state.enemy_formation.is_empty(), "the first reinforcement step is denied")
 	eng._reinforce()
-	assert_eq(eng.state.enemy_field.size(), 2, "the next one goes through")
+	assert_eq(eng.state.enemy_formation.size(), 2, "the next one goes through")
 
 
-func test_concentrated_attack_focuses_the_crew() -> void:
+func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var e2 := TestHelpers.grunt(E, "e2", 30)
 	var eng := TestHelpers.engine_for({"player_field": [p1, p2], "enemy_field": [e1, e2]})
+	TestHelpers.station(eng.state.enemy_formation, e2, Formation.BACK, 1)
+	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 1)
 	var card := CardLibrary.concentrated_attack()
 	eng.state.hand.append(card)
 	eng.state.momentum = 2
 	await eng._play_card(card, e2)
 	await eng._fight_phase(P)
-	assert_eq(e1.hp, 30, "nobody wastes a swing on the off-target")
-	assert_eq(e2.hp, 30 - 3 - 3, "both unarmed grunts hit the focus target")
+	assert_eq(e2.hp, 30 - 3, "his column's attacker strikes past the front man")
+	assert_eq(e1.hp, 30, "the shielding front-liner is bypassed")
 
 
 func test_battle_fury_grants_extra_attack() -> void:

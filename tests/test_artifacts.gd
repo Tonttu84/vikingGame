@@ -90,7 +90,7 @@ func test_raven_banner_ignores_enemy_deaths() -> void:
 		"enemy_field": [TestHelpers.grunt(E, "e3")],
 		"artifacts": [ArtifactLibrary.by_id("raven_banner")],
 	})
-	var e3: Character = eng2.state.enemy_field[0]
+	var e3: Character = eng2.state.fielded(E)[0]
 	e3.hp = 0
 	await eng2._handle_death(e3)
 	crew1.hp = 0

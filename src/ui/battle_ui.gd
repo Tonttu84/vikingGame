@@ -19,8 +19,10 @@ var _status_label: Label
 var _captain_status: Label
 var _enemy_captain_row: HBoxContainer
 var _enemy_reserve_list: VBoxContainer
-var _enemy_field_row: HBoxContainer
-var _player_field_row: HBoxContainer
+var _enemy_back_row: HBoxContainer
+var _enemy_front_row: HBoxContainer
+var _player_front_row: HBoxContainer
+var _player_back_row: HBoxContainer
 var _player_reserve_row: HBoxContainer
 var _hand_row: HBoxContainer
 var _momentum_pips: HBoxContainer
@@ -139,7 +141,7 @@ func can_drop_card_on(card: CardData, target: Character) -> bool:
 		CardData.TargetType.NONE:
 			return true  # a token is as good a place as any to drop it
 		CardData.TargetType.ENEMY:
-			return _valid_enemy_target(target)
+			return _valid_enemy_target(card, target)
 		CardData.TargetType.ALLY:
 			return _valid_ally_target(card, target)
 	return false
@@ -155,12 +157,23 @@ func _can_pay(card: CardData) -> bool:
 	return card.playable and card.cost <= engine.state.momentum
 
 
-func _valid_enemy_target(c: Character) -> bool:
+func _valid_enemy_target(card: CardData, c: Character) -> bool:
 	if c.side != Character.Side.ENEMY or not c.is_alive():
 		return false
-	if c == engine.state.enemy_captain:
-		return engine.state.enemy_captain_targetable()
-	return engine.state.enemy_field.has(c)
+	if not engine.state.enemy_formation.has(c):
+		return false
+	for effect in card.effects:
+		if effect.get("type") == CardData.EffectType.SHOVE:
+			var f := engine.state.enemy_formation
+			if f.line_of(c) != Formation.FRONT:
+				return false
+			var col := f.column_of(c)
+			var left_free := col > 0 and f.at(Formation.FRONT, col - 1) == null
+			var right_free := col < Formation.COLUMNS - 1 \
+					and f.at(Formation.FRONT, col + 1) == null
+			if not left_free and not right_free:
+				return false
+	return true
 
 
 func _valid_ally_target(card: CardData, c: Character) -> bool:
@@ -168,13 +181,9 @@ func _valid_ally_target(card: CardData, c: Character) -> bool:
 		return false
 	for effect in card.effects:
 		match effect.get("type"):
-			CardData.EffectType.PULL_TO_RESERVE:
-				if not engine.state.player_field.has(c) or c.is_captain:
-					return false
-			CardData.EffectType.EXTRA_ATTACK:
-				# Must be somewhere it can actually swing from.
-				if not engine.state.player_field.has(c) \
-						and not (c.weapon.kind == Weapon.Kind.BOW and engine.state.player_reserve.has(c)):
+			CardData.EffectType.PULL_TO_RESERVE, CardData.EffectType.EXTRA_ATTACK, \
+			CardData.EffectType.SWAP:
+				if not engine.state.player_formation.has(c):
 					return false
 	return true
 
@@ -202,13 +211,45 @@ func _on_token_clicked(character: Character) -> void:
 
 func refresh(state: BattleState) -> void:
 	_fill_enemy_reserve(state)
-	_fill_row(_enemy_field_row, state.enemy_field, false)
-	_fill_row(_player_field_row, state.player_field, false)
+	_fill_line(_enemy_back_row, state.enemy_formation, Formation.BACK)
+	_fill_line(_enemy_front_row, state.enemy_formation, Formation.FRONT)
+	_fill_line(_player_front_row, state.player_formation, Formation.FRONT)
+	_fill_line(_player_back_row, state.player_formation, Formation.BACK)
 	_fill_row(_player_reserve_row, state.player_reserve, true)
 	_refresh_enemy_captain(state)
 	_refresh_hand(state)
 	_refresh_hud(state)
 	_refresh_log(state)
+
+
+## One line of a formation as 4 fixed columns: a token where a man stands,
+## a dim placeholder where the slot is empty (so misses read spatially).
+func _fill_line(row: HBoxContainer, formation: Formation, line: int) -> void:
+	for child in row.get_children():
+		child.queue_free()
+	for col in Formation.COLUMNS:
+		var c := formation.at(line, col)
+		if c != null:
+			var token := CharacterToken.create(c, self, false)
+			token.clicked.connect(_on_token_clicked)
+			row.add_child(token)
+		else:
+			row.add_child(_empty_slot(line, col))
+
+
+func _empty_slot(line: int, col: int) -> Control:
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(128, 96)
+	slot.add_theme_stylebox_override("panel",
+			UIPalette.panel(Color(0, 0, 0, 0.12), UIPalette.SEA_LIGHT.darkened(0.3), 1))
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tag := UIPalette.label("%s%d" % ["F" if line == Formation.FRONT else "B", col + 1],
+			UIPalette.FONT_SMALL, UIPalette.SEA_LIGHT)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(tag)
+	return slot
 
 
 func _fill_row(row: HBoxContainer, characters: Array[Character], compact: bool) -> void:
@@ -237,17 +278,19 @@ func _fill_enemy_reserve(state: BattleState) -> void:
 func _refresh_enemy_captain(state: BattleState) -> void:
 	for child in _enemy_captain_row.get_children():
 		child.queue_free()
-	if state.enemy_captain != null:
-		_enemy_captain_row.add_child(CharacterToken.create(state.enemy_captain, self, false))
+	var fielded := state.enemy_captain != null \
+			and state.enemy_formation.has(state.enemy_captain)
+	if state.enemy_captain != null and not fielded and state.enemy_captain.is_alive():
+		# Off the board he waits by his stern post; fielded, he stands in the grid.
+		_enemy_captain_row.add_child(CharacterToken.create(state.enemy_captain, self, true))
 	if state.enemy_captain == null or not state.enemy_captain.is_alive():
 		_captain_status.text = "fallen"
 		_captain_status.add_theme_color_override("font_color", UIPalette.BLOOD)
-	elif state.enemy_captain_targetable():
-		_captain_status.text = "EXPOSED — take him!"
+	elif fielded:
+		_captain_status.text = "IN THE LINE — reach him through his column!"
 		_captain_status.add_theme_color_override("font_color", UIPalette.GOLD)
 	else:
-		_captain_status.text = "sheltered behind his line\n(thin it to %d or empty his reserve)" \
-				% BattleState.CAPTAIN_EXPOSED_FIELD_SIZE
+		_captain_status.text = "commands from the stern — he steps in\nhimself once his hold is empty"
 		_captain_status.add_theme_color_override("font_color", UIPalette.PARCHMENT_DIM)
 	var tactic := state.next_tactic
 	_intent_title.text = "Next: " + CardText.tactic_name(tactic)
@@ -278,12 +321,10 @@ func _active_effects(state: BattleState) -> Array[String]:
 	var chips: Array[String] = []
 	if state.shield_wall_active:
 		chips.append("Shield Wall up")
-	if state.duel_active:
-		chips.append("DUEL — captains only")
+	if state.challenge_active:
+		chips.append("CHALLENGE — the captains seek each other")
 	if state.focus_target != null and state.focus_target.is_alive():
 		chips.append("Focus: " + state.focus_target.display_name)
-	if state.captain_forced_exposed:
-		chips.append("Enemy captain exposed")
 	if state.block_reinforcements:
 		chips.append("Rail held — no reinforcements")
 	if state.war_cry_active:
@@ -425,13 +466,22 @@ func _build_enemy_zone() -> Control:
 	top.add_child(intent)
 	box.add_child(top)
 
-	_enemy_field_row = HBoxContainer.new()
-	_enemy_field_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_enemy_field_row.add_theme_constant_override("separation", 8)
-	_enemy_field_row.custom_minimum_size.y = 100
-	_enemy_field_row.mouse_filter = Control.MOUSE_FILTER_PASS
-	box.add_child(_enemy_field_row)
+	_enemy_back_row = _formation_row()
+	box.add_child(_enemy_back_row)
+	_enemy_front_row = _formation_row()
+	box.add_child(_enemy_front_row)
 	return zone
+
+
+## A formation line: 4 fixed columns so the same column always lines up
+## vertically with the opposing line it duels.
+func _formation_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	row.custom_minimum_size.y = 100
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	return row
 
 
 func _build_player_zone() -> Control:
@@ -443,17 +493,15 @@ func _build_player_zone() -> Control:
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	zone.add_child(box)
 
-	_player_field_row = HBoxContainer.new()
-	_player_field_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_player_field_row.add_theme_constant_override("separation", 8)
-	_player_field_row.custom_minimum_size.y = 100
-	_player_field_row.mouse_filter = Control.MOUSE_FILTER_PASS
-	box.add_child(_player_field_row)
+	_player_front_row = _formation_row()
+	box.add_child(_player_front_row)
+	_player_back_row = _formation_row()
+	box.add_child(_player_back_row)
 
 	var reserve_bar := HBoxContainer.new()
 	reserve_bar.add_theme_constant_override("separation", 12)
 	reserve_bar.mouse_filter = Control.MOUSE_FILTER_PASS
-	reserve_bar.add_child(UIPalette.label("Your reserve — click to commit (%d momentum). Bows shoot from here."
+	reserve_bar.add_child(UIPalette.label("Your ship — click a man to commit him (%d momentum). The reserve never fights, is never hit."
 			% BattleState.RESERVE_COMMIT_COST, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
 	_player_reserve_row = HBoxContainer.new()
 	_player_reserve_row.add_theme_constant_override("separation", 4)

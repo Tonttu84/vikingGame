@@ -23,12 +23,11 @@ func test_axe_ignores_two_armor() -> void:
 	assert_eq(a.damage_against(d), 3, "3 Str + 1 axe - (3-2) armor")
 
 
-func test_spear_first_engagement_bonus() -> void:
+func test_spear_damage_is_plain() -> void:
 	var a := TestHelpers.grunt(P, "a", 12, 6, 3, 3, Weapon.spear(), 0)
 	var d := TestHelpers.grunt(E, "d")
-	assert_eq(a.damage_against(d), 5, "fresh engagement: 3 + 1 spear + 1 reach")
-	a.engaged_with = d
-	assert_eq(a.damage_against(d), 4, "locked in melee the reach bonus is gone")
+	assert_eq(a.damage_against(d), 4,
+			"3 Str + 1 spear; the spear's identity is reach, not a first-strike bonus")
 
 
 func test_shield_wall_reduces_melee_hits() -> void:

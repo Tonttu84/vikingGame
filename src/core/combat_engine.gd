@@ -6,8 +6,10 @@ extends RefCounted
 ##
 ## Controller contract (duck-typed):
 ##   choose_action(state: BattleState) -> Dictionary
-##     {"op": "play", "card": CardData, "target": Character (optional)}
-##     {"op": "commit", "character": Character}
+##     {"op": "play", "card": CardData, "target": Character (optional),
+##      "second_target": Character (optional), "slot": int (optional),
+##      "direction": int (optional, Break the Line)}
+##     {"op": "commit", "character": Character, "slot": int (optional)}
 ##     {"op": "retreat"} | {"op": "end"}
 ##
 ## Reaction saves (Drag Him Back!) need no controller: they fire
@@ -39,15 +41,20 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	rng.seed = seed_value
 	state = BattleState.new()
 	for c: Character in scenario.get("player_field", []):
-		_register(c, state.player_field)
+		_register(c)
+		_auto_field(c)
+	for c: Character in scenario.get("player_reserve", []):
+		_register(c)
+		state.player_reserve.append(c)
+	for c: Character in scenario.get("enemy_field", []):
+		_register(c)
+		_auto_field(c)
+	for c: Character in scenario.get("enemy_reserve", []):
+		_register(c)
+		state.enemy_reserve.append(c)
+	for c: Character in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		if c.is_captain:
 			state.player_captain = c
-	for c: Character in scenario.get("player_reserve", []):
-		_register(c, state.player_reserve)
-	for c: Character in scenario.get("enemy_field", []):
-		_register(c, state.enemy_field)
-	for c: Character in scenario.get("enemy_reserve", []):
-		_register(c, state.enemy_reserve)
 	state.enemy_captain = scenario.get("enemy_captain")
 	if state.enemy_captain != null:
 		state.enemy_captain.order_id = _next_order_id()
@@ -98,14 +105,11 @@ func _apply_battle_start_artifacts() -> void:
 					ArtifactData.EffectType.GAIN_MOMENTUM:
 						_gain_momentum(artifact.amount)
 					ArtifactData.EffectType.ENEMY_MORALE_DAMAGE:
-						for c in state.enemy_field:
+						for c in state.fielded(Character.Side.ENEMY):
 							_deal_morale_damage(c, artifact.amount)
 						_check_routs(Character.Side.ENEMY)
 					ArtifactData.EffectType.ALLY_MORALE_BONUS:
-						for c in state.player_field:
-							c.max_morale += artifact.amount
-							c.morale += artifact.amount
-						for c in state.player_reserve:
+						for c in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 							c.max_morale += artifact.amount
 							c.morale += artifact.amount
 
@@ -127,7 +131,7 @@ func run() -> Dictionary:
 ## No boarders left on their deck means the boarding failed: the survivors on
 ## your own ship cut the ropes. A retreat, not a defeat — the crew lives.
 func _check_repulsed() -> void:
-	if outcome == Outcome.NONE and state.player_field.is_empty():
+	if outcome == Outcome.NONE and state.player_formation.is_empty():
 		outcome = Outcome.RETREAT
 		state.log_event("The boarding is repulsed; the ropes are cut.")
 
@@ -138,7 +142,7 @@ func summary() -> Dictionary:
 		"turns": state.turn,
 		"player_dead": state.player_dead.size(),
 		"player_fled": state.player_fled.size(),
-		"player_survivors": state.player_field.size() + state.player_reserve.size(),
+		"player_survivors": state.player_formation.size() + state.player_reserve.size(),
 		"enemy_dead": state.enemy_dead.size(),
 		"enemy_routed": state.enemy_routed.size(),
 		"momentum_left": state.momentum,
@@ -170,11 +174,8 @@ func _player_turn() -> void:
 		await _apply_action(action)
 	if outcome == Outcome.NONE:
 		await _fight_phase(Character.Side.PLAYER)
-	state.captain_forced_exposed = false
 	state.focus_target = null
-	for c in state.player_field:
-		c.bonus_attacks = 0
-	for c in state.player_reserve:
+	for c in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		c.bonus_attacks = 0
 
 
@@ -189,7 +190,7 @@ func _enemy_turn() -> void:
 	_reinforce()
 	await _pace()
 	state.surge_active = false
-	state.duel_active = false
+	state.challenge_active = false
 	state.next_tactic = _pick_tactic()
 
 
@@ -198,64 +199,92 @@ func _enemy_turn() -> void:
 func _apply_action(action: Dictionary) -> void:
 	match action.get("op", "end"):
 		"play":
-			await _play_card(action.get("card"), action.get("target"), action.get("second_target"))
+			await _play_card(action.get("card"), action.get("target"),
+					action.get("second_target"), action.get("slot", -1),
+					action.get("direction", 0))
 		"commit":
-			_commit_reserve(action.get("character"))
+			_commit_reserve(action.get("character"), action.get("slot", -1))
 		"retreat":
 			outcome = Outcome.RETREAT
 			state.log_event("The crew cuts the ropes and falls back.")
 
 
-func _play_card(card: CardData, target: Character, second_target: Character = null) -> void:
+func _play_card(card: CardData, target: Character, second_target: Character = null,
+		slot := -1, direction := 0) -> void:
 	if card == null or not state.hand.has(card) or not card.playable:
 		return
 	if card.cost > state.momentum:
 		return
 	if card.target_type != CardData.TargetType.NONE and target == null:
 		return
-	if not _effect_preconditions_met(card, target):
+	if not _effect_preconditions_met(card, target, second_target):
 		return
 	state.momentum -= card.cost
 	state.hand.erase(card)
 	state.discard.append(card)
 	state.log_event("Played %s." % card.display_name)
 	for effect in card.effects:
-		await _apply_effect(effect, target, second_target)
+		await _apply_effect(effect, target, second_target, slot, direction)
 		if outcome != Outcome.NONE:
 			return
 
 
-## Crossing cards are refused outright (card kept, nothing paid) when they
-## cannot do their job — a fizzled Reinforce would feel like theft.
-func _effect_preconditions_met(card: CardData, target: Character) -> bool:
+## Cards are refused outright (card kept, nothing paid) when they cannot do
+## their job — a fizzled Reinforce or Challenge would feel like theft.
+func _effect_preconditions_met(card: CardData, target: Character,
+		second_target: Character = null) -> bool:
 	for effect in card.effects:
 		match effect.get("type"):
 			CardData.EffectType.REINFORCE:
-				if state.player_field.size() >= BattleState.PLAYER_FIELD_CAP:
+				if state.player_formation.is_full():
 					return false
 				if state.player_reserve.is_empty():
 					return false
 				if target != null and not state.player_reserve.has(target):
 					return false
 			CardData.EffectType.SWAP:
-				if target == null or not state.player_field.has(target):
+				if target == null or not state.player_formation.has(target):
 					return false
-				if state.player_reserve.is_empty():
+				if second_target != null:
+					if second_target == target:
+						return false
+					if not state.player_reserve.has(second_target) \
+							and not state.player_formation.has(second_target):
+						return false
+				elif state.player_reserve.is_empty():
+					return false
+			CardData.EffectType.SHOVE:
+				if target == null or state.enemy_formation.line_of(target) != Formation.FRONT:
+					return false
+				var col := state.enemy_formation.column_of(target)
+				var left_free := col > 0 \
+						and state.enemy_formation.at(Formation.FRONT, col - 1) == null
+				var right_free := col < Formation.COLUMNS - 1 \
+						and state.enemy_formation.at(Formation.FRONT, col + 1) == null
+				if not left_free and not right_free:
+					return false
+			CardData.EffectType.CHALLENGE:
+				if state.player_captain == null \
+						or not state.player_formation.has(state.player_captain):
+					return false
+				if state.enemy_captain == null \
+						or not state.enemy_formation.has(state.enemy_captain):
 					return false
 	return true
 
 
-func _apply_effect(effect: Dictionary, target: Character, second_target: Character = null) -> void:
+func _apply_effect(effect: Dictionary, target: Character, second_target: Character = null,
+		slot := -1, direction := 0) -> void:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):
 		CardData.EffectType.DAMAGE_ALL_ENEMIES:
 			# Card damage is true damage: volleys and thrown cargo ignore armor.
-			for c in state.enemy_field.duplicate():
+			for c in state.fielded(Character.Side.ENEMY):
 				await _deal_true_damage(c, amount)
 				if outcome != Outcome.NONE:
 					return
 		CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES:
-			for c in state.enemy_field.duplicate():
+			for c in state.fielded(Character.Side.ENEMY):
 				_deal_morale_damage(c, amount)
 			_check_routs(Character.Side.ENEMY)
 		CardData.EffectType.HEAL:
@@ -265,14 +294,19 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 		CardData.EffectType.SHIELD_WALL:
 			state.shield_wall_active = true
 		CardData.EffectType.PULL_TO_RESERVE:
-			if state.player_field.has(target) and not target.is_captain:
-				state.player_field.erase(target)
+			if state.player_formation.has(target) and not target.is_captain:
+				state.player_formation.remove(target)
 				state.player_reserve.append(target)
-				target.engaged_with = null
-		CardData.EffectType.EXPOSE_CAPTAIN:
-			state.captain_forced_exposed = true
-		CardData.EffectType.DUEL:
-			state.duel_active = true
+		CardData.EffectType.SHOVE:
+			var dir := clampi(direction, -1, 1)
+			if dir == 0 or not state.enemy_formation.slide(target, dir):
+				if not state.enemy_formation.slide(target, -1):
+					state.enemy_formation.slide(target, 1)
+			state.log_event("%s is shoved out of his column." % target.display_name)
+		CardData.EffectType.CHALLENGE:
+			state.challenge_active = true
+			state.log_event("%s calls %s out across the deck!" %
+					[state.player_captain.display_name, state.enemy_captain.display_name])
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			state.block_reinforcements = true
 		CardData.EffectType.EXTRA_ATTACK:
@@ -285,21 +319,22 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 			_gain_momentum(amount)
 		CardData.EffectType.SEND_DEFENDERS_BELOW:
 			for i in amount:
-				if state.enemy_field.size() <= 1:
+				var defenders := state.fielded(Character.Side.ENEMY)
+				if defenders.size() <= 1:
 					break
-				var sleeper: Character = state.enemy_field.pop_back()
+				var sleeper: Character = defenders[defenders.size() - 1]
+				state.enemy_formation.remove(sleeper)
 				state.enemy_reserve.append(sleeper)
 				# Dragged from their hammocks: they return to the fight shaken.
 				if not sleeper.morale_immune():
 					sleeper.morale = maxi(1, sleeper.morale - 2)
 				state.log_event("%s is caught below decks by the surprise." % sleeper.display_name)
 		CardData.EffectType.DEFENDERS_FORM_UP:
-			# Their deck, their home: forming up may crowd past the field cap.
 			for i in amount:
-				if state.enemy_reserve.is_empty():
+				if state.enemy_reserve.is_empty() or state.enemy_formation.is_full():
 					break
 				var ready: Character = state.enemy_reserve.pop_front()
-				state.enemy_field.append(ready)
+				state.enemy_formation.place_at_index(ready, state.enemy_formation.first_free_index())
 				state.log_event("%s has time to form up against the slow crossing." % ready.display_name)
 		CardData.EffectType.ARCHER_SUPPORT:
 			state.archer_support_damage = amount
@@ -307,43 +342,48 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 		CardData.EffectType.PLAYER_ARMOR_BONUS:
 			state.player_armor_bonus += amount
 		CardData.EffectType.ENEMY_MORALE_BONUS:
-			for c in state.enemy_field:
-				if not c.morale_immune():
-					c.max_morale += amount
-					c.morale += amount
-			for c in state.enemy_reserve:
+			for c in state.fielded(Character.Side.ENEMY) + state.enemy_reserve:
 				if not c.morale_immune():
 					c.max_morale += amount
 					c.morale += amount
 		CardData.EffectType.REINFORCE:
 			var crosser := target if target != null else state.player_reserve[0]
 			state.player_reserve.erase(crosser)
-			state.player_field.append(crosser)
+			var index := slot if _slot_free(state.player_formation, slot) \
+					else state.player_formation.first_free_index()
+			state.player_formation.place_at_index(crosser, index)
 			state.log_event("%s comes over the rail." % crosser.display_name)
 		CardData.EffectType.SWAP:
-			var incoming := second_target \
-					if second_target != null and state.player_reserve.has(second_target) \
-					else state.player_reserve[0]
-			state.player_field.erase(target)
-			state.player_reserve.append(target)
-			target.engaged_with = null
-			state.player_reserve.erase(incoming)
-			state.player_field.append(incoming)
-			incoming.engaged_with = null
-			state.log_event("%s falls back; %s takes his place." %
-					[target.display_name, incoming.display_name])
+			var partner := second_target
+			if partner == null:
+				partner = state.player_reserve[0]
+			if state.player_formation.has(partner):
+				state.player_formation.swap_positions(target, partner)
+				state.log_event("%s and %s trade places." %
+						[target.display_name, partner.display_name])
+			else:
+				var line := state.player_formation.line_of(target)
+				var col := state.player_formation.column_of(target)
+				state.player_formation.remove(target)
+				state.player_reserve.append(target)
+				state.player_reserve.erase(partner)
+				state.player_formation.place(partner, line, col)
+				state.log_event("%s falls back; %s takes his place." %
+						[target.display_name, partner.display_name])
 
 
-func _commit_reserve(character: Character) -> void:
+func _commit_reserve(character: Character, slot := -1) -> void:
 	if character == null or not state.player_reserve.has(character):
 		return
-	if state.player_field.size() >= BattleState.PLAYER_FIELD_CAP:
+	if state.player_formation.is_full():
 		return
 	if state.momentum < BattleState.RESERVE_COMMIT_COST:
 		return
 	state.momentum -= BattleState.RESERVE_COMMIT_COST
 	state.player_reserve.erase(character)
-	state.player_field.append(character)
+	var index := slot if _slot_free(state.player_formation, slot) \
+			else state.player_formation.first_free_index()
+	state.player_formation.place_at_index(character, index)
 	state.log_event("%s joins the boarding party." % character.display_name)
 
 
@@ -358,15 +398,29 @@ func _fight_phase(side: Character.Side) -> void:
 	for attacker in attackers:
 		if outcome != Outcome.NONE:
 			return
-		if not attacker.is_alive() or not _is_deployed(attacker):
+		if not attacker.is_alive() or not state.formation_of(side).has(attacker):
 			continue
 		var swings := 1 + attacker.bonus_attacks
 		attacker.bonus_attacks = 0
 		for i in swings:
 			if outcome != Outcome.NONE or not attacker.is_alive():
 				return
+			if _is_sniper(attacker):
+				var mark := _pick_target(attacker)
+				if mark == null:
+					break
+				await _snipe(attacker, mark)
+				await _pace()
+				continue
+			if not _can_melee(attacker):
+				break  # a second-liner without reach holds his place, quietly
 			var target := _pick_target(attacker)
 			if target == null:
+				# The miss is spatial and deterministic: an empty column eats
+				# the swing. Dodging is placement, never dice.
+				state.log_event("%s swings at air — the column across is empty." %
+						attacker.display_name)
+				await _pace()
 				break
 			await _attack(attacker, target)
 			await _pace()
@@ -374,15 +428,10 @@ func _fight_phase(side: Character.Side) -> void:
 
 ## Covering Volley: the archers on your rail open every player fight phase
 ## with true damage to the lowest-HP fielded defender (spawn-order tiebreak).
-## They hold fire during a duel — no one may interfere.
 func _archer_support_volley() -> void:
-	if state.archer_support_damage <= 0 or state.duel_active:
+	if state.archer_support_damage <= 0:
 		return
-	var target: Character = null
-	for c in state.enemy_field:
-		if c.is_alive() and (target == null or c.hp < target.hp \
-				or (c.hp == target.hp and c.order_id < target.order_id)):
-			target = c
+	var target := _weakest_fielded(state.enemy_formation)
 	if target == null:
 		return
 	state.log_event("Arrows from your rail find %s." % target.display_name)
@@ -391,24 +440,9 @@ func _archer_support_volley() -> void:
 
 
 ## Deterministic resolution order: speed descending, spawn order as tiebreak.
-## During a duel only the captains fight.
+## Only fielded men act — the reserve can never fight, never be hit.
 func _attack_order(side: Character.Side) -> Array[Character]:
-	if state.duel_active:
-		var duelist := state.player_captain if side == Character.Side.PLAYER else state.enemy_captain
-		var result: Array[Character] = []
-		if duelist != null:
-			result.append(duelist)
-		return result
-	var attackers: Array[Character] = []
-	attackers.append_array(state.fielded(side))
-	for c in state.reserve_of(side):
-		if c.weapon.kind == Weapon.Kind.BOW:
-			attackers.append(c)
-	if side == Character.Side.ENEMY and state.enemy_captain != null \
-			and state.enemy_captain.is_alive() \
-			and not state.enemy_field.has(state.enemy_captain) \
-			and state.enemy_field.size() <= BattleState.CAPTAIN_EXPOSED_FIELD_SIZE:
-		attackers.append(state.enemy_captain)
+	var attackers := state.fielded(side)
 	attackers.sort_custom(func(a: Character, b: Character) -> bool:
 		if a.speed != b.speed:
 			return a.speed > b.speed
@@ -416,56 +450,67 @@ func _attack_order(side: Character.Side) -> Array[Character]:
 	return attackers
 
 
-func _is_deployed(c: Character) -> bool:
-	if c == state.enemy_captain:
-		return true
-	if state.player_field.has(c) or state.enemy_field.has(c):
-		return true
-	# Bows shoot from the reserve rows.
-	return c.weapon.kind == Weapon.Kind.BOW \
-			and (state.player_reserve.has(c) or state.enemy_reserve.has(c))
-
-
-## Deterministic targeting, published rules (docs/combat-design.md):
-## duel > forced focus > kept engagement > exposed enemy captain (player side)
-## > first unengaged opposing fielded character > front-most. Never random.
+## Deterministic targeting, published rules (docs/lines-redesign.md):
+## a challenged captain goes for the other captain; snipers pick the weakest
+## fielded enemy anywhere; melee hits the nearest occupied slot in its own
+## column — front first, then their second line, empty column = miss (null).
+## Focus fire redirects everyone who can reach the target (same column for
+## melee, anywhere for snipers). Never random.
 func _pick_target(attacker: Character) -> Character:
-	if state.duel_active:
-		return state.enemy_captain if attacker.side == Character.Side.PLAYER else state.player_captain
-	if attacker.side == Character.Side.PLAYER and state.focus_target != null \
-			and state.focus_target.is_alive() and _is_targetable_enemy(state.focus_target):
+	var own := state.formation_of(attacker.side)
+	var opposing := state.opposing_formation(attacker.side)
+	if state.challenge_active and attacker.is_captain and _opposing_captain_fielded(attacker.side):
+		return _opposing_captain(attacker.side)
+	if _is_sniper(attacker):
+		if _focus_valid(attacker):
+			return state.focus_target
+		return _weakest_fielded(opposing)
+	if not _can_melee(attacker):
+		return null
+	var col := own.column_of(attacker)
+	if _focus_valid(attacker) and opposing.column_of(state.focus_target) == col:
 		return state.focus_target
-	if _engagement_valid(attacker):
-		return attacker.engaged_with
-	if attacker.side == Character.Side.PLAYER and state.enemy_captain_targetable():
-		return state.enemy_captain
-	var opposing := state.opposing_field(attacker.side)
-	for c in opposing:
-		if c.is_alive() and not state.is_engaged_by(attacker.side, c):
-			return c
-	for c in opposing:
-		if c.is_alive():
-			return c
-	if attacker.side == Character.Side.PLAYER and state.enemy_captain_targetable():
-		return state.enemy_captain
-	return null
+	return opposing.column_melee_target(col)
 
 
-func _is_targetable_enemy(c: Character) -> bool:
-	if c == state.enemy_captain:
-		return state.enemy_captain_targetable()
-	return state.enemy_field.has(c)
+## An archer earning his keep: in the second line with a bow.
+func _is_sniper(c: Character) -> bool:
+	return c.weapon.kind == Weapon.Kind.BOW \
+			and state.formation_of(c.side).line_of(c) == Formation.BACK
 
 
-func _engagement_valid(attacker: Character) -> bool:
-	var t := attacker.engaged_with
-	if t == null or not t.is_alive():
-		return false
-	if t.side == attacker.side:
-		return false
-	if t == state.enemy_captain:
-		return state.enemy_captain_targetable()
-	return state.opposing_field(attacker.side).has(t)
+## Front-liners fight their column; spears reach over their front man; a
+## challenged captain reaches the other captain from anywhere.
+func _can_melee(c: Character) -> bool:
+	if state.challenge_active and c.is_captain and _opposing_captain_fielded(c.side):
+		return true
+	var line := state.formation_of(c.side).line_of(c)
+	if line == Formation.FRONT:
+		return true
+	return line == Formation.BACK and c.weapon.kind == Weapon.Kind.SPEAR
+
+
+func _focus_valid(attacker: Character) -> bool:
+	return attacker.side == Character.Side.PLAYER and state.focus_target != null \
+			and state.focus_target.is_alive() and state.enemy_formation.has(state.focus_target)
+
+
+func _weakest_fielded(formation: Formation) -> Character:
+	var weakest: Character = null
+	for c in formation.fielded():
+		if c.is_alive() and (weakest == null or c.hp < weakest.hp \
+				or (c.hp == weakest.hp and c.order_id < weakest.order_id)):
+			weakest = c
+	return weakest
+
+
+func _opposing_captain(side: Character.Side) -> Character:
+	return state.enemy_captain if side == Character.Side.PLAYER else state.player_captain
+
+
+func _opposing_captain_fielded(side: Character.Side) -> bool:
+	var cap := _opposing_captain(side)
+	return cap != null and cap.is_alive() and state.opposing_formation(side).has(cap)
 
 
 func _attack(attacker: Character, defender: Character) -> void:
@@ -474,9 +519,6 @@ func _attack(attacker: Character, defender: Character) -> void:
 		dmg = maxi(1, dmg - 2)
 	if defender.side == Character.Side.PLAYER and state.player_armor_bonus > 0:
 		dmg = maxi(1, dmg - state.player_armor_bonus)
-	attacker.engaged_with = defender
-	if defender.engaged_with == null or not defender.engaged_with.is_alive():
-		defender.engaged_with = attacker
 	defender.hp -= dmg
 	state.log_event("%s hits %s for %d (%d HP left)." %
 			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
@@ -484,7 +526,22 @@ func _attack(attacker: Character, defender: Character) -> void:
 		await _handle_death(defender)
 
 
-## Card/tactic damage that bypasses armor and engagement.
+## The archer's arrow: flat LOW damage, armor and columns ignored — the one
+## attack placement cannot dodge. Side-wide protections still soften it.
+func _snipe(attacker: Character, defender: Character) -> void:
+	var dmg := BattleState.ARCHER_SNIPE_DAMAGE
+	if defender.side == Character.Side.PLAYER and state.shield_wall_active:
+		dmg = maxi(1, dmg - 2)
+	if defender.side == Character.Side.PLAYER and state.player_armor_bonus > 0:
+		dmg = maxi(1, dmg - state.player_armor_bonus)
+	defender.hp -= dmg
+	state.log_event("%s's arrow finds %s for %d (%d HP left)." %
+			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
+	if defender.hp <= 0:
+		await _handle_death(defender)
+
+
+## Card/tactic damage that bypasses armor and columns.
 func _deal_true_damage(c: Character, amount: int) -> void:
 	if amount <= 0 or not c.is_alive():
 		return
@@ -508,16 +565,16 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 func _handle_death(dead: Character) -> void:
 	# Drag Him Back! fires automatically: an affordable save in hand cancels
 	# the killing blow on a crew member, no prompt, no controller.
-	if dead.side == Character.Side.PLAYER and not dead.is_captain and state.player_field.has(dead):
+	if dead.side == Character.Side.PLAYER and not dead.is_captain \
+			and state.player_formation.has(dead):
 		var save := _affordable_reaction_save()
 		if save != null:
 			state.momentum -= save.cost
 			state.hand.erase(save)
 			state.discard.append(save)
 			dead.hp = 1
-			state.player_field.erase(dead)
+			state.player_formation.remove(dead)
 			state.player_reserve.append(dead)
-			dead.engaged_with = null
 			state.log_event("%s is dragged back to the ship at death's door." % dead.display_name)
 			return
 	if dead.is_captain and dead.side == Character.Side.PLAYER:
@@ -529,7 +586,7 @@ func _handle_death(dead: Character) -> void:
 		state.log_event("The enemy captain falls; his crew throws down its arms.")
 		return
 	var side := dead.side
-	state.fielded(side).erase(dead)
+	state.formation_of(side).remove(dead)
 	state.reserve_of(side).erase(dead)
 	if side == Character.Side.PLAYER:
 		state.player_dead.append(dead)
@@ -568,9 +625,8 @@ func _check_routs(side: Character.Side) -> void:
 
 func _rout(c: Character) -> void:
 	var side := c.side
-	state.fielded(side).erase(c)
+	state.formation_of(side).remove(c)
 	c.shaken = true
-	c.engaged_with = null
 	if side == Character.Side.PLAYER:
 		state.player_fled.append(c)
 		state.log_event("%s breaks and flees back to the ship." % c.display_name)
@@ -596,13 +652,13 @@ func _resolve_tactic(tactic: String) -> void:
 				state.log_event("Enemy arrows rattle off the shield wall.")
 				return
 			state.log_event("Arrows fall on the boarding party.")
-			for c in state.player_field.duplicate():
+			for c in state.fielded(Character.Side.PLAYER):
 				await _deal_true_damage(c, 1)
 				if outcome != Outcome.NONE:
 					return
 		"fear_horn":
 			state.log_event("A war horn moans across the deck.")
-			for c in state.player_field.duplicate():
+			for c in state.fielded(Character.Side.PLAYER):
 				_deal_morale_damage(c, 1)
 			_check_routs(Character.Side.PLAYER)
 		"reinforcement_surge":
@@ -612,6 +668,8 @@ func _resolve_tactic(tactic: String) -> void:
 			state.log_event("The enemy presses the attack.")
 
 
+## Reinforcements choose their slots deterministically: front gaps left to
+## right, then the second line (Formation.first_free_index).
 func _reinforce() -> void:
 	if state.block_reinforcements:
 		state.block_reinforcements = false
@@ -620,9 +678,9 @@ func _reinforce() -> void:
 	var rate := BattleState.SURGE_REINFORCE_RATE if state.surge_active else BattleState.REINFORCE_RATE
 	var moved := 0
 	while moved < rate and not state.enemy_reserve.is_empty() \
-			and state.enemy_field.size() < BattleState.ENEMY_FIELD_CAP:
+			and not state.enemy_formation.is_full():
 		var c: Character = state.enemy_reserve.pop_front()
-		state.enemy_field.append(c)
+		state.enemy_formation.place_at_index(c, state.enemy_formation.first_free_index())
 		moved += 1
 		state.log_event("%s comes up from below decks." % c.display_name)
 	# The captain is the final reinforcement: he steps in himself only when
@@ -630,9 +688,10 @@ func _reinforce() -> void:
 	# is always one full turn between the last man up and the jarl himself.
 	if moved == 0 and state.enemy_reserve.is_empty() \
 			and state.enemy_captain != null and state.enemy_captain.is_alive() \
-			and not state.enemy_field.has(state.enemy_captain) \
-			and state.enemy_field.size() < BattleState.ENEMY_FIELD_CAP:
-		state.enemy_field.append(state.enemy_captain)
+			and not state.enemy_formation.has(state.enemy_captain) \
+			and not state.enemy_formation.is_full():
+		state.enemy_formation.place_at_index(state.enemy_captain,
+				state.enemy_formation.first_free_index())
 		state.log_event("%s himself steps into the line!" % state.enemy_captain.display_name)
 
 
@@ -682,9 +741,22 @@ func _shuffle(cards: Array[CardData]) -> void:
 		cards[j] = tmp
 
 
-func _register(c: Character, into: Array[Character]) -> void:
+func _slot_free(formation: Formation, index: int) -> bool:
+	return index >= 0 and index < Formation.SLOT_COUNT and formation.slots[index] == null
+
+
+func _register(c: Character) -> void:
 	c.order_id = _next_order_id()
-	into.append(c)
+
+
+## Scenario lists carry no slots yet: fill the grid in reading order, front
+## left to right, then the second line; overflow waits in reserve.
+func _auto_field(c: Character) -> void:
+	var formation := state.formation_of(c.side)
+	if formation.is_full():
+		state.reserve_of(c.side).append(c)
+		return
+	formation.place_at_index(c, formation.first_free_index())
 
 
 func _next_order_id() -> int:

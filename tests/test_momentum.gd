@@ -42,5 +42,5 @@ func test_commit_reserve_costs_momentum() -> void:
 	assert_true(eng.state.player_reserve.has(crew), "no momentum, no commit")
 	eng.state.momentum = 1
 	eng._commit_reserve(crew)
-	assert_true(eng.state.player_field.has(crew))
+	assert_true(eng.state.player_formation.has(crew))
 	assert_eq(eng.state.momentum, 0)
