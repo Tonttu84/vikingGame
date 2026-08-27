@@ -77,6 +77,22 @@ func test_shieldman_aura_never_covers_himself() -> void:
 	assert_eq(shieldman.hp, 12 - 3, "5 raw halves to 3 — no self-aura shaving it to 2")
 
 
+func test_shieldman_auras_do_not_stack() -> void:
+	var hitter := TestHelpers.grunt(P, "hitter", 12, 6, 4, 3)
+	var left_wall := TestHelpers.grunt(E, "left_wall")
+	left_wall.is_shieldman = true
+	var right_wall := TestHelpers.grunt(E, "right_wall")
+	right_wall.is_shieldman = true
+	var flanked := TestHelpers.grunt(E, "flanked")
+	var eng := TestHelpers.engine_for({
+		"player_field": [hitter],
+		"enemy_field": [left_wall, flanked, right_wall],
+	})
+	TestHelpers.station(eng.state.player_formation, hitter, F, 1)
+	await eng._attack(hitter, flanked)
+	assert_eq(flanked.hp, 12 - 3, "flanked by two shieldmen is still just +1 armor")
+
+
 func test_shieldman_aura_does_not_reach_across_lines() -> void:
 	var hitter := TestHelpers.grunt(P, "hitter")
 	var shieldman := TestHelpers.grunt(E, "shieldman")

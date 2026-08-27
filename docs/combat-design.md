@@ -62,7 +62,7 @@ what make "kill him FIRST" a puzzle; the same kits stand on both sides.
 
 | Kit | Hooks (v0 numbers) |
 | --- | --- |
-| Shieldman (`is_shieldman`) | Takes **half physical damage, rounded up**, applied last — after armor and side-wide softening — to melee, snipes and cleave grazes, never to card/tactic true damage (volleys are his counter-play). **Aura: +1 armor to line-neighbors** (same line, adjacent column), never himself. Low Strength: he anchors, he does not carry. |
+| Shieldman (`is_shieldman`) | Takes **half physical damage, rounded up**, applied last — after armor and side-wide softening — to melee, snipes and cleave grazes, never to card/tactic true damage (volleys are his counter-play). **Aura: +1 armor to line-neighbors** (same line, adjacent column; two adjacent shieldmen do not stack), never himself. Low Strength: he anchors, he does not carry. |
 | Berserker (`is_berserker`) | Morale-immune (as before). **Cleave:** his attack also grazes the target's line-neighbors for a flat 2 — never armored, but softened and shield-halved; graze kills pay the normal bounty. The arc is set before the blow lands. Their berserker is your #1 kill bounty. |
 | Spearman (spear) | Reach: fights his column from the second line. |
 | Archer (bow) | Second line only in practice: auto-snipes the weakest fielded enemy anywhere for a flat 2. Halved by a shieldman's shield like any physical hit. |

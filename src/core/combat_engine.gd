@@ -603,14 +603,14 @@ func _leader_bonus(attacker: Character) -> int:
 	return bonus
 
 
-## The shieldman's aura: +1 armor per shieldman standing beside the defender.
-## Worn armor only helps in melee, so the aura is melee-only by construction.
+## The shieldman's aura: +1 armor with a shieldman standing beside the
+## defender — flat, never stacking with a second shield. Worn armor only
+## helps in melee, so the aura is melee-only by construction.
 func _aura_armor(defender: Character) -> int:
-	var bonus := 0
 	for neighbor in state.formation_of(defender.side).line_neighbors(defender):
 		if neighbor.is_shieldman:
-			bonus += 1
-	return bonus
+			return 1
+	return 0
 
 
 ## The shieldman's own hide: physical hits (melee, snipes, grazes) halve on

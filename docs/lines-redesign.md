@@ -178,8 +178,9 @@ grids) · the duel-bypasses-the-line rule.
   UI renders 2×4 grids (functional, not pretty) with forecast badges.
   New suites: `test_formation`, `test_column_targeting`, `test_forecast`.
 - **B. Role kits — SHIPPED** — the hooks table above exactly as mapped
-  (shieldman aura stacks per adjacent shieldman; the cleave arc is
-  captured before the blow lands), distinct default rosters both sides
+  (shieldman auras never stack — a second adjacent shield adds nothing;
+  the cleave arc is captured before the blow lands), distinct default
+  rosters both sides
   (raider breakers vs a two-shieldman defender wall, karls at morale 4),
   covering-volley scaling with ship archers, forecast covering grazes
   and the re-aimed volley. Suite: `test_kits`. Post-B sims are in
