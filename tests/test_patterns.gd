@@ -177,3 +177,164 @@ func test_the_captain_waits_one_full_turn_after_the_hold_empties() -> void:
 	assert_false(eng.state.enemy_formation.has(jarl), "the jarl is not on his heels")
 	eng._reinforce()
 	assert_true(eng.state.enemy_formation.has(jarl), "he steps in the turn after")
+
+
+# --- Wind-ups: fixed 3-turn rhythms, enemy-only, visible counters -------------
+
+func _berserk(side: Character.Side, id: String) -> Character:
+	var c := TestHelpers.grunt(side, id, 10, 1, 5, 4, Weapon.axe())
+	c.is_berserker = true
+	return c
+
+
+func test_enemy_windup_roles_start_their_counters_when_fielded() -> void:
+	var berserk := _berserk(E, "berserk")
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var plain := TestHelpers.grunt(E, "plain")
+	var eng := TestHelpers.engine_for({"enemy_field": [berserk, archer, plain]})
+	assert_eq(berserk.windup, 2, "the berserker's rhythm shows from the first turn")
+	assert_eq(archer.windup, 2, "the archer's too")
+	assert_eq(plain.windup, -1, "plain fighters have no rhythm")
+
+
+func test_windups_are_enemy_only() -> void:
+	var my_berserk := _berserk(P, "my_berserk")
+	var my_archer := TestHelpers.grunt(P, "my_archer", 10, 5, 2, 3, Weapon.bow())
+	var eng := TestHelpers.engine_for({"player_field": [my_berserk, my_archer]})
+	eng._advance_windups()
+	assert_eq(my_berserk.windup, -1, "your men keep no timers")
+	assert_eq(my_archer.windup, -1, "wind-ups are the enemy's telegraph layer")
+
+
+func test_windup_counts_down_and_resets_after_firing() -> void:
+	var berserk := _berserk(E, "berserk")
+	var eng := TestHelpers.engine_for({"enemy_field": [berserk]})
+	eng._advance_windups()
+	assert_eq(berserk.windup, 1, "one turn closer")
+	eng._advance_windups()
+	assert_eq(berserk.windup, 0, "the heavy blow is next")
+	eng._advance_windups()
+	assert_eq(berserk.windup, 2, "spent — dodged or landed — the rhythm restarts")
+
+
+func test_a_late_arrival_starts_his_rhythm_on_fielding() -> void:
+	var berserk := _berserk(E, "berserk")
+	var watch := TestHelpers.grunt(E, "watch")
+	var eng := TestHelpers.engine_for({"enemy_field": [watch], "enemy_reserve": [berserk]})
+	assert_eq(berserk.windup, -1, "below decks there is no rhythm to read")
+	eng._reinforce()
+	eng._advance_windups()
+	assert_eq(berserk.windup, 2, "fielded: the counter appears")
+
+
+func test_heavy_cleave_doubles_the_blow_and_the_graze() -> void:
+	var berserk := _berserk(E, "berserk")
+	var mark := TestHelpers.grunt(P, "mark", 30)
+	var left := TestHelpers.grunt(P, "left")
+	var eng := TestHelpers.engine_for({
+		"player_field": [left, mark],
+		"enemy_field": [berserk],
+	})
+	berserk.windup = 0
+	await eng._attack(berserk, mark)
+	assert_eq(mark.hp, 30 - 12, "the wound-up blow: (5 Str + 1 axe) doubled")
+	assert_eq(left.hp, 12 - 4, "the graze doubles with it")
+
+
+func test_an_ordinary_turn_cleaves_normally() -> void:
+	var berserk := _berserk(E, "berserk")
+	var mark := TestHelpers.grunt(P, "mark", 30)
+	var left := TestHelpers.grunt(P, "left")
+	var eng := TestHelpers.engine_for({
+		"player_field": [left, mark],
+		"enemy_field": [berserk],
+	})
+	berserk.windup = 1
+	await eng._attack(berserk, mark)
+	assert_eq(mark.hp, 30 - 6, "no wind-up, no spike")
+	assert_eq(left.hp, 12 - 2, "the ordinary graze")
+
+
+func test_the_archer_marks_the_weakest_boarder_one_turn_ahead() -> void:
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var sturdy := TestHelpers.grunt(P, "sturdy", 20)
+	var weakling := TestHelpers.grunt(P, "weakling", 6)
+	var eng := TestHelpers.engine_for({
+		"player_field": [sturdy, weakling],
+		"enemy_field": [archer],
+	})
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	archer.windup = 1
+	eng._advance_windups()
+	assert_eq(archer.windup, 0, "the shot is next turn")
+	assert_eq(eng.state.archer_marks.get(archer), weakling, "and it is locked on the weakest")
+	assert_true(_log_has(eng, "marks"), "the mark is in the saga")
+
+
+func test_the_double_shot_hits_the_marked_man_not_the_weakest() -> void:
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var marked := TestHelpers.grunt(P, "marked", 20)
+	var weaker_now := TestHelpers.grunt(P, "weaker_now", 4)
+	var eng := TestHelpers.engine_for({
+		"player_field": [marked, weaker_now],
+		"enemy_field": [archer],
+	})
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	archer.windup = 0
+	eng.state.archer_marks[archer] = marked
+	await eng._fight_phase(E)
+	assert_eq(marked.hp, 20 - 4, "both aimed arrows find the marked man")
+	assert_eq(weaker_now.hp, 4, "the weaker man is not the mark")
+
+
+func test_the_double_shot_is_wasted_when_the_mark_is_gone() -> void:
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var marked := TestHelpers.grunt(P, "marked", 20)
+	var stand_in := TestHelpers.grunt(P, "stand_in")
+	var eng := TestHelpers.engine_for({
+		"player_field": [marked, stand_in],
+		"enemy_field": [archer],
+	})
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	archer.windup = 0
+	eng.state.archer_marks[archer] = marked
+	eng.state.player_formation.remove(marked)
+	eng.state.player_reserve.append(marked)
+	await eng._fight_phase(E)
+	assert_eq(marked.hp, 20, "dragged to the ship: out of reach")
+	assert_eq(stand_in.hp, 12, "the aimed arrows are not re-spent on anyone else")
+	assert_true(_log_has(eng, "mark is gone"), "the waste is in the saga")
+
+
+func test_forecast_bills_the_heavy_cleave_and_the_double_shot() -> void:
+	var berserk := _berserk(E, "berserk")
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var mark := TestHelpers.grunt(P, "mark", 30)
+	var left := TestHelpers.grunt(P, "left", 20)
+	var eng := TestHelpers.engine_for({
+		"player_field": [left, mark],
+		"enemy_field": [berserk, archer],
+	})
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, berserk, F, 1)
+	berserk.windup = 0
+	archer.windup = 0
+	eng.state.archer_marks[archer] = mark
+	eng.state.next_tactic = "press_the_attack"
+	var bill: Dictionary = eng.forecast()
+	assert_eq(bill[mark]["hp"], 12 + 4, "the doubled blow plus both aimed arrows")
+	assert_eq(bill[left]["hp"], 4, "the doubled graze reaches the man beside the mark")
+
+
+func test_forecast_shows_no_arrows_for_a_lost_mark() -> void:
+	var archer := TestHelpers.grunt(E, "archer", 10, 5, 2, 3, Weapon.bow())
+	var survivor := TestHelpers.grunt(P, "survivor")
+	var eng := TestHelpers.engine_for({
+		"player_field": [survivor],
+		"enemy_field": [archer],
+	})
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	archer.windup = 0
+	eng.state.next_tactic = "press_the_attack"
+	var bill: Dictionary = eng.forecast()
+	assert_eq(bill[survivor]["hp"], 0, "no mark to shoot: the aimed arrows go nowhere")

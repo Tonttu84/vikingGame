@@ -20,6 +20,10 @@ var is_captain := false    ## leader aura: line-neighbors strike +1 (CombatEngin
 var is_berserker := false  ## immune to morale damage; his attacks cleave (CombatEngine)
 var is_shieldman := false  ## takes half damage (rounded up); aura: +1 armor to line-neighbors
 var shaken := false        ## routed earlier in the raid; reduced morale
+## Enemy wind-up rhythm (docs/lines-redesign.md phase C): fight phases left
+## until the heavy cleave / double shot fires — 0 fires this turn, -1 = no
+## rhythm (all player characters, plain fighters, the unfielded).
+var windup := -1
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
 ## Setup-only hint (RosterText slot syntax): the grid slot this character is

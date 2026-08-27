@@ -18,6 +18,9 @@ const ARCHER_SNIPE_DAMAGE := 2
 ## The berserker's swing spills onto the target's line-neighbors: flat, never
 ## armored, but softened and shield-halved like any physical hit.
 const CLEAVE_GRAZE_DAMAGE := 2
+## Enemy wind-up rhythm: the heavy cleave and the aimed double shot fire
+## every 3rd enemy fight phase (visible counter 2, 1, 0 — fires at 0).
+const WINDUP_PERIOD := 3
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the
@@ -62,6 +65,10 @@ var surge_active := false
 var challenge_active := false
 var focus_target: Character = null
 var next_tactic := ""
+## Locked marks: enemy archer -> the boarder his aimed double shot is bound
+## to. Placed one turn ahead when his counter reaches 0; a mark that dies,
+## routs or leaves the field wastes the shot.
+var archer_marks := {}
 
 var battle_log: Array[String] = []
 

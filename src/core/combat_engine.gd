@@ -62,6 +62,9 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	deck.assign(scenario.get("deck", []))
 	state.deck = deck
 	_shuffle(state.deck)
+	for c in state.fielded(Character.Side.ENEMY):
+		if _windup_role(c):
+			c.windup = BattleState.WINDUP_PERIOD - 1
 	enemy_tactics.assign(scenario.get("enemy_tactics", ["press_the_attack"]))
 	state.next_tactic = _pick_tactic()
 	state.maneuvers.assign(scenario.get("maneuvers", []))
@@ -189,6 +192,7 @@ func _enemy_turn() -> void:
 		return
 	_reinforce()
 	await _pace()
+	_advance_windups()
 	state.surge_active = false
 	state.challenge_active = false
 	state.next_tactic = _pick_tactic()
@@ -406,6 +410,10 @@ func _fight_phase(side: Character.Side) -> void:
 			if outcome != Outcome.NONE or not attacker.is_alive():
 				return
 			if _is_sniper(attacker):
+				if attacker.windup == 0:
+					await _double_shot(attacker)
+					await _pace()
+					break
 				var mark := _pick_target(attacker)
 				if mark == null:
 					break
@@ -566,12 +574,31 @@ func _attack(attacker: Character, defender: Character) -> void:
 func _cleave_graze(attacker: Character, victim: Character) -> void:
 	if not victim.is_alive() or not state.formation_of(victim.side).has(victim):
 		return
-	var dmg := _shield_halved(_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim)
+	var dmg := _graze_damage(attacker, victim)
 	victim.hp -= dmg
 	state.log_event("%s's cleave grazes %s for %d (%d HP left)." %
 			[attacker.display_name, victim.display_name, dmg, maxi(0, victim.hp)])
 	if victim.hp <= 0:
 		await _handle_death(victim)
+
+
+## The aimed double shot: both arrows bound to the mark placed a turn ago.
+## A mark that died, routed or was pulled back to the ship wastes the shot
+## whole — rescuing the marked man is the counter-play snipes otherwise lack.
+func _double_shot(archer: Character) -> void:
+	var mark: Character = state.archer_marks.get(archer)
+	if mark == null or not mark.is_alive() \
+			or not state.opposing_formation(archer.side).has(mark):
+		state.log_event("%s's aimed arrows find nothing — the mark is gone." %
+				archer.display_name)
+		return
+	state.log_event("%s looses both aimed arrows at %s!" %
+			[archer.display_name, mark.display_name])
+	for i in 2:
+		if outcome != Outcome.NONE or not mark.is_alive() \
+				or not state.opposing_formation(archer.side).has(mark):
+			return
+		await _snipe(archer, mark)
 
 
 ## The archer's arrow: flat LOW damage, armor and columns ignored — the one
@@ -587,11 +614,24 @@ func _snipe(attacker: Character, defender: Character) -> void:
 
 func _melee_damage(attacker: Character, defender: Character) -> int:
 	var raw := attacker.damage_against(defender, _leader_bonus(attacker), _aura_armor(defender))
+	# The wound-up heavy blow: the berserker's melee damage doubles on the
+	# turn his counter reaches 0 (docs/lines-redesign.md phase C rulings).
+	if attacker.is_berserker and attacker.windup == 0:
+		raw *= 2
 	return _shield_halved(_soften(raw, defender), defender)
 
 
 func _snipe_damage(defender: Character) -> int:
 	return _shield_halved(_soften(BattleState.ARCHER_SNIPE_DAMAGE, defender), defender)
+
+
+## The cleave's spill on one neighbor — flat, doubled on the wind-up turn,
+## never armored, but softened and shield-halved like any physical hit.
+func _graze_damage(attacker: Character, victim: Character) -> int:
+	var base := BattleState.CLEAVE_GRAZE_DAMAGE
+	if attacker.windup == 0:
+		base *= 2
+	return _shield_halved(_soften(base, victim), victim)
 
 
 ## The captain's leader aura: his line-neighbors strike +1 in melee.
@@ -719,6 +759,13 @@ func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
 		return
 	if not _is_sniper(attacker) and not _can_melee(attacker):
 		return
+	# An aimed double shot is bound to its mark — or to nothing at all.
+	if _is_sniper(attacker) and attacker.windup == 0:
+		var mark: Character = state.archer_marks.get(attacker)
+		if mark != null and mark.is_alive() and out.has(mark) \
+				and state.opposing_formation(attacker.side).has(mark):
+			out[mark]["hp"] += _snipe_damage(mark) * 2
+		return
 	var target := _pick_target(attacker)
 	if target == null or not out.has(target):
 		return
@@ -728,8 +775,7 @@ func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
 	out[target]["hp"] += dmg * swings
 	if attacker.is_berserker and not _is_sniper(attacker):
 		for victim in state.formation_of(target.side).line_neighbors(target):
-			out[victim]["hp"] += _shield_halved(
-					_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim) * swings
+			out[victim]["hp"] += _graze_damage(attacker, victim) * swings
 
 
 # --- Death, morale and routing ----------------------------------------------
@@ -760,6 +806,7 @@ func _handle_death(dead: Character) -> void:
 	var side := dead.side
 	state.formation_of(side).remove(dead)
 	state.reserve_of(side).erase(dead)
+	state.archer_marks.erase(dead)
 	if side == Character.Side.PLAYER:
 		state.player_dead.append(dead)
 	else:
@@ -798,6 +845,7 @@ func _check_routs(side: Character.Side) -> void:
 func _rout(c: Character) -> void:
 	var side := c.side
 	state.formation_of(side).remove(c)
+	state.archer_marks.erase(c)
 	c.shaken = true
 	if side == Character.Side.PLAYER:
 		state.player_fled.append(c)
@@ -868,6 +916,38 @@ func _apply_call(tactic: String) -> bool:
 		"step_up":
 			return state.enemy_formation.step_up()
 	return false
+
+
+## An enemy with a wind-up rhythm: the berserker's heavy cleave, the
+## archer's aimed double shot. Player characters never carry timers —
+## wind-ups are the enemy's telegraph layer (phase C ruling).
+func _windup_role(c: Character) -> bool:
+	return c.side == Character.Side.ENEMY \
+			and (c.is_berserker or c.weapon.kind == Weapon.Kind.BOW)
+
+
+## The end-of-enemy-turn tick: counters run only while fielded, restart on
+## arrival and after firing (dodged or landed alike). An archer reaching 0
+## locks his mark now — one full player turn of warning before the arrows.
+func _advance_windups() -> void:
+	for c in state.fielded(Character.Side.ENEMY):
+		if not _windup_role(c):
+			continue
+		if c.windup <= 0:
+			state.archer_marks.erase(c)
+			c.windup = BattleState.WINDUP_PERIOD - 1
+			continue
+		c.windup -= 1
+		if c.windup != 0:
+			continue
+		if _is_sniper(c):
+			var mark := _weakest_fielded(state.player_formation)
+			if mark != null:
+				state.archer_marks[c] = mark
+				state.log_event("%s marks %s — the next arrows are his." %
+						[c.display_name, mark.display_name])
+		elif c.is_berserker:
+			state.log_event("%s begins the wind-up for a terrible blow." % c.display_name)
 
 
 ## Reinforcements choose their slots deterministically: front gaps left to
