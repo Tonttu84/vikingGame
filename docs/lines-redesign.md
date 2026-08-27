@@ -109,21 +109,30 @@ Two layers keep the solved order dissolving:
 Their reinforcement keeps its fixed rate and now also **chooses slots**
 deterministically (fill front gaps first, left to right), captain last.
 
-## Cards: movement + effect
+## Cards: movement rides on effects
 
-No free-move action: rearranging rides on cards, and most movement cards do
-something else too so moving never wastes a whole card. Sketch (priced
-later, Phase D):
+The design principle (decided): **movement is semi-free — it rides on cards
+you would play anyway.** A pure movement card has to compete with direct
+effects for the same card slot and loses; a free-move action makes position
+too cheap to mean anything. So MOST cards carry a movement rider next to
+their effect: play the card for its punch and the move comes with it. The
+only movement-first cards are the retained crossing pair (Reinforce/Swap),
+whose job was always logistics. Sketch (priced in Phase D):
 
-| Card | Sketch |
+| Card | Sketch (effect + movement rider) |
 | --- | --- |
 | Reinforce (retained) | Field a reserve man **into a slot you choose**. |
-| Swap (retained) | Now also usable as fielded↔fielded (any two of your men trade slots), not just fielded↔reserve. |
-| Push Through | Advance a second-liner into an empty front slot; he attacks immediately. |
+| Swap (retained) | Any two of your men trade slots (fielded↔fielded or fielded↔reserve). |
+| Spear Volley | 2 damage to the enemy front line, then slide one of your men one column. |
+| Shield Wall | Your side takes −2 this round; first, swap any two of your fielded men into place. |
+| Rally | Heal an ally 4; he may step one line forward or back. |
+| Battle Fury | An ally attacks twice this turn; he may first advance into an empty front slot. |
+| War Cry | +1 momentum per kill this turn; slide one of your men toward the killing. |
+| Feint | Draw 2; slide one of your men one column (the feint IS the step). |
 | Fall Back | Retire a front-liner to his second line; +2 morale to him (breather). |
 | Break the Line | REPURPOSED: shove an enemy front-liner one column sideways — you re-aim THEIR formation (into the berserker's wind-up, out of the shieldman's aura). |
 | Challenge | REPURPOSED: only while both captains are fielded — they attack each other this round regardless of columns. |
-| Shield Wall / volleys / Rally / fury / Feint / War Cry / Bellow | Unchanged in spirit; Spear Volley hits the enemy FRONT line only. |
+| Terrifying Bellow / Concentrated | Effects unchanged; riders to be decided per card in Phase D. |
 | Aim! (maybe) | Override the archers' auto-snipe target this turn. Only if playtests want it. |
 
 Concentrated Attack becomes: everyone **who can reach the target** strikes
@@ -162,3 +171,7 @@ tuning targets stay honest but expect noisier numbers until D.
   cards-only too? (Start cards-only; the enemy's step-up is a captain call.)
 - Does losing spear-first-strike make spears too plain? (Reach may be enough.)
 - Aim! card: only add if auto-snipe frustrates in playtests.
+- Movement riders: optional or mandatory? Optional ("may slide") is safe;
+  mandatory riders make strong effects double-edged — the best card in hand
+  might force an awkward step, which is texture AND friction. Start
+  optional; try mandatory on one or two cards as spice.
