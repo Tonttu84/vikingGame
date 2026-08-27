@@ -140,16 +140,26 @@ effects for the same card slot and loses; a free-move action makes position
 too cheap to mean anything. So MOST cards carry a movement rider next to
 their effect: play the card for its punch and the move comes with it. The
 only movement-first cards are the retained crossing pair (Reinforce/Swap),
-whose job was always logistics. Sketch (priced in Phase D):
+whose job was always logistics.
+
+**Resolution order (decided): effect first, movement rider last.** A card
+can never set up its own effect — the volley lands, THEN the man steps. The
+rider pays forward into the fight phase, future cards and next turn, never
+backward into the card that carried it. (Fight-phase flags like Battle
+Fury's extra swings still benefit from the rider, since the fight resolves
+after all cards — that is the rider doing its forward-looking job, not the
+card setting itself up.)
+
+Sketch (priced in Phase D):
 
 | Card | Sketch (effect + movement rider) |
 | --- | --- |
 | Reinforce (retained) | Field a reserve man **into a slot you choose**. |
 | Swap (retained) | Any two of your men trade slots (fielded↔fielded or fielded↔reserve). |
 | Spear Volley | 2 damage to the enemy front line, then slide one of your men one column. |
-| Shield Wall | Your side takes −2 this round; first, swap any two of your fielded men into place. |
+| Shield Wall | Your side takes −2 this round; then swap any two of your fielded men (for the coming fight, not for the wall). |
 | Rally | Heal an ally 4; he may step one line forward or back. |
-| Battle Fury | An ally attacks twice this turn; he may first advance into an empty front slot. |
+| Battle Fury | An ally attacks twice this turn; then he may advance into an empty front slot (the fight resolves after, so the fury travels with him). |
 | War Cry | +1 momentum per kill this turn; slide one of your men toward the killing. |
 | Feint | Draw 2; slide one of your men one column (the feint IS the step). |
 | Fall Back | Retire a front-liner to his second line; +2 morale to him (breather). |
