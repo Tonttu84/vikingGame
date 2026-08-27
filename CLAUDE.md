@@ -64,7 +64,19 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the lines redesign phase B — role kits** (docs/lines-redesign.md):
+Done: **the lines redesign phase C — enemy dynamics** (docs/lines-redesign.md,
+rulings recorded there): the four captain's calls as telegraphed tactics
+(fresh men forward, shift larboard/starboard with slide-what-can edge
+pinning, step up) via new Formation verbs (`swap_lines`/`shift`/`step_up`);
+enemy-only wind-ups on a visible 3-turn counter (`Character.windup`, ticked
+end of enemy turn) — the berserker's heavy cleave (2× blow, graze 4, wasted
+on an empty column) and the archer's locked mark (weakest boarder marked at
+0, both aimed arrows hit him next turn or nothing if he's dead/routed/
+rescued; `state.archer_marks`); forecast previews enemy attacks from called
+positions and bills heavies/double shots; UI shows call intents, wind-up
+counters, MARKED badge. Suite `test_patterns`. Post-C sims: random bot
+40.0% win / 11.6% stalemate, ~27 turns (calls break the wall's grind).
+Earlier: **phase B — role kits**:
 shieldman (half damage rounded up applied last; +1-armor aura to
 line-neighbors; RosterText `shieldman` token), berserker cleave (flat-2
 graze to the target's line-neighbors, never armored), the axe denying aura
@@ -72,8 +84,6 @@ armor, the captain's leader aura (+1 melee to line-neighbors), Covering
 Volley scaling per ship archer with re-aim, forecast covering grazes and
 the scaled volley, and distinct default rosters (raider breakers vs a
 two-shieldman defender wall with karl rout-fodder). Suite `test_kits`.
-Post-B sims: random bot 5.6% win / 46.6% stalemate, ~40 turns — grindy by
-design until C–D retune.
 Earlier: **the lines redesign phase A** — positional combat on 4×2 slot grids
 (Formation), strict-column targeting with spatial misses, spear reach,
 archer auto-snipe (flat 2, second line), reserve-never-acts, the enemy
@@ -92,10 +102,9 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Lines redesign phase C — enemy dynamics (docs/lines-redesign.md):
-   captain's calls + wind-ups, telegraph plumbing, reinforcement slot
-   choice; suite test_patterns. Then D card rework/retune (movement
-   riders, prices from sims, ~6–10 turn fights).
+1. Lines redesign phase D — card rework & retune (docs/lines-redesign.md):
+   movement riders on the card table (effect first, rider last), prices
+   from sims, UI drag targets for slots, ~6–10 turn fights.
 2. Officer system (prowman is currently just a strong named crewman).
 3. Raid loop (node route between fights, loot into the deck, wounds
    persisting, retreat-vs-push-on).

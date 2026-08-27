@@ -5,9 +5,9 @@ Everything else in `game-design.md` is the long-term frame around it.
 
 > **Redesign in progress:** positional combat is specified in
 > [lines-redesign.md](lines-redesign.md) and lands in phases. **Phases A
-> (the geometry engine) and B (role kits) have shipped** and this document
-> describes them; enemy shifts and wind-ups (C) and the card rework (D)
-> are still to come.
+> (the geometry engine), B (role kits) and C (enemy dynamics) have
+> shipped** and this document describes them; the card rework and retune
+> (D) is still to come.
 
 ## Fantasy & win condition
 
@@ -75,6 +75,30 @@ breakers (axes, a spearman, one shieldman, an archer feeding the rail),
 their watch is a wall (two shieldmen up front, a bowman behind, karls and
 the berserker in the hold).
 
+## Enemy dynamics (shipped, phase C)
+
+Two telegraphed layers keep any solved kill-order dissolving — all fixed
+timers and formation verbs, never dice:
+
+- **Captain's calls** are formation moves in the enemy tactic pool,
+  telegraphed a turn ahead like every tactic: *Fresh Men Forward* (their
+  lines trade places), *Shift Larboard/Starboard* (the whole line slides a
+  column — every duel re-pairs; each man moves only if his destination is
+  free, processed from the leading edge, so pinning their wall against the
+  rail denies the call), *Step Up* (back-liners fill their columns' empty
+  front slots). The forecast previews enemy attacks from the positions the
+  call will put them in; your own attacks resolve before the call, on
+  current geometry.
+- **Wind-ups** are visible 3-turn rhythms on enemy berserkers and archers
+  (counter on the token: 2, 1, 0 — fires at 0, restarts on arrival and
+  after firing, spent whether it lands or not). At 0 the **berserker's
+  heavy cleave** doubles his melee damage and the graze (2 → 4): dodge his
+  column or eat it. The **archer locks his mark** on the weakest boarder
+  one turn ahead; next turn both aimed arrows hit that man — if he is
+  dead, routed or rescued to the ship, the double shot is wasted. This is
+  the counter-play snipes otherwise lack. Wind-ups are enemy-only: your
+  own rhythm lives in cards.
+
 ## The boarding maneuver
 
 Every battle opens with one free **boarding maneuver** — how you come over
@@ -126,9 +150,11 @@ PLAYER TURN
   3. Commit a reserve to the field (costs 1 momentum), optional fallback.
   4. Fight: all characters resolve attacks (see character control).
 ENEMY TURN
-  5. Enemy tactic resolves (was telegraphed as an intent last turn).
-  6. Enemy characters attack.
-  7. Reinforce from below decks (the captain last); reveal next tactic.
+  5. Enemy tactic resolves (was telegraphed as an intent last turn) —
+     a damage tactic or a captain's call re-arranging their line.
+  6. Enemy characters attack (wind-ups at 0 fire their heavy blows).
+  7. Reinforce from below decks (the captain last); tick wind-up
+     counters (the archer marks at 0); reveal next tactic.
 ```
 
 ## Momentum (the resource)
@@ -227,8 +253,10 @@ explicitly to be validated in M2 playtests (see the watchlist at the end).
   a feature — you plan around it like a puzzle, and the sim can verify it.
 - **The bill is on the board.** The UI forecasts, per fighter, the physical
   and morale damage he stands to take next fight phases (column duels,
-  reach, snipes, the telegraphed tactic, the morale wave of predicted
-  deaths) — you read threat off the tokens instead of adding it up.
+  reach, snipes, the telegraphed tactic — enemy attacks previewed from the
+  positions a telegraphed call will put them in — wound-up heavy blows,
+  aimed double shots, the morale wave of predicted deaths) — you read
+  threat off the tokens instead of adding it up.
 - **All player agency flows through cards.** Want focus fire? That's
   `Concentrated Attack`. Want someone safe? `Drag Him Back!`. Want their
   line re-aimed? `Break the Line`. Cards move men; position does the rest.
@@ -301,8 +329,11 @@ turns. Post-kits (phase B, distinct rosters, n=500): 5.6% win / 47.8%
 defeat / 46.6% stalemate, avg 40 turns — the defender wall (two halving
 shieldmen) makes a placement-blind bot grind, and their berserker's
 cleave plus the jarl's aura punish its clumping. Rough by design: kill
-order now matters and the bot cannot see it. Phases C–D (enemy dynamics,
-card rework) carry the retune back to the 6–10 turn, near-even target.
+order now matters and the bot cannot see it. Post-dynamics (phase C,
+n=500): 40.0% win / 48.4% defeat / 11.6% stalemate, avg 27 turns — the
+captain's own calls break his wall's grind (a shieldman shifted off his
+column stops anchoring it), wind-ups add spike damage both ways. Phase D
+(card rework) carries the retune to the 6–10 turn, near-even target.
 The no-card bot stays a floor metric (collapses to a ~6-turn repulse: it
 never crosses a second man).
 

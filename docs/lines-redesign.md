@@ -1,7 +1,7 @@
 # The Lines Redesign — positional boarding combat (working spec)
 
-Status: **phases A (geometry engine) and B (role kits) shipped;** C–D still
-to come. The rules in `docs/combat-design.md` describe the shipped state. Systems this spec
+Status: **phases A (geometry engine), B (role kits) and C (enemy dynamics)
+shipped;** D still to come. The rules in `docs/combat-design.md` describe the shipped state. Systems this spec
 does not mention (momentum carryover, morale waves and routs, maneuvers,
 Retained cards, the automatic death-save, artifacts, hand model) carry over
 unchanged.
@@ -218,8 +218,14 @@ grids) · the duel-bypasses-the-line rule.
   combat-design.md's tuning baseline: the wall grinds the random bot
   (5.6% win, 46.6% stalemate) — kill order is real and the bot is blind
   to it; D owns the retune.
-- **C. Enemy dynamics** — captain's calls + wind-ups, telegraph plumbing,
-  reinforcement slot choice. Suite: `test_patterns`.
+- **C. Enemy dynamics — SHIPPED** — the four captain's calls in the tactic
+  pool, enemy-only wind-ups on the 3-turn cycle (2× heavy cleave, the
+  locked mark and aimed double shot) per the rulings above, the forecast
+  previewing called positions and wound-up blows, wind-up counters and the
+  MARKED badge on tokens, reinforcement slot choice pinned by tests.
+  Suite: `test_patterns`. Post-C sims (n=500, random bot): 40.0% win /
+  11.6% stalemate, ~27 turns — the calls break the wall's grind; D owns
+  the numbers.
 - **D. Card rework & polish** — the table above, prices from sims, UI drag
   targets for slots, retune to ~6–10 turn fights.
 
