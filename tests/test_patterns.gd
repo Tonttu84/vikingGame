@@ -91,3 +91,89 @@ func test_step_up_with_a_full_front_changes_nothing() -> void:
 	f.place(back_man, B, 0)
 	assert_false(f.step_up(), "no gaps to fill")
 	assert_eq(f.at(B, 0), back_man, "the second line stands fast")
+
+
+# --- Captain's calls: telegraphed like any tactic, resolved before they fight --
+
+func test_fresh_men_forward_rotates_the_enemy_lines() -> void:
+	var tired := TestHelpers.grunt(E, "tired")
+	var fresh := TestHelpers.grunt(E, "fresh")
+	var eng := TestHelpers.engine_for({"enemy_field": [tired, fresh]})
+	TestHelpers.station(eng.state.enemy_formation, fresh, B, 0)
+	await eng._resolve_tactic("fresh_men_forward")
+	assert_eq(eng.state.enemy_formation.at(F, 0), fresh, "the fresh man steps forward")
+	assert_eq(eng.state.enemy_formation.at(B, 0), tired, "the tired man rotates back")
+	assert_true(_log_has(eng, "Fresh men"), "the call is in the saga")
+
+
+func test_shift_calls_slide_the_enemy_line_each_way() -> void:
+	var mover := TestHelpers.grunt(E, "mover")
+	var eng := TestHelpers.engine_for({"enemy_field": [mover]})
+	TestHelpers.station(eng.state.enemy_formation, mover, F, 1)
+	await eng._resolve_tactic("shift_starboard")
+	assert_eq(eng.state.enemy_formation.column_of(mover), 2, "starboard slides up a column")
+	await eng._resolve_tactic("shift_larboard")
+	assert_eq(eng.state.enemy_formation.column_of(mover), 1, "larboard slides back down")
+
+
+func test_step_up_call_fills_their_front_gaps() -> void:
+	var lurker := TestHelpers.grunt(E, "lurker")
+	var eng := TestHelpers.engine_for({"enemy_field": [lurker]})
+	TestHelpers.station(eng.state.enemy_formation, lurker, B, 2)
+	await eng._resolve_tactic("step_up")
+	assert_eq(eng.state.enemy_formation.at(F, 2), lurker, "the back man steps into the gap")
+
+
+# --- Telegraph plumbing: the forecast reads the called move -------------------
+
+func test_forecast_previews_enemy_attacks_from_their_called_positions() -> void:
+	var my_man := TestHelpers.grunt(P, "my_man")
+	var hitter := TestHelpers.grunt(E, "hitter", 12, 6, 3, 3, Weapon.sword())
+	var eng := TestHelpers.engine_for({"player_field": [my_man], "enemy_field": [hitter]})
+	TestHelpers.station(eng.state.player_formation, my_man, F, 1)
+	TestHelpers.station(eng.state.enemy_formation, hitter, F, 0)
+	eng.state.next_tactic = "shift_starboard"
+	var bill: Dictionary = eng.forecast()
+	assert_eq(bill[my_man]["hp"], 5, "after the shift he stands across from me: 3 Str + 2 sword")
+	assert_eq(eng.state.enemy_formation.column_of(hitter), 0,
+			"the preview never moves the real line")
+
+
+func test_forecast_keeps_your_own_attacks_on_current_geometry() -> void:
+	var my_man := TestHelpers.grunt(P, "my_man", 12, 6, 3, 3, Weapon.sword())
+	var dodger := TestHelpers.grunt(E, "dodger")
+	var eng := TestHelpers.engine_for({"player_field": [my_man], "enemy_field": [dodger]})
+	eng.state.next_tactic = "shift_starboard"
+	var bill: Dictionary = eng.forecast()
+	assert_eq(bill[dodger]["hp"], 5, "your fight resolves before the call: you still reach him")
+	assert_eq(bill[my_man]["hp"], 0, "but his answer comes from the shifted column, hitting air")
+
+
+# --- Reinforcement slot choice: deterministic, captain last -------------------
+
+func test_reinforcements_fill_front_gaps_left_to_right() -> void:
+	var a := TestHelpers.grunt(E, "a")
+	var b := TestHelpers.grunt(E, "b")
+	var r1 := TestHelpers.grunt(E, "r1")
+	var r2 := TestHelpers.grunt(E, "r2")
+	var eng := TestHelpers.engine_for({"enemy_field": [a, b], "enemy_reserve": [r1, r2]})
+	TestHelpers.station(eng.state.enemy_formation, b, F, 2)
+	eng._reinforce()
+	assert_eq(eng.state.enemy_formation.at(F, 1), r1, "the first man up takes the leftmost gap")
+	assert_eq(eng.state.enemy_formation.at(F, 3), r2, "the second the next")
+
+
+func test_the_captain_waits_one_full_turn_after_the_hold_empties() -> void:
+	var watch := TestHelpers.grunt(E, "watch")
+	var last_man := TestHelpers.grunt(E, "last_man")
+	var jarl := TestHelpers.captain_of(E, "jarl")
+	var eng := TestHelpers.engine_for({
+		"enemy_field": [watch],
+		"enemy_reserve": [last_man],
+		"enemy_captain": jarl,
+	})
+	eng._reinforce()
+	assert_true(eng.state.enemy_formation.has(last_man), "the last man comes up")
+	assert_false(eng.state.enemy_formation.has(jarl), "the jarl is not on his heels")
+	eng._reinforce()
+	assert_true(eng.state.enemy_formation.has(jarl), "he steps in the turn after")

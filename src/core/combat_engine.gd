@@ -655,7 +655,9 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 # --- Forecast ----------------------------------------------------------------
 
 ## What every fielded man stands to take in the coming fight phases, given
-## current placements, active effects and the telegraphed tactic:
+## current placements, active effects and the telegraphed tactic — including
+## a telegraphed captain's call: enemy attacks are previewed from the
+## positions the call will put them in:
 ## {Character: {"hp": int, "morale": int}}. Deterministic and side-effect
 ## free, built on the same targeting and damage rules the phases resolve
 ## with. Single pass — each predicted death counts as one morale wave, but
@@ -674,24 +676,18 @@ func forecast() -> Dictionary:
 			if mark == null:
 				break
 			out[mark]["hp"] += state.archer_support_damage
-	# Every fielded attacker, at his current target.
-	for attacker in everyone:
-		if not attacker.is_alive():
-			continue
-		if not _is_sniper(attacker) and not _can_melee(attacker):
-			continue
-		var target := _pick_target(attacker)
-		if target == null or not out.has(target):
-			continue
-		var swings := 1 + attacker.bonus_attacks
-		var dmg := _snipe_damage(target) if _is_sniper(attacker) \
-				else _melee_damage(attacker, target)
-		out[target]["hp"] += dmg * swings
-		if attacker.is_berserker and not _is_sniper(attacker):
-			for victim in state.formation_of(target.side).line_neighbors(target):
-				out[victim]["hp"] += _shield_halved(
-						_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim) * swings
-	# The telegraphed tactic is part of the bill.
+	# Your side strikes on current geometry: your fight phase resolves before
+	# the telegraphed call re-arranges their line.
+	for attacker in state.fielded(Character.Side.PLAYER):
+		_forecast_attacker(attacker, out)
+	# Their side strikes AFTER the call: preview it on the real grid, then
+	# put every man back where he stands.
+	var held: Array[Character] = state.enemy_formation.slots.duplicate()
+	_apply_call(state.next_tactic)
+	for attacker in state.fielded(Character.Side.ENEMY):
+		_forecast_attacker(attacker, out)
+	state.enemy_formation.slots = held
+	# The telegraphed tactic's direct damage is part of the bill.
 	match state.next_tactic:
 		"arrow_volley":
 			if not state.shield_wall_active:
@@ -715,6 +711,25 @@ func forecast() -> Dictionary:
 			if out[c]["hp"] < c.hp and not c.morale_immune():
 				out[c]["morale"] += waves * BattleState.DEATH_MORALE_HIT
 	return out
+
+
+## One attacker's contribution to the forecast bill, at his current target.
+func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
+	if not attacker.is_alive():
+		return
+	if not _is_sniper(attacker) and not _can_melee(attacker):
+		return
+	var target := _pick_target(attacker)
+	if target == null or not out.has(target):
+		return
+	var swings := 1 + attacker.bonus_attacks
+	var dmg := _snipe_damage(target) if _is_sniper(attacker) \
+			else _melee_damage(attacker, target)
+	out[target]["hp"] += dmg * swings
+	if attacker.is_berserker and not _is_sniper(attacker):
+		for victim in state.formation_of(target.side).line_neighbors(target):
+			out[victim]["hp"] += _shield_halved(
+					_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim) * swings
 
 
 # --- Death, morale and routing ----------------------------------------------
@@ -821,8 +836,38 @@ func _resolve_tactic(tactic: String) -> void:
 		"reinforcement_surge":
 			state.surge_active = true
 			state.log_event("The enemy captain roars for every hand on deck.")
+		"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up":
+			var moved := _apply_call(tactic)
+			match tactic:
+				"fresh_men_forward":
+					state.log_event("Fresh men to the front — their lines rotate!")
+				"shift_larboard", "shift_starboard":
+					state.log_event("The enemy line shifts %s." %
+							("larboard" if tactic == "shift_larboard" else "starboard")
+							if moved else "The call to shift goes up, but the line has nowhere to go.")
+				"step_up":
+					state.log_event("Defenders step up into the gaps in their front line."
+							if moved else "The defenders hold — no gaps to fill.")
 		_:
 			state.log_event("The enemy presses the attack.")
+
+
+## The captain's calls are formation moves (docs/lines-redesign.md phase C):
+## the same verbs the player's cards use, applied to the enemy grid. Shared
+## between resolution and the forecast's preview. Larboard slides toward
+## column 0, starboard away. Returns whether anyone actually moved.
+func _apply_call(tactic: String) -> bool:
+	match tactic:
+		"fresh_men_forward":
+			state.enemy_formation.swap_lines()
+			return not state.enemy_formation.is_empty()
+		"shift_larboard":
+			return state.enemy_formation.shift(-1)
+		"shift_starboard":
+			return state.enemy_formation.shift(1)
+		"step_up":
+			return state.enemy_formation.step_up()
+	return false
 
 
 ## Reinforcements choose their slots deterministically: front gaps left to
