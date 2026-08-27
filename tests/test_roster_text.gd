@@ -120,6 +120,74 @@ func test_missing_enemy_captain_is_an_error() -> void:
 	assert_true(result["errors"][0].contains("captain"))
 
 
+func test_slot_tokens_place_fielded_men() -> void:
+	var text := """
+[player field]
+Point Man | captain | f2
+Long Spear | spear | b1
+[enemy field]
+Watcher | f4
+[enemy captain]
+Foe
+"""
+	var result := RosterText.parse(text)
+	assert_eq(result["errors"], [] as Array[String])
+	var eng := TestHelpers.engine_for(result["scenario"])
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 1).display_name, "Point Man",
+			"f2 is the second front column")
+	assert_eq(eng.state.player_formation.at(Formation.BACK, 0).display_name, "Long Spear",
+			"b1 is the first second-line column")
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 3).display_name, "Watcher")
+
+
+func test_unslotted_men_auto_place_around_explicit_slots() -> void:
+	var text := "[player field]\nChosen | captain | f1\nDrifter\n[enemy captain]\nFoe"
+	var result := RosterText.parse(text)
+	assert_eq(result["errors"], [] as Array[String])
+	var eng := TestHelpers.engine_for(result["scenario"])
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0).display_name, "Chosen")
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 1).display_name, "Drifter",
+			"no slot named: the next free front slot, left to right")
+
+
+func test_duplicate_slot_is_an_error() -> void:
+	var result := RosterText.parse(
+			"[player field]\nA | captain | f1\nB | f1\n[enemy captain]\nFoe")
+	assert_eq(result["errors"].size(), 1)
+	assert_true(result["errors"][0].contains("f1"), "the contested slot is named")
+
+
+func test_slot_token_outside_a_field_section_is_an_error() -> void:
+	var result := RosterText.parse(
+			"[player field]\nA | captain\n[player reserve]\nB | f2\n[enemy captain]\nFoe")
+	assert_eq(result["errors"].size(), 1)
+	assert_true(result["errors"][0].contains("f2"))
+	assert_true(result["errors"][0].contains("reserve"), "slots only mean something on the grid")
+
+
+func test_overfull_field_section_is_an_error() -> void:
+	var lines := ["[player field]", "A | captain"]
+	for i in Formation.SLOT_COUNT:
+		lines.append("Extra %d" % i)
+	lines.append("[enemy captain]")
+	lines.append("Foe")
+	var result := RosterText.parse("\n".join(lines))
+	assert_eq(result["errors"].size(), 1)
+	assert_true(result["errors"][0].contains("8"), "the grid holds 8")
+
+
+func test_slots_survive_a_round_trip() -> void:
+	var text := "[player field]\nA | captain | f3\nB | spear | b2\n[enemy captain]\nFoe"
+	var parsed := RosterText.parse(text)
+	assert_eq(parsed["errors"], [] as Array[String])
+	var serialized := RosterText.serialize(parsed["scenario"])
+	assert_true(serialized.contains("f3"), "explicit slots are written back out")
+	var reparsed := RosterText.parse(serialized)
+	assert_eq(reparsed["errors"], [] as Array[String])
+	var a: Character = reparsed["scenario"]["player_field"][0]
+	assert_eq(a.deploy_slot, Formation.slot_index(Formation.FRONT, 2), "f3 round-trips")
+
+
 func test_round_trip_default_skirmish() -> void:
 	var text := RosterText.serialize(Scenarios.default_skirmish())
 	var result := RosterText.parse(text)

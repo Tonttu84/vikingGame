@@ -21,6 +21,10 @@ var is_berserker := false  ## immune to morale damage
 var shaken := false        ## routed earlier in the raid; reduced morale
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
+## Setup-only hint (RosterText slot syntax): the grid slot this character is
+## fielded into at battle start, -1 for auto-placement. Live position lives
+## in the battle's Formation, never here.
+var deploy_slot := -1
 
 
 func _init(p_id: String, p_name: String, p_side: Character.Side, p_hp: int, p_morale: int,

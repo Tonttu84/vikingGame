@@ -18,7 +18,10 @@ extends RefCounted
 ## Stat tokens may appear in any order and fall back to a standard grunt
 ## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. Flags:
 ## `captain` (player side; the enemy captain has its own section) and
-## `berserker`. Lines starting with # and blank lines are ignored.
+## `berserker`. Field sections also take a slot token — `f1`..`f4` for the
+## front line, `b1`..`b4` for the second — naming the grid slot the man
+## starts in; without one he auto-places front-left first. Lines starting
+## with # and blank lines are ignored.
 
 const CHARACTER_SECTIONS := ["player field", "player reserve", "enemy field", "enemy reserve", "enemy captain"]
 const KNOWN_TACTICS := ["press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge"]
@@ -85,6 +88,20 @@ static func parse(text: String) -> Dictionary:
 				var c := _parse_character(line, lineno, section, serial, errors)
 				if c != null:
 					rosters[section].append(c)
+
+	for field_section in ["player field", "enemy field"]:
+		var fielded: Array[Character] = rosters[field_section]
+		if fielded.size() > Formation.SLOT_COUNT:
+			errors.append("[%s] holds %d men but the grid has %d slots" %
+					[field_section, fielded.size(), Formation.SLOT_COUNT])
+		var claimed := {}
+		for c: Character in fielded:
+			if c.deploy_slot < 0:
+				continue
+			if claimed.has(c.deploy_slot):
+				errors.append("[%s]: %s and %s both claim slot %s" % [field_section,
+						claimed[c.deploy_slot], c.display_name, _slot_name(c.deploy_slot)])
+			claimed[c.deploy_slot] = c.display_name
 
 	var enemy_captains: Array[Character] = rosters["enemy captain"]
 	if enemy_captains.size() > 1:
@@ -175,6 +192,8 @@ static func _character_line(c: Character, is_captain_section := false) -> String
 		parts.append("captain")
 	if c.is_berserker:
 		parts.append("berserker")
+	if c.deploy_slot >= 0:
+		parts.append(_slot_name(c.deploy_slot))
 	return " | ".join(parts)
 
 
@@ -190,6 +209,7 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 	var weapon: Weapon = null
 	var is_captain := false
 	var is_berserker := false
+	var deploy_slot := -1
 	# Token errors are reported but the character is still built with what
 	# parsed, so one typo doesn't cascade into missing-captain errors.
 	for f in range(1, fields.size()):
@@ -208,8 +228,13 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 			is_captain = true
 		elif token == "berserker":
 			is_berserker = true
+		elif _parse_slot_token(token) != -1:
+			if section == "player field" or section == "enemy field":
+				deploy_slot = _parse_slot_token(token)
+			else:
+				errors.append("line %d: slot '%s' means nothing in [%s] — only fielded men stand on the grid" % [lineno, token, section])
 		else:
-			errors.append("line %d: unknown token '%s' (stats, a weapon, 'captain' or 'berserker')" % [lineno, token])
+			errors.append("line %d: unknown token '%s' (stats, a weapon, a slot like f2/b3, 'captain' or 'berserker')" % [lineno, token])
 	if is_captain and side == Character.Side.ENEMY:
 		errors.append("line %d: the enemy captain goes in its own [enemy captain] section" % lineno)
 		is_captain = false
@@ -217,7 +242,24 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 	var c := Character.new(id, name, side, stats["hp"], stats["morale"], stats["str"], stats["speed"], weapon, stats["armor"])
 	c.is_captain = is_captain or section == "enemy captain"
 	c.is_berserker = is_berserker
+	c.deploy_slot = deploy_slot
 	return c
+
+
+## `f1`..`f4` / `b1`..`b4` -> Formation slot index, or -1 if not a slot token.
+static func _parse_slot_token(token: String) -> int:
+	if token.length() != 2 or not (token[0] == "f" or token[0] == "b"):
+		return -1
+	var col := int(token[1]) - 1
+	if not token[1].is_valid_int() or col < 0 or col >= Formation.COLUMNS:
+		return -1
+	return Formation.slot_index(Formation.FRONT if token[0] == "f" else Formation.BACK, col)
+
+
+static func _slot_name(index: int) -> String:
+	@warning_ignore("integer_division")
+	var line := index / Formation.COLUMNS
+	return "%s%d" % ["f" if line == Formation.FRONT else "b", index % Formation.COLUMNS + 1]
 
 
 static func _parse_deck_line(line: String, lineno: int, deck: Array[CardData],

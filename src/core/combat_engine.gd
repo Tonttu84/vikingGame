@@ -749,10 +749,14 @@ func _register(c: Character) -> void:
 	c.order_id = _next_order_id()
 
 
-## Scenario lists carry no slots yet: fill the grid in reading order, front
-## left to right, then the second line; overflow waits in reserve.
+## Field a scenario character: his deploy_slot hint if it names a free slot,
+## else reading order (front left to right, then the second line); overflow
+## waits in reserve.
 func _auto_field(c: Character) -> void:
 	var formation := state.formation_of(c.side)
+	if _slot_free(formation, c.deploy_slot):
+		formation.place_at_index(c, c.deploy_slot)
+		return
 	if formation.is_full():
 		state.reserve_of(c.side).append(c)
 		return
