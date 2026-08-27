@@ -7,14 +7,19 @@ signal clicked(character: Character)
 
 var character: Character
 var battle_ui: Control
-var compact := false  ## reserve rows use a smaller face
+var compact := false   ## reserve rows use a smaller face
+## This fighter's entry from CombatEngine.forecast(): incoming {"hp", "morale"}
+## next fight phases. Empty for men off the grid — nothing can touch them.
+var forecast := {}
 
 
-static func create(p_character: Character, p_ui: Control, p_compact := false) -> CharacterToken:
+static func create(p_character: Character, p_ui: Control, p_compact := false,
+		p_forecast := {}) -> CharacterToken:
 	var token := CharacterToken.new()
 	token.character = p_character
 	token.battle_ui = p_ui
 	token.compact = p_compact
+	token.forecast = p_forecast
 	token._build()
 	return token
 
@@ -54,7 +59,37 @@ func _build() -> void:
 		if character.bonus_attacks > 0:
 			box.add_child(UIPalette.label("+%d attack" % character.bonus_attacks,
 					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+	_add_forecast_badge(box)
 	tooltip_text = _tooltip()
+
+
+## The bill for standing here: incoming damage next fight phases, so the
+## player reads threat off the board instead of adding it up per enemy.
+func _add_forecast_badge(box: VBoxContainer) -> void:
+	var incoming_hp: int = forecast.get("hp", 0)
+	var incoming_morale: int = forecast.get("morale", 0)
+	set_meta("forecast_hp", incoming_hp)
+	set_meta("forecast_morale", incoming_morale)
+	if incoming_hp <= 0 and incoming_morale <= 0:
+		return
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if incoming_hp > 0:
+		var hp_label := UIPalette.label("-%d HP" % incoming_hp, UIPalette.FONT_SMALL,
+				UIPalette.BLOOD.lightened(0.45))
+		hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(hp_label)
+		if incoming_hp >= character.hp:
+			var doom := UIPalette.label("DOOMED", UIPalette.FONT_SMALL, UIPalette.BLOOD.lightened(0.45))
+			doom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(doom)
+	if incoming_morale > 0:
+		var morale_label := UIPalette.label("-%d MOR" % incoming_morale, UIPalette.FONT_SMALL,
+				UIPalette.GOLD)
+		morale_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(morale_label)
+	box.add_child(row)
 
 
 func _bar(value: int, max_value: int, color: Color, tag: String) -> Control:

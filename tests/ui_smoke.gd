@@ -107,6 +107,14 @@ func _run() -> void:
 			"both fielded defenders drawn in the grid")
 	check(ui._momentum_pips.get_child_count() == 10, "momentum pips")
 
+	# The forecast badges: whoever stands in a contested column shows the
+	# damage he is about to take, without the player doing the sums.
+	var badge_found := false
+	for t in _tokens_in(ui._player_front_row):
+		if t.get_meta("forecast_hp", 0) > 0:
+			badge_found = true
+	check(badge_found, "a front-liner in a contested column shows incoming damage")
+
 	# Play a no-target card if one is affordable, exercising the drop path.
 	var played := false
 	for card: CardData in ui.engine.state.hand.duplicate():

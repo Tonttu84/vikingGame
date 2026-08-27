@@ -210,11 +210,13 @@ func _on_token_clicked(character: Character) -> void:
 # --- Rendering ---------------------------------------------------------------
 
 func refresh(state: BattleState) -> void:
+	# One forecast per refresh: every token shows what it stands to take.
+	var forecast := engine.forecast()
 	_fill_enemy_reserve(state)
-	_fill_line(_enemy_back_row, state.enemy_formation, Formation.BACK)
-	_fill_line(_enemy_front_row, state.enemy_formation, Formation.FRONT)
-	_fill_line(_player_front_row, state.player_formation, Formation.FRONT)
-	_fill_line(_player_back_row, state.player_formation, Formation.BACK)
+	_fill_line(_enemy_back_row, state.enemy_formation, Formation.BACK, forecast)
+	_fill_line(_enemy_front_row, state.enemy_formation, Formation.FRONT, forecast)
+	_fill_line(_player_front_row, state.player_formation, Formation.FRONT, forecast)
+	_fill_line(_player_back_row, state.player_formation, Formation.BACK, forecast)
 	_fill_row(_player_reserve_row, state.player_reserve, true)
 	_refresh_enemy_captain(state)
 	_refresh_hand(state)
@@ -224,13 +226,14 @@ func refresh(state: BattleState) -> void:
 
 ## One line of a formation as 4 fixed columns: a token where a man stands,
 ## a dim placeholder where the slot is empty (so misses read spatially).
-func _fill_line(row: HBoxContainer, formation: Formation, line: int) -> void:
+func _fill_line(row: HBoxContainer, formation: Formation, line: int,
+		forecast: Dictionary) -> void:
 	for child in row.get_children():
 		child.queue_free()
 	for col in Formation.COLUMNS:
 		var c := formation.at(line, col)
 		if c != null:
-			var token := CharacterToken.create(c, self, false)
+			var token := CharacterToken.create(c, self, false, forecast.get(c, {}))
 			token.clicked.connect(_on_token_clicked)
 			row.add_child(token)
 		else:

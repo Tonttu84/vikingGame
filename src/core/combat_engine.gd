@@ -514,11 +514,7 @@ func _opposing_captain_fielded(side: Character.Side) -> bool:
 
 
 func _attack(attacker: Character, defender: Character) -> void:
-	var dmg := attacker.damage_against(defender)
-	if defender.side == Character.Side.PLAYER and state.shield_wall_active:
-		dmg = maxi(1, dmg - 2)
-	if defender.side == Character.Side.PLAYER and state.player_armor_bonus > 0:
-		dmg = maxi(1, dmg - state.player_armor_bonus)
+	var dmg := _melee_damage(attacker, defender)
 	defender.hp -= dmg
 	state.log_event("%s hits %s for %d (%d HP left)." %
 			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
@@ -529,16 +525,32 @@ func _attack(attacker: Character, defender: Character) -> void:
 ## The archer's arrow: flat LOW damage, armor and columns ignored — the one
 ## attack placement cannot dodge. Side-wide protections still soften it.
 func _snipe(attacker: Character, defender: Character) -> void:
-	var dmg := BattleState.ARCHER_SNIPE_DAMAGE
-	if defender.side == Character.Side.PLAYER and state.shield_wall_active:
-		dmg = maxi(1, dmg - 2)
-	if defender.side == Character.Side.PLAYER and state.player_armor_bonus > 0:
-		dmg = maxi(1, dmg - state.player_armor_bonus)
+	var dmg := _snipe_damage(defender)
 	defender.hp -= dmg
 	state.log_event("%s's arrow finds %s for %d (%d HP left)." %
 			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
+
+
+func _melee_damage(attacker: Character, defender: Character) -> int:
+	return _soften(attacker.damage_against(defender), defender)
+
+
+func _snipe_damage(defender: Character) -> int:
+	return _soften(BattleState.ARCHER_SNIPE_DAMAGE, defender)
+
+
+## Side-wide protections (shield wall, careful advance) soften every hit
+## the player's side takes, to a minimum of 1.
+func _soften(dmg: int, defender: Character) -> int:
+	if defender.side != Character.Side.PLAYER:
+		return dmg
+	if state.shield_wall_active:
+		dmg = maxi(1, dmg - 2)
+	if state.player_armor_bonus > 0:
+		dmg = maxi(1, dmg - state.player_armor_bonus)
+	return dmg
 
 
 ## Card/tactic damage that bypasses armor and columns.
@@ -558,6 +570,63 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 	if c.morale_immune() or not c.is_alive():
 		return
 	c.morale -= amount
+
+
+# --- Forecast ----------------------------------------------------------------
+
+## What every fielded man stands to take in the coming fight phases, given
+## current placements, active effects and the telegraphed tactic:
+## {Character: {"hp": int, "morale": int}}. Deterministic and side-effect
+## free, built on the same targeting and damage rules the phases resolve
+## with. Single pass — each predicted death counts as one morale wave, but
+## cascades, rout shocks and reaction saves are not chained: it is a
+## preview of intent, not a simulation.
+func forecast() -> Dictionary:
+	var out := {}
+	var everyone := state.fielded(Character.Side.PLAYER) + state.fielded(Character.Side.ENEMY)
+	for c in everyone:
+		out[c] = {"hp": 0, "morale": 0}
+	# The rail archers open your fight phase.
+	if state.archer_support_damage > 0:
+		var mark := _weakest_fielded(state.enemy_formation)
+		if mark != null:
+			out[mark]["hp"] += state.archer_support_damage
+	# Every fielded attacker, at his current target.
+	for attacker in everyone:
+		if not attacker.is_alive():
+			continue
+		if not _is_sniper(attacker) and not _can_melee(attacker):
+			continue
+		var target := _pick_target(attacker)
+		if target == null or not out.has(target):
+			continue
+		var dmg := _snipe_damage(target) if _is_sniper(attacker) \
+				else _melee_damage(attacker, target)
+		out[target]["hp"] += dmg * (1 + attacker.bonus_attacks)
+	# The telegraphed tactic is part of the bill.
+	match state.next_tactic:
+		"arrow_volley":
+			if not state.shield_wall_active:
+				for c in state.fielded(Character.Side.PLAYER):
+					out[c]["hp"] += 1
+		"fear_horn":
+			for c in state.fielded(Character.Side.PLAYER):
+				if not c.morale_immune():
+					out[c]["morale"] += 1
+	# Deaths shake the line: one wave per man these totals already kill.
+	for side in [Character.Side.PLAYER, Character.Side.ENEMY]:
+		var waves := 0
+		for c in state.fielded(side):
+			if out[c]["hp"] >= c.hp:
+				waves += 1
+		if side == Character.Side.PLAYER:
+			waves = maxi(0, waves - state.death_wave_suppressions)
+		if waves == 0:
+			continue
+		for c in state.fielded(side):
+			if out[c]["hp"] < c.hp and not c.morale_immune():
+				out[c]["morale"] += waves * BattleState.DEATH_MORALE_HIT
+	return out
 
 
 # --- Death, morale and routing ----------------------------------------------
