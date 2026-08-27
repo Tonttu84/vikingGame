@@ -94,3 +94,48 @@ func test_bonus_attacks_multiply_the_forecast() -> void:
 	p1.bonus_attacks = 1
 	var fc := eng.forecast()
 	assert_eq(fc[e1]["hp"], 6, "Battle Fury's extra swing is already on the bill")
+
+
+func test_cleave_grazes_are_on_the_bill() -> void:
+	var berserk := TestHelpers.grunt(E, "berserk", 10, 1, 5, 4, Weapon.axe())
+	berserk.is_berserker = true
+	var mark := TestHelpers.grunt(P, "mark", 30)
+	var left := TestHelpers.grunt(P, "left")
+	var right := TestHelpers.grunt(P, "right")
+	var eng := TestHelpers.engine_for({
+		"player_field": [left, mark, right],
+		"enemy_field": [berserk],
+	})
+	TestHelpers.station(eng.state.enemy_formation, berserk, F, 1)
+	var fc := eng.forecast()
+	assert_eq(fc[mark]["hp"], 6, "the main blow")
+	assert_eq(fc[left]["hp"], 2, "the graze on the left neighbor is forecast")
+	assert_eq(fc[right]["hp"], 2, "and on the right")
+
+
+func test_rail_volley_forecast_scales_and_reaims() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var bow1 := TestHelpers.grunt(P, "bow1", 10, 5, 2, 3, Weapon.bow())
+	var bow2 := TestHelpers.grunt(P, "bow2", 10, 5, 2, 3, Weapon.bow())
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var e2 := TestHelpers.grunt(E, "e2", 2)
+	var eng := TestHelpers.engine_for({
+		"player_field": [p1],
+		"player_reserve": [bow1, bow2],
+		"enemy_field": [e1, e2],
+	})
+	TestHelpers.station(eng.state.enemy_formation, e2, F, 2)
+	eng.state.archer_support_damage = 2
+	var fc := eng.forecast()
+	assert_eq(fc[e2]["hp"], 2, "the first arrow already kills the weakest on paper")
+	assert_eq(fc[e1]["hp"], 3 + 2, "so the second is forecast onto the next weakest, atop p1's swing")
+
+
+func test_rail_volley_forecast_is_zero_with_no_ship_archers() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 1)
+	eng.state.archer_support_damage = 2
+	var fc := eng.forecast()
+	assert_eq(fc[e1]["hp"], 0, "a silent rail forecasts nothing")

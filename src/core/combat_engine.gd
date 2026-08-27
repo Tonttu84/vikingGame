@@ -508,6 +508,23 @@ func _focus_valid(attacker: Character) -> bool:
 			and state.focus_target.is_alive() and state.enemy_formation.has(state.focus_target)
 
 
+## Forecast-side re-aim: the weakest fielded defender by the hp he would
+## have left after the damage already predicted, skipping men the tally
+## already kills (resolution removes them before the next arrow looses).
+func _forecast_weakest(predicted: Dictionary) -> Character:
+	var weakest: Character = null
+	var weakest_left := 0
+	for c in state.enemy_formation.fielded():
+		var left: int = c.hp - predicted[c]["hp"]
+		if left <= 0:
+			continue
+		if weakest == null or left < weakest_left \
+				or (left == weakest_left and c.order_id < weakest.order_id):
+			weakest = c
+			weakest_left = left
+	return weakest
+
+
 func _weakest_fielded(formation: Formation) -> Character:
 	var weakest: Character = null
 	for c in formation.fielded():
@@ -649,10 +666,13 @@ func forecast() -> Dictionary:
 	var everyone := state.fielded(Character.Side.PLAYER) + state.fielded(Character.Side.ENEMY)
 	for c in everyone:
 		out[c] = {"hp": 0, "morale": 0}
-	# The rail archers open your fight phase.
+	# The rail archers open your fight phase: one arrow per ship archer,
+	# re-aimed between arrows against the hp these predictions already cost.
 	if state.archer_support_damage > 0:
-		var mark := _weakest_fielded(state.enemy_formation)
-		if mark != null:
+		for i in _ship_archers():
+			var mark := _forecast_weakest(out)
+			if mark == null:
+				break
 			out[mark]["hp"] += state.archer_support_damage
 	# Every fielded attacker, at his current target.
 	for attacker in everyone:
@@ -663,9 +683,14 @@ func forecast() -> Dictionary:
 		var target := _pick_target(attacker)
 		if target == null or not out.has(target):
 			continue
+		var swings := 1 + attacker.bonus_attacks
 		var dmg := _snipe_damage(target) if _is_sniper(attacker) \
 				else _melee_damage(attacker, target)
-		out[target]["hp"] += dmg * (1 + attacker.bonus_attacks)
+		out[target]["hp"] += dmg * swings
+		if attacker.is_berserker and not _is_sniper(attacker):
+			for victim in state.formation_of(target.side).line_neighbors(target):
+				out[victim]["hp"] += _shield_halved(
+						_soften(BattleState.CLEAVE_GRAZE_DAMAGE, victim), victim) * swings
 	# The telegraphed tactic is part of the bill.
 	match state.next_tactic:
 		"arrow_volley":
