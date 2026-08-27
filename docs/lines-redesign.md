@@ -1,7 +1,7 @@
 # The Lines Redesign — positional boarding combat (working spec)
 
-Status: **phase A (geometry engine) shipped;** B–D still to come. The rules
-in `docs/combat-design.md` describe the shipped state. Systems this spec
+Status: **phases A (geometry engine) and B (role kits) shipped;** C–D still
+to come. The rules in `docs/combat-design.md` describe the shipped state. Systems this spec
 does not mention (momentum carryover, morale waves and routs, maneuvers,
 Retained cards, the automatic death-save, artifacts, hand model) carry over
 unchanged.
@@ -177,9 +177,15 @@ grids) · the duel-bypasses-the-line rule.
   captain-as-plain-last-reinforcement, RosterText slot syntax (`f1`..`b4`),
   UI renders 2×4 grids (functional, not pretty) with forecast badges.
   New suites: `test_formation`, `test_column_targeting`, `test_forecast`.
-- **B. Role kits** — the hooks table above, distinct default rosters both
-  sides, covering-volley scaling with ship archers. Suite: `test_kits`.
-  A+B together is when "kill order matters" is real — sim it hard.
+- **B. Role kits — SHIPPED** — the hooks table above exactly as mapped
+  (shieldman aura stacks per adjacent shieldman; the cleave arc is
+  captured before the blow lands), distinct default rosters both sides
+  (raider breakers vs a two-shieldman defender wall, karls at morale 4),
+  covering-volley scaling with ship archers, forecast covering grazes
+  and the re-aimed volley. Suite: `test_kits`. Post-B sims are in
+  combat-design.md's tuning baseline: the wall grinds the random bot
+  (5.6% win, 46.6% stalemate) — kill order is real and the bot is blind
+  to it; D owns the retune.
 - **C. Enemy dynamics** — captain's calls + wind-ups, telegraph plumbing,
   reinforcement slot choice. Suite: `test_patterns`.
 - **D. Card rework & polish** — the table above, prices from sims, UI drag

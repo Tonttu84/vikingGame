@@ -4,10 +4,10 @@ This is the core of the game and the first (possibly only) thing we build.
 Everything else in `game-design.md` is the long-term frame around it.
 
 > **Redesign in progress:** positional combat is specified in
-> [lines-redesign.md](lines-redesign.md) and lands in phases. **Phase A
-> (the geometry engine) has shipped** and this document describes it; role
-> kits (B), enemy shifts and wind-ups (C) and the card rework (D) are
-> still to come.
+> [lines-redesign.md](lines-redesign.md) and lands in phases. **Phases A
+> (the geometry engine) and B (role kits) have shipped** and this document
+> describes them; enemy shifts and wind-ups (C) and the card rework (D)
+> are still to come.
 
 ## Fantasy & win condition
 
@@ -54,6 +54,27 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
   places with his prowman). The 1-momentum commit action remains as a slow
   fallback so a bad hand never strands the first wave alone.
 
+## Role kits (shipped, phase B)
+
+The sheet stays small; a kit is one or two positional hooks riding the
+existing idioms — boolean flags and weapon kinds, no class enum. Kits are
+what make "kill him FIRST" a puzzle; the same kits stand on both sides.
+
+| Kit | Hooks (v0 numbers) |
+| --- | --- |
+| Shieldman (`is_shieldman`) | Takes **half physical damage, rounded up**, applied last — after armor and side-wide softening — to melee, snipes and cleave grazes, never to card/tactic true damage (volleys are his counter-play). **Aura: +1 armor to line-neighbors** (same line, adjacent column), never himself. Low Strength: he anchors, he does not carry. |
+| Berserker (`is_berserker`) | Morale-immune (as before). **Cleave:** his attack also grazes the target's line-neighbors for a flat 2 — never armored, but softened and shield-halved; graze kills pay the normal bounty. The arc is set before the blow lands. Their berserker is your #1 kill bounty. |
+| Spearman (spear) | Reach: fights his column from the second line. |
+| Archer (bow) | Second line only in practice: auto-snipes the weakest fielded enemy anywhere for a flat 2. Halved by a shieldman's shield like any physical hit. |
+| Breaker (axe) | Ignores 2 worn armor **and denies the target all aura armor** — the shieldman counter. |
+| Karl | No kit. Cheap, low morale (4): rout fodder — do not waste swings. |
+| Captain (`is_captain`) | **Leader aura: line-neighbors strike +1 in melee** (never himself, never snipes). Big stats, no other rules. |
+
+The default rosters give the sides distinct silhouettes: your raiders are
+breakers (axes, a spearman, one shieldman, an archer feeding the rail),
+their watch is a wall (two shieldmen up front, a bowman behind, karls and
+the berserker in the hold).
+
 ## The boarding maneuver
 
 Every battle opens with one free **boarding maneuver** — how you come over
@@ -71,7 +92,7 @@ battle plays (one plain-bonus option is allowed):
 | --- | --- |
 | Grapple & Rush | +6 momentum. The vanilla crash. |
 | Dawn Raid | +4 momentum; 3 defenders are caught below decks — they rejoin the BACK of their reserve queue, shaken (−2 morale). Their line is briefly thinner than your wave. |
-| Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with 2 true damage to the lowest-HP fielded defender, all battle. |
+| Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with one 2-true-damage arrow **per archer still in your reserve**, re-aiming at the lowest-HP fielded defender between arrows, all battle. Field your archer and the rail loses her arrow; no ship archers, silent rail. |
 | Careful Assault | +2 momentum; a shieldwall-like discipline: your side takes −1 damage from every hit, all battle. Drawback: 2 extra defenders have time to form up and the watch stands composed (+1 morale, blunting rout cascades). |
 
 The choice is deliberate and deterministic (no draw): pick the maneuver that
@@ -235,19 +256,23 @@ Deliberately small sheet — the mechanics budget is spent elsewhere:
 - **One personality trait** (later, for the dynasty layer): coward, fury,
   loyal — hooks for events and AI quirks. Not in v0.
 
-Damage = attacker Strength + weapon − defender armor, minimum 1. No misses,
-no crit RNG in v0 — deterministic combat makes permadeath feel fair and the
-engine testable; randomness lives in cards drawn and enemy tactics.
+Damage = attacker Strength + weapon + leader aura − defender armor (worn +
+shieldman aura; the axe pierces 2 and denies the aura), minimum 1; then
+side-wide softening (shield wall, careful advance), minimum 1; then a
+shieldman defender halves what is left, rounded up. No misses, no crit RNG
+in v0 — deterministic combat makes permadeath feel fair and the engine
+testable; randomness lives in cards drawn and enemy tactics.
 
 ## Enemy design
 
 An enemy boarding roster is data: `{captain, field_cap, reserves[], tactics[]}`.
 
-- **Grunts** differentiate by the same weapon/armor system as your crew.
-- **Captains** have an aura (e.g. +1 Strength to their side) and a tactic
-  deck: `Reinforcement Surge` (+2 extra reserves enter), `Arrow Volley`,
-  `Champion's Challenge`, `Shield Wall`. One tactic is **telegraphed** each
-  turn as an intent icon — that's what you play cards around.
+- **Grunts** differentiate by the same weapon/armor/kit system as your crew.
+- **Captains** have the leader aura (line-neighbors strike +1, shipped in
+  phase B) and a tactic deck: `Reinforcement Surge` (+2 extra reserves
+  enter), `Arrow Volley`, `Champion's Challenge`, `Shield Wall`. One tactic
+  is **telegraphed** each turn as an intent icon — that's what you play
+  cards around.
 - Difficulty knobs, in order of preference: better reserves (quality), bigger
   reserves (endurance), field cap (width), captain aura. Avoid stat-inflating
   grunts past readable numbers.
@@ -272,11 +297,14 @@ defender grunts steadier at 7 morale (they are home) · enemy captain:
 flat 2 · kill +2 momentum · ally death −2 morale to fielded side, rout −1.
 A fight should run ~6–10 turns eventually. Post-cutover (phase A alone,
 n=200): random bot 24.5% win / 47.5% defeat / 27.5% stalemate, avg 30
-turns — rough by design; the bot plays placement randomly and the same
-kits stand on both sides, so kill order barely matters yet. Phases B–D
-(kits, enemy dynamics, card rework) carry the retune back to the 6–10
-turn, near-even target. The no-card bot stays a floor metric (collapses
-to a ~4-turn repulse: it never crosses a second man).
+turns. Post-kits (phase B, distinct rosters, n=500): 5.6% win / 47.8%
+defeat / 46.6% stalemate, avg 40 turns — the defender wall (two halving
+shieldmen) makes a placement-blind bot grind, and their berserker's
+cleave plus the jarl's aura punish its clumping. Rough by design: kill
+order now matters and the bot cannot see it. Phases C–D (enemy dynamics,
+card rework) carry the retune back to the 6–10 turn, near-even target.
+The no-card bot stays a floor metric (collapses to a ~6-turn repulse: it
+never crosses a second man).
 
 ## Playtest watchlist (decided, but on probation)
 

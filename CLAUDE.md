@@ -64,7 +64,17 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the lines redesign phase A** — positional combat on 4×2 slot grids
+Done: **the lines redesign phase B — role kits** (docs/lines-redesign.md):
+shieldman (half damage rounded up applied last; +1-armor aura to
+line-neighbors; RosterText `shieldman` token), berserker cleave (flat-2
+graze to the target's line-neighbors, never armored), the axe denying aura
+armor, the captain's leader aura (+1 melee to line-neighbors), Covering
+Volley scaling per ship archer with re-aim, forecast covering grazes and
+the scaled volley, and distinct default rosters (raider breakers vs a
+two-shieldman defender wall with karl rout-fodder). Suite `test_kits`.
+Post-B sims: random bot 5.6% win / 46.6% stalemate, ~40 turns — grindy by
+design until C–D retune.
+Earlier: **the lines redesign phase A** — positional combat on 4×2 slot grids
 (Formation), strict-column targeting with spatial misses, spear reach,
 archer auto-snipe (flat 2, second line), reserve-never-acts, the enemy
 captain as a plain final reinforcement (all exposure rules deleted, along
@@ -79,12 +89,13 @@ automatic death-save, scrapping removed), headless engine, artifact hooks
 deck-driven reinforcement, repulsed-boarding retreat, maneuver picker UI,
 and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 `docs/combat-design.md` has the full shipped rules; balance is deliberately
-rough until B–D retune it (post-A sims: random bot ~25% win, ~30 turns).
+rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Lines redesign phase B — role kits (docs/lines-redesign.md): the hooks
-   table, distinct default rosters both sides, covering-volley scaling;
-   suite test_kits. Then C enemy dynamics → D card rework/retune.
+1. Lines redesign phase C — enemy dynamics (docs/lines-redesign.md):
+   captain's calls + wind-ups, telegraph plumbing, reinforcement slot
+   choice; suite test_patterns. Then D card rework/retune (movement
+   riders, prices from sims, ~6–10 turn fights).
 2. Officer system (prowman is currently just a strong named crewman).
 3. Raid loop (node route between fights, loot into the deck, wounds
    persisting, retreat-vs-push-on).
