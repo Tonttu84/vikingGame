@@ -1,0 +1,164 @@
+# The Lines Redesign — positional boarding combat (working spec)
+
+Status: **planned, agreed, not yet implemented.** This replaces the flat-field
+combat in `docs/combat-design.md` when its phases land; until then the shipped
+rules stay authoritative there. Systems this spec does not mention (momentum
+carryover, morale waves and routs, maneuvers, Retained cards, the automatic
+death-save, artifacts, hand model) carry over unchanged.
+
+## Why
+
+On a flat field the kill order barely matters and targeting is invisible.
+This redesign makes the fight a readable, re-arrangeable board where:
+
+- you **snipe specific enemies for momentum** — preferably the ones dealing
+  the most damage — while **avoiding HP damage on the men you plan to break
+  by morale** (kills pay momentum; routs are free but pay nothing);
+- **placement is targeting**: who hits whom is decided by where people
+  stand, and cards move people;
+- **placement is also defense**: attacks into an empty column hit air —
+  misses are spatial and deterministic, never dice;
+- the enemy re-arranges on a telegraphed schedule, so no ordering stays
+  solved.
+
+## Geometry
+
+Each side: **4 columns × 2 lines**, plus the untouchable reserve.
+
+```
+their reserve  (below decks — can NEVER act, can never be hit)
+their 2nd line  [ B1 ][ B2 ][ B3 ][ B4 ]
+their front     [ F1 ][ F2 ][ F3 ][ F4 ]
+                  |      |     |     |     column duels
+your front      [ F1 ][ F2 ][ F3 ][ F4 ]
+your 2nd line   [ B1 ][ B2 ][ B3 ][ B4 ]
+your reserve   (your ship — can NEVER act; ship archers feed covering fire)
+```
+
+- **Adjacency** = same line, neighboring column (auras, cleaves).
+- Any slot may be empty. Fielded caps are the slots themselves (up to 8);
+  the rail bottleneck stays as the flow limit (Reinforce/commit per turn),
+  not a standing cap.
+- The old bow-fires-from-reserve rule is **deleted**. Reserve does nothing.
+
+## Targeting: strict columns
+
+- A fighter attacks **the nearest occupied enemy slot in his own column**
+  (their front first, then their second line). Whole enemy column empty →
+  **the attack misses** — he swings at air.
+- Dodging is real: vacate a column and their berserker there hits nothing
+  (at the price of your own attack lane in that column). Their telegraphed
+  shifts re-aim at you; yours re-aim at them.
+- **Front-liners** attack their column. **Spearmen** also attack their
+  column from the second line (reach). Other second-liners cannot melee.
+- **Archers** (second line only) auto-snipe: they shoot the **lowest-HP
+  fielded enemy anywhere** (tiebreak: spawn order) for LOW damage (base 2).
+  The weak base attack is deliberate — archers finish and harass, they do
+  not carry. This is the one attack placement cannot dodge.
+- Engagement tracking (`engaged_with`) and the spread/keep-target rules are
+  **deleted** — columns replace them. The spear first-engagement bonus dies
+  with them; spear's identity is now reach.
+
+## The captain: no special rules
+
+Their captain is simply **the last enemy to reinforce**. Until then he is in
+reserve: unhittable, inactive, like all reserves. Once fielded he stands in
+the formation like anyone — reach him through his column, snipe him with
+archers, kill him and the crew yields. The exposure rules (field ≤ 2,
+forced exposure) are **deleted**; `Break the Line` and `Challenge` are
+repurposed (see cards). Your captain likewise: a fighter wherever you place
+him, game over if he dies, safe while on your ship.
+
+## Momentum (testing values)
+
+- **+2 per kill** (up from 1) — sniping the right man is the tempo engine.
+- **+1** at the start of your turn.
+- Routs still grant **0** — breaking men is free but pays nothing.
+- Carryover and cap 10 unchanged; revisit the cap if double bounties flood it.
+
+## Role kits (data-driven hooks, same kits both sides)
+
+Deliberately small sheet stays (HP/Morale/Str/Speed/weapon/armor); a kit is
+one or two hooks, in ArtifactData style. If everyone has the same stats the
+kill order is meaningless — kits are what make "kill him FIRST" a puzzle.
+
+| Kit | Hooks (v0 numbers) |
+| --- | --- |
+| Shieldman | Takes half damage (rounded up, after armor). Aura: +1 armor to line-neighbors. Low damage. Place him in the hard hitter's column. |
+| Berserker | Cleave: his attack also hits the target's line-neighbors for 2. Morale-immune (existing). Their berserker is your #1 kill bounty. |
+| Spearman | Reach: attacks his column from the second line. |
+| Archer | Second line only. Auto-snipes lowest-HP fielded enemy for 2. |
+| Breaker (axe) | Ignores 2 armor (existing) and his target gets no aura armor — the shieldman counter. |
+| Karl | No kit. Cheap, low morale: rout fodder. Do not waste swings. |
+| Captain | Leader aura: line-neighbors +1 damage. Big stats. No other rules. |
+
+## Enemy dynamics: shifts + wind-ups (all telegraphed, never dice)
+
+Two layers keep the solved order dissolving:
+
+1. **Captain's calls** — formation moves telegraphed one turn ahead like
+   tactics today: *Fresh men forward* (front and second lines swap),
+   *Shift larboard/starboard* (the line slides one column, all matchups
+   change), *Step up* (back-liners fill empty front slots). Chosen
+   deterministically from the enemy's tactic list by the seeded RNG.
+2. **Wind-ups** — per-role rhythms shown on the token: their berserker
+   winds up a heavy cleave every 3rd turn (dodge his column or eat it),
+   their archer marks a target one turn before a double shot. Fixed
+   timers, visible counters.
+
+Their reinforcement keeps its fixed rate and now also **chooses slots**
+deterministically (fill front gaps first, left to right), captain last.
+
+## Cards: movement + effect
+
+No free-move action: rearranging rides on cards, and most movement cards do
+something else too so moving never wastes a whole card. Sketch (priced
+later, Phase D):
+
+| Card | Sketch |
+| --- | --- |
+| Reinforce (retained) | Field a reserve man **into a slot you choose**. |
+| Swap (retained) | Now also usable as fielded↔fielded (any two of your men trade slots), not just fielded↔reserve. |
+| Push Through | Advance a second-liner into an empty front slot; he attacks immediately. |
+| Fall Back | Retire a front-liner to his second line; +2 morale to him (breather). |
+| Break the Line | REPURPOSED: shove an enemy front-liner one column sideways — you re-aim THEIR formation (into the berserker's wind-up, out of the shieldman's aura). |
+| Challenge | REPURPOSED: only while both captains are fielded — they attack each other this round regardless of columns. |
+| Shield Wall / volleys / Rally / fury / Feint / War Cry / Bellow | Unchanged in spirit; Spear Volley hits the enemy FRONT line only. |
+| Aim! (maybe) | Override the archers' auto-snipe target this turn. Only if playtests want it. |
+
+Concentrated Attack becomes: everyone **who can reach the target** strikes
+it (his column's attackers + archers) — reach still respects geometry.
+
+## What gets deleted
+
+Engagement tracking and spread targeting · captain exposure rules
+(`captain_forced_exposed`, field ≤ 2, EXPOSE_CAPTAIN effect) · bow from
+reserve · flat-field `player_field`/`enemy_field` arrays (become slot
+grids) · the duel-bypasses-the-line rule.
+
+## Phases (each shippable, TDD, own commit)
+
+- **A. Geometry engine** — slot grids, strict-column targeting with spatial
+  misses, reach/snipe, movement verbs (slide/advance/retire/swap/place),
+  kill = +2, reserve-never-acts, captain-as-plain-last-reinforcement,
+  RosterText grows slot syntax, UI renders 2×4 grids (functional, not
+  pretty). New suites: `test_formation`, `test_column_targeting`.
+- **B. Role kits** — the hooks table above, distinct default rosters both
+  sides, covering-volley scaling with ship archers. Suite: `test_kits`.
+  A+B together is when "kill order matters" is real — sim it hard.
+- **C. Enemy dynamics** — captain's calls + wind-ups, telegraph plumbing,
+  reinforcement slot choice. Suite: `test_patterns`.
+- **D. Card rework & polish** — the table above, prices from sims, UI drag
+  targets for slots, retune to ~6–10 turn fights.
+
+Bot note: RandomBot learns legal placement moves only (random but valid);
+tuning targets stay honest but expect noisier numbers until D.
+
+## Open questions (watchlist)
+
+- Column count 4: right for an 8-man crew? (3 would crowd, 5 would straggle.)
+- Archer damage 2 and kill bounty +2: first numbers to sim.
+- Does the PLAYER get free step-up when a front slot empties, or is that
+  cards-only too? (Start cards-only; the enemy's step-up is a captain call.)
+- Does losing spear-first-strike make spears too plain? (Reach may be enough.)
+- Aim! card: only add if auto-snipe frustrates in playtests.

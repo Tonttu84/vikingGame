@@ -3,6 +3,11 @@
 This is the core of the game and the first (possibly only) thing we build.
 Everything else in `game-design.md` is the long-term frame around it.
 
+> **Redesign in progress:** positional combat (2 lines × 4 columns, strict
+> column targeting, spatial misses, role kits, telegraphed enemy shifts) is
+> specified in [lines-redesign.md](lines-redesign.md) and lands in phases.
+> This document remains the shipped rules until then.
+
 ## Fantasy & win condition
 
 Two ships lashed together, your crew boards theirs. **Kill their captain** and

@@ -81,9 +81,11 @@ Compatibility renderer everywhere). `docs/combat-design.md` has the full
 rules and a playtest watchlist.
 
 Agreed next slices, in rough priority:
-1. Officer system (prowman is currently just a strong named crewman; one
-   role is tied to the boarding, event rolls planned).
-2. Raid loop (node route between fights, loot into the deck, wounds
+1. The lines redesign — positional combat per docs/lines-redesign.md
+   (agreed spec; phases A geometry → B role kits → C enemy dynamics →
+   D card rework, each its own shippable TDD slice).
+2. Officer system (prowman is currently just a strong named crewman).
+3. Raid loop (node route between fights, loot into the deck, wounds
    persisting, retreat-vs-push-on).
 
 The user prefers being asked (AskUserQuestion) about real design forks with a
