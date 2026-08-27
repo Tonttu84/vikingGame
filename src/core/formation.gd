@@ -123,6 +123,45 @@ func retire(c: Character) -> bool:
 	return _move_to(c, BACK, column_of(c))
 
 
+## Fresh men forward: front and second line trade places, column by column.
+## Empty slots trade too — a man without a partner still changes lines.
+func swap_lines() -> void:
+	for col in COLUMNS:
+		var fi := slot_index(FRONT, col)
+		var bi := slot_index(BACK, col)
+		var tmp := slots[fi]
+		slots[fi] = slots[bi]
+		slots[bi] = tmp
+
+
+## The whole formation slides one column (-1 toward column 0, +1 away),
+## both lines. Processed from the leading edge: every man whose destination
+## is free moves, men pinned at the board edge stay — and pin the men behind
+## them. A completely full line does not move. Returns whether anyone moved.
+func shift(direction: int) -> bool:
+	if absi(direction) != 1:
+		return false
+	var moved := false
+	for line in [FRONT, BACK]:
+		var cols := range(COLUMNS - 1, -1, -1) if direction == 1 else range(COLUMNS)
+		for col in cols:
+			var c := at(line, col)
+			if c != null and _move_to(c, line, col + direction):
+				moved = true
+	return moved
+
+
+## Step up: back-liners fill the empty front slot of their own column,
+## left to right. Returns whether anyone stepped.
+func step_up() -> bool:
+	var moved := false
+	for col in COLUMNS:
+		var c := at(BACK, col)
+		if c != null and at(FRONT, col) == null and advance(c):
+			moved = true
+	return moved
+
+
 func swap_positions(a: Character, b: Character) -> bool:
 	var ia := _index_of(a)
 	var ib := _index_of(b)
