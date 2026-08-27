@@ -14,7 +14,7 @@ func test_death_shakes_the_line() -> void:
 	await eng._handle_death(e1)
 	assert_eq(e2.morale, 4, "death costs the fielded line 2 morale")
 	assert_eq(e3.morale, 4)
-	assert_eq(eng.state.momentum, 1, "an enemy death grants momentum")
+	assert_eq(eng.state.momentum, 2, "an enemy death grants the kill bounty")
 
 
 func test_rout_at_zero_morale() -> void:

@@ -592,7 +592,7 @@ func _handle_death(dead: Character) -> void:
 		state.player_dead.append(dead)
 	else:
 		state.enemy_dead.append(dead)
-		_gain_momentum(1)
+		_gain_momentum(BattleState.KILL_MOMENTUM)
 		if state.war_cry_active:
 			_gain_momentum(1)
 	state.log_event("%s is slain." % dead.display_name)

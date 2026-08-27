@@ -10,6 +10,9 @@ const SURGE_REINFORCE_RATE := 4
 const DEATH_MORALE_HIT := 2
 const ROUT_MORALE_HIT := 1
 const RESERVE_COMMIT_COST := 1
+## Kills pay double income: sniping the right man is the tempo engine.
+## Routs still pay nothing — breaking men is free but earns no momentum.
+const KILL_MOMENTUM := 2
 ## Fielded archers finish and harass; they do not carry. Flat, armor ignored.
 const ARCHER_SNIPE_DAMAGE := 2
 

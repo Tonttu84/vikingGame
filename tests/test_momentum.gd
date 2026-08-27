@@ -17,7 +17,7 @@ func test_kill_grants_momentum() -> void:
 	var weak := TestHelpers.grunt(E, "weak", 1, 6)
 	var eng := TestHelpers.engine_for({"player_field": [strong], "enemy_field": [weak]})
 	await eng._fight_phase(P)
-	assert_eq(eng.state.momentum, 1, "+1 for the kill")
+	assert_eq(eng.state.momentum, 2, "+2 for the kill — sniping the right man is the tempo engine")
 
 
 func test_war_cry_doubles_kill_income() -> void:
@@ -26,7 +26,7 @@ func test_war_cry_doubles_kill_income() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [strong], "enemy_field": [weak]})
 	eng.state.war_cry_active = true
 	await eng._fight_phase(P)
-	assert_eq(eng.state.momentum, 2, "war cry adds +1 per kill")
+	assert_eq(eng.state.momentum, 3, "war cry adds +1 on top of the kill bounty")
 
 
 func test_momentum_cap() -> void:
