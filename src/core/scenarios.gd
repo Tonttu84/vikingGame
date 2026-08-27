@@ -71,5 +71,8 @@ static func default_skirmish() -> Dictionary:
 		"enemy_captain": enemy_captain,
 		"deck": CardLibrary.starter_deck(),
 		"maneuvers": CardLibrary.default_maneuvers(),
-		"enemy_tactics": ["press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge"],
+		"enemy_tactics": [
+			"press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge",
+			"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up",
+		],
 	}
