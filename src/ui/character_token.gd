@@ -11,15 +11,18 @@ var compact := false   ## reserve rows use a smaller face
 ## This fighter's entry from CombatEngine.forecast(): incoming {"hp", "morale"}
 ## next fight phases. Empty for men off the grid — nothing can touch them.
 var forecast := {}
+## An enemy archer's aimed arrows are locked on this man (rescue him!).
+var marked := false
 
 
 static func create(p_character: Character, p_ui: Control, p_compact := false,
-		p_forecast := {}) -> CharacterToken:
+		p_forecast := {}, p_marked := false) -> CharacterToken:
 	var token := CharacterToken.new()
 	token.character = p_character
 	token.battle_ui = p_ui
 	token.compact = p_compact
 	token.forecast = p_forecast
+	token.marked = p_marked
 	token._build()
 	return token
 
@@ -59,6 +62,19 @@ func _build() -> void:
 		if character.bonus_attacks > 0:
 			box.add_child(UIPalette.label("+%d attack" % character.bonus_attacks,
 					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+	# The telegraph layer: wind-up counters on their rhythm roles, the
+	# archer's mark on the man his arrows are bound to.
+	if character.windup >= 0:
+		var windup_text: String
+		if character.windup > 0:
+			windup_text = "winds up: %d" % character.windup
+		else:
+			windup_text = "HEAVY BLOW NEXT" if character.is_berserker else "ARROWS AIMED"
+		box.add_child(UIPalette.label(windup_text, UIPalette.FONT_SMALL,
+				UIPalette.BLOOD.lightened(0.45)))
+	if marked:
+		box.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
+				UIPalette.BLOOD.lightened(0.45)))
 	_add_forecast_badge(box)
 	tooltip_text = _tooltip()
 

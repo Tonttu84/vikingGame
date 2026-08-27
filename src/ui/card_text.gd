@@ -65,6 +65,10 @@ static func tactic_name(tactic: String) -> String:
 		"arrow_volley": return "Arrow Volley"
 		"fear_horn": return "Fear Horn"
 		"reinforcement_surge": return "Reinforcement Surge"
+		"fresh_men_forward": return "Fresh Men Forward"
+		"shift_larboard": return "Shift Larboard"
+		"shift_starboard": return "Shift Starboard"
+		"step_up": return "Step Up"
 	return "Press the Attack"
 
 
@@ -76,6 +80,14 @@ static func tactic_description(tactic: String) -> String:
 			return "1 morale damage to each of your boarders."
 		"reinforcement_surge":
 			return "Up to 4 enemies step over the rail instead of 2."
+		"fresh_men_forward":
+			return "Their front and second lines trade places before they fight."
+		"shift_larboard":
+			return "Their whole line slides one column to your left — every duel re-pairs."
+		"shift_starboard":
+			return "Their whole line slides one column to your right — every duel re-pairs."
+		"step_up":
+			return "Their back-liners step into the empty front slots of their columns."
 	return "The enemy line simply fights."
 
 
@@ -90,6 +102,8 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 [b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards — most also move your men — then both formations fight, fastest first. Axes ignore 2 armor.
 
 [b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
+
+[b]The telegraph[/b]: the enemy's next move is always readable — his tactic or formation call shows a turn ahead, their berserker carries a visible counter to a heavy blow (double damage — dodge his column or eat it), and their archer marks his man one full turn before loosing both aimed arrows. A marked man rescued to the ship wastes the shot.
 
 [b]Morale[/b]: every death shakes the fallen side (-2 morale on deck, captains and berserkers excepted). At 0 a fighter routs, shaking the line further. Routs win battles as surely as blood.
 

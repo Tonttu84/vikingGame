@@ -233,7 +233,8 @@ func _fill_line(row: HBoxContainer, formation: Formation, line: int,
 	for col in Formation.COLUMNS:
 		var c := formation.at(line, col)
 		if c != null:
-			var token := CharacterToken.create(c, self, false, forecast.get(c, {}))
+			var token := CharacterToken.create(c, self, false, forecast.get(c, {}),
+					engine.state.archer_marks.values().has(c))
 			token.clicked.connect(_on_token_clicked)
 			row.add_child(token)
 		else:
