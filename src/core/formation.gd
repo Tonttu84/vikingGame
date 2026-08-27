@@ -1,0 +1,154 @@
+class_name Formation
+extends RefCounted
+## One side's fighting formation: 4 columns x 2 lines of slots, any of which
+## may be empty (docs/lines-redesign.md). Pure geometry — who stands where and
+## the legal ways to re-arrange them. Combat meaning (columns duel columns,
+## empty columns eat the swing) lives in CombatEngine.
+##
+## Slots hold the strong references to fielded characters, alongside the
+## reserve/dead/routed arrays in BattleState.
+
+const COLUMNS := 4
+const FRONT := 0  ## the line at the rail, nearest the enemy
+const BACK := 1   ## the second line
+const SLOT_COUNT := COLUMNS * 2
+
+## Index = line * COLUMNS + column; null = empty slot.
+var slots: Array[Character] = []
+
+
+func _init() -> void:
+	slots.resize(SLOT_COUNT)
+
+
+static func slot_index(line: int, col: int) -> int:
+	return line * COLUMNS + col
+
+
+static func in_bounds(line: int, col: int) -> bool:
+	return (line == FRONT or line == BACK) and col >= 0 and col < COLUMNS
+
+
+func at(line: int, col: int) -> Character:
+	return slots[slot_index(line, col)] if in_bounds(line, col) else null
+
+
+func has(c: Character) -> bool:
+	return _index_of(c) != -1
+
+
+func line_of(c: Character) -> int:
+	var i := _index_of(c)
+	@warning_ignore("integer_division")
+	return -1 if i == -1 else i / COLUMNS
+
+
+func column_of(c: Character) -> int:
+	var i := _index_of(c)
+	return -1 if i == -1 else i % COLUMNS
+
+
+## Fielded characters in reading order: front left to right, then back.
+func fielded() -> Array[Character]:
+	var out: Array[Character] = []
+	for c in slots:
+		if c != null:
+			out.append(c)
+	return out
+
+
+func size() -> int:
+	return fielded().size()
+
+
+func is_empty() -> bool:
+	return size() == 0
+
+
+func is_full() -> bool:
+	return size() == SLOT_COUNT
+
+
+## Where a man is fielded when nobody chooses: front gaps left to right, then
+## the second line. -1 when every slot is taken.
+func first_free_index() -> int:
+	for i in SLOT_COUNT:
+		if slots[i] == null:
+			return i
+	return -1
+
+
+# --- Movement verbs (bool = the move was legal and happened) ------------------
+
+func place(c: Character, line: int, col: int) -> bool:
+	if not in_bounds(line, col) or at(line, col) != null or has(c):
+		return false
+	slots[slot_index(line, col)] = c
+	return true
+
+
+func place_at_index(c: Character, index: int) -> bool:
+	if index < 0 or index >= SLOT_COUNT:
+		return false
+	@warning_ignore("integer_division")
+	return place(c, index / COLUMNS, index % COLUMNS)
+
+
+func remove(c: Character) -> bool:
+	var i := _index_of(c)
+	if i == -1:
+		return false
+	slots[i] = null
+	return true
+
+
+## One column left (-1) or right (+1) within the same line.
+func slide(c: Character, direction: int) -> bool:
+	if absi(direction) != 1:
+		return false
+	return _move_to(c, line_of(c), column_of(c) + direction)
+
+
+## Step from the second line into the front of the same column.
+func advance(c: Character) -> bool:
+	if line_of(c) != BACK:
+		return false
+	return _move_to(c, FRONT, column_of(c))
+
+
+## Step from the front back into the second line of the same column.
+func retire(c: Character) -> bool:
+	if line_of(c) != FRONT:
+		return false
+	return _move_to(c, BACK, column_of(c))
+
+
+func swap_positions(a: Character, b: Character) -> bool:
+	var ia := _index_of(a)
+	var ib := _index_of(b)
+	if ia == -1 or ib == -1 or a == b:
+		return false
+	slots[ia] = b
+	slots[ib] = a
+	return true
+
+
+# --- Combat queries -----------------------------------------------------------
+
+## The man an enemy attacking into this column hits: the front-liner shields
+## the second line; a whole empty column means the swing finds no one.
+func column_melee_target(col: int) -> Character:
+	var front := at(FRONT, col)
+	return front if front != null else at(BACK, col)
+
+
+func _index_of(c: Character) -> int:
+	return slots.find(c) if c != null else -1
+
+
+func _move_to(c: Character, line: int, col: int) -> bool:
+	if not has(c) or not in_bounds(line, col) or at(line, col) != null:
+		return false
+	slots[_index_of(c)] = null
+	slots[slot_index(line, col)] = c
+	return true
