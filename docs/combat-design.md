@@ -3,10 +3,11 @@
 This is the core of the game and the first (possibly only) thing we build.
 Everything else in `game-design.md` is the long-term frame around it.
 
-> **Redesign in progress:** positional combat (2 lines × 4 columns, strict
-> column targeting, spatial misses, role kits, telegraphed enemy shifts) is
-> specified in [lines-redesign.md](lines-redesign.md) and lands in phases.
-> This document remains the shipped rules until then.
+> **Redesign in progress:** positional combat is specified in
+> [lines-redesign.md](lines-redesign.md) and lands in phases. **Phase A
+> (the geometry engine) has shipped** and this document describes it; role
+> kits (B), enemy shifts and wind-ups (C) and the card rework (D) are
+> still to come.
 
 ## Fantasy & win condition
 
@@ -17,36 +18,41 @@ captain dies, the run is over. There is always a **retreat** option (cut the
 ropes, fall back to your ship): you keep your survivors, lose the prize and
 some momentum-related reward. Permadeath needs a coward's exit to be fair.
 
-## The battlefield: a boarding, not a pitched line
+## The battlefield: the lines
 
-Keep v0 flat and readable — no grid, no lanes yet — but the shape of the
-fight is a boarding action: a small first wave over the rail into a larger,
-surprised crew, then both sides feeding men in.
+Each side fields **4 columns × 2 lines** of slots, plus an untouchable
+reserve (their hold, your ship). Any slot may be empty; the slots themselves
+are the fielded cap. The rail bottleneck is the crossing **rate**
+(Reinforce/Swap/commit per turn), not a standing limit.
 
-- **Your side:** a small **first wave** (e.g. 3, chosen before the fight) on
-  their deck, the rest of the crew in **reserve** on your own ship. The rail
-  is a bottleneck: your field is capped (e.g. 5) — you can never stack their
-  deck with your whole crew at once.
-- **Their side:** the defenders are home, so they always field **more than
-  you** at the start (e.g. 5 on deck against your 3) but not their full
-  strength — the watch was surprised. The rest come up from below decks: a
-  **reserve pool** (e.g. 5) refilling their line at a fixed rate (2/turn now;
-  whether 1 or 2 feels right is a playtest question, never a die roll) up to
-  their deck's cap (e.g. 6, always ≥ yours).
-- **The enemy captain is the final reinforcement.** He commands from the
-  stern while he has men to send; when the hold is empty and his line has
-  room, he steps into it himself — attackable, and attacking. Before that he
-  can only be reached when his line thins to ≤ 2 or a card forces a window
-  (`Break the Line`, a duel). The old "exposed when reserves are spent" rule
-  is gone: behind a full line he is safe even with an empty hold.
+- **Placement is targeting.** A fighter attacks the nearest occupied enemy
+  slot in his own column — their front first, then their second line. A
+  whole empty enemy column means his swing **misses**: he hits air. Misses
+  are spatial and deterministic, never dice.
+- **Placement is also defense.** Vacate a column and their berserker there
+  hits nothing — at the price of your own attack lane in that column.
+- **Front-liners** fight their column. **Spears** also fight it from the
+  second line (reach). **Archers** in the second line auto-snipe the
+  lowest-HP fielded enemy *anywhere* for a flat 2 (spawn-order tiebreak,
+  armor ignored) — the one attack placement cannot dodge; the weak number
+  is deliberate, archers finish and harass, they do not carry. Any other
+  second-liner simply holds his place. The **reserve never acts and can
+  never be hit.**
+- **Your first wave** (e.g. 3 men, placed before the fight) boards a
+  larger, surprised watch (e.g. 5); the rest of both crews feed in over
+  the fight. Their reinforcements enter at a fixed rate (2/turn, never a
+  die roll) and fill **front gaps left to right**, then the second line.
+- **The enemy captain is the final reinforcement — and has no special
+  rules.** He commands from the stern, unreachable like all reserves,
+  while he has men to send; when the hold is empty and his line has room
+  he steps in himself, and then he stands in the formation like anyone:
+  reach him through his column, snipe him, shove his line apart. All the
+  old exposure rules are gone.
 - Your reinforcements flow **through the deck**: `Reinforce` fields a man
-  from your ship, `Swap` rotates a wounded fighter out for a fresh one (also
-  how the captain trades places with his prowman — see officers). The
-  1-momentum commit action remains as a slow fallback so a bad hand never
-  strands the first wave alone; whether it survives playtesting is open.
-
-Lanes (2–3 gangplanks with separate fronts) are a v2 idea if the flat field
-feels too mushy. Don't build them speculatively.
+  from your ship **into a slot you choose**, `Swap` trades any two of your
+  men (fielded↔fielded or fielded↔reserve — also how the captain trades
+  places with his prowman). The 1-momentum commit action remains as a slow
+  fallback so a bad hand never strands the first wave alone.
 
 ## The boarding maneuver
 
@@ -65,8 +71,8 @@ battle plays (one plain-bonus option is allowed):
 | --- | --- |
 | Grapple & Rush | +6 momentum. The vanilla crash. |
 | Dawn Raid | +4 momentum; 3 defenders are caught below decks — they rejoin the BACK of their reserve queue, shaken (−2 morale). Their line is briefly thinner than your wave. |
-| Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with 2 true damage to the lowest-HP fielded defender, all battle. They hold fire during a duel. |
-| Careful Assault | +2 momentum; a shieldwall-like discipline: your side takes −1 damage from every hit, all battle. Drawback: 2 extra defenders have time to form up (their deck — this may crowd past their field cap) and the watch stands composed (+1 morale, blunting rout cascades). |
+| Covering Volley | +2 momentum; your archers hold your rail: every player fight phase opens with 2 true damage to the lowest-HP fielded defender, all battle. |
+| Careful Assault | +2 momentum; a shieldwall-like discipline: your side takes −1 damage from every hit, all battle. Drawback: 2 extra defenders have time to form up and the watch stands composed (+1 morale, blunting rout cascades). |
 
 The choice is deliberate and deterministic (no draw): pick the maneuver that
 fits this enemy. Forced-maneuver sims (300 battles each, random bot, post
@@ -111,7 +117,9 @@ boarding maneuver supplies a large opening surge (see above): you start the
 fight rich and act from strength, exactly as a boarder should.
 
 - **+1** at the start of your turn.
-- **+1** per enemy your side kills (including on the enemy's turn).
+- **+2** per enemy your side kills (including on the enemy's turn) — with
+  targeting positional, choosing WHO dies is the player's craft, and
+  sniping the right man is the tempo engine.
 - **Carries over** between turns, **cap 10**. No reset — killing sprees bank
   into big turns.
 - Losing a character costs **no momentum** — that pain flows through the
@@ -146,10 +154,11 @@ killable.
   but **Shaken** (reduced morale) for the rest of the raid.
 - **Kill vs. break is a real tradeoff:** kills feed your momentum engine,
   routs don't — fear tactics clear the deck faster and without bloodying
-  your crew, but starve your card economy.
-- Routed enemies count as off the field for **captain exposure** — breaking
-  their line is the second road to their captain, alongside killing through
-  it.
+  your crew, but starve your card economy. Ideally you snipe the men worth
+  a bounty and break the cheap ones without wasting swings on them.
+- A rout empties a slot like a death does — breaking their line opens
+  columns (and eventually their captain's hold) as surely as killing
+  through it.
 - **Captains never rout.** Yours fights to the death (that's the game-over
   rule); theirs stands his ground when his crew breaks.
 - Berserkers are immune to morale damage. Of course they are.
@@ -163,19 +172,22 @@ Cards come from your captain's skills, crew abilities, ship fittings, and
 | Card | Cost | Effect |
 | --- | --- | --- |
 | Spear Volley | 2 | 2 damage to every fielded enemy |
-| Concentrated Attack | 2 | All your characters strike one target this turn |
+| Concentrated Attack | 2 | Everyone who can REACH the target (his column's attackers + your archers) strikes it this turn |
 | Shield Wall | 1 | Your side takes −2 damage per hit until your next turn |
 | Rally | 1 | Heal a character 4 |
 | Drag Him Back! | 1 | Retained. Fires automatically when a killing blow lands on a crew member: cancels it, pulls them to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) |
-| Break the Line | 3 | Enemy captain is exposed until end of turn |
-| Challenge | 3 | Your captain and theirs duel 1v1 this round; no one else may interfere |
+| Break the Line | 1 | Shove an enemy front-liner one column sideways — you re-aim THEIR formation (out of his duel, into a worse one) |
+| Challenge | 2 | Only while both captains are fielded: they attack each other this round regardless of columns; everyone else fights on |
 | Push Them Back | 2 | No enemy reinforcements next turn |
 | Battle Fury | 1 | A character attacks twice this turn |
 | Feint | 0 | Draw 2 cards |
 | Terrifying Bellow | 1 | 2 morale damage to every fielded enemy |
-| Reinforce | 1 | Retained. Field a man from your ship (default: first in reserve) |
-| Swap | 1 | Retained. A fielded fighter trades places with one on your ship |
+| Reinforce | 1 | Retained. Field a man from your ship into a slot you choose |
+| Swap | 1 | Retained. Any two of your men trade slots (fielded↔fielded or fielded↔reserve) |
 | War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball) |
+
+Movement riders on the wider card pool (Spear Volley sliding a man, Rally
+with a step, Feint as the step) are Phase D of the lines redesign.
 
 Design rules: damage cards should rarely beat just letting characters fight —
 cards **bend** the fight (tempo, protection, targeting, windows), they don't
@@ -186,17 +198,21 @@ replace it. Death prevention must exist but be scarce.
 Decision: **autobattler bodies, card-controlled battle** — adopted for v0,
 explicitly to be validated in M2 playtests (see the watchlist at the end).
 
-- **Targeting is deterministic and instant.** Every character always has a
-  target, assigned by fixed, published priority: keep your current
-  engagement → otherwise the front-most open enemy slot → lowest HP as
-  tiebreak. Who gets hit is never lucky or unlucky; targeting RNG would
-  undermine the no-dice rule below. Predictable AI is a feature — you plan
-  around it like a puzzle, and the sim harness can verify it.
+- **Targeting is deterministic and spatial.** Who hits whom is decided by
+  where people stand: a fighter attacks the nearest occupied enemy slot in
+  his own column, archers snipe the weakest man anywhere, a challenged
+  captain seeks the other captain. Who gets hit is never lucky or unlucky;
+  targeting RNG would undermine the no-dice rule below. Predictable AI is
+  a feature — you plan around it like a puzzle, and the sim can verify it.
+- **The bill is on the board.** The UI forecasts, per fighter, the physical
+  and morale damage he stands to take next fight phases (column duels,
+  reach, snipes, the telegraphed tactic, the morale wave of predicted
+  deaths) — you read threat off the tokens instead of adding it up.
 - **All player agency flows through cards.** Want focus fire? That's
-  `Concentrated Attack`. Want someone safe? `Drag Him Back!`. This makes the
-  hand genuinely matter every turn (if you could freely order everyone, half
-  the card pool would be redundant), keeps turns fast, and scales to bigger
-  fights without micromanagement.
+  `Concentrated Attack`. Want someone safe? `Drag Him Back!`. Want their
+  line re-aimed? `Break the Line`. Cards move men; position does the rest.
+  This makes the hand genuinely matter every turn, keeps turns fast, and
+  scales to bigger fights without micromanagement.
 - Escape hatch if playtests feel uncontrollable: add a generic `Order`
   ability — pay 1 momentum to retarget one character. Cheap to add, and its
   price keeps cards primary. Do **not** start with free full control; you
@@ -211,9 +227,10 @@ Deliberately small sheet — the mechanics budget is spent elsewhere:
   rout lowers it for the rest of the raid.
 - **Strength** — base damage.
 - **Speed** — attack resolution order (fast units can kill before being hit).
-- **Weapon** (1 slot): damage + one trait. Spear: strikes first when newly
-  engaged. Axe: ignores 2 armor. Sword: +1 damage, no gimmick. Bow: hits
-  from reserve. Looted weapons are equippable *or* sellable.
+- **Weapon** (1 slot): damage + one trait. Spear: reach — fights his column
+  from the second line. Axe: ignores 2 armor. Sword: +2 damage, no gimmick.
+  Bow: second line only in practice — snipes the weakest fielded enemy
+  anywhere for a flat 2. Looted weapons are equippable *or* sellable.
 - **Armor** (1 slot): flat damage reduction 1–3; heaviest armor −1 speed.
 - **One personality trait** (later, for the dynasty layer): coward, fury,
   loyal — hooks for events and AI quirks. Not in v0.
@@ -247,18 +264,19 @@ artifacts as debug toggles.
 
 ## Tuning baseline (v0 starting numbers)
 
-Hand 5 · momentum cap 10 · first wave 3, your field cap 5, 5 in reserve ·
-enemy: 5 fielded, cap 6, reserve 6, reinforce 2/turn, captain last · your
-grunts: 12 HP / 6 morale / 3 Str / speed 3; defender grunts steadier at 7
-morale (they are home) · enemy captain: 30 HP / 5 Str (never routs) · your
-captain: 20 HP / 4 Str · ally death −2 morale to fielded side,
-rout −1. A fight should run ~6–10 turns. With reinforcement living in the
-deck, the no-card bot is structurally crippled (it never crosses a second
-man) — it is a floor metric now, expected to lose heavily, not narrowly; the
-tuning target moves to the random card-playing bot sitting near an even
-fight. Post hand-model redesign it sits at 70.2% mixed / 6.7 avg turns —
-above the notional 50–65% band, accepted because the bot exploits the
-passive maneuvers harder than a human would; revisit against real play.
+Hand 5 · momentum cap 10 · the grid is 4×2 slots per side · first wave 3,
+5 in reserve · enemy: 5 fielded, reserve 6, reinforce 2/turn into front
+gaps, captain last · your grunts: 12 HP / 6 morale / 3 Str / speed 3;
+defender grunts steadier at 7 morale (they are home) · enemy captain:
+30 HP / 5 Str (never routs) · your captain: 20 HP / 4 Str · archer snipe
+flat 2 · kill +2 momentum · ally death −2 morale to fielded side, rout −1.
+A fight should run ~6–10 turns eventually. Post-cutover (phase A alone,
+n=200): random bot 24.5% win / 47.5% defeat / 27.5% stalemate, avg 30
+turns — rough by design; the bot plays placement randomly and the same
+kits stand on both sides, so kill order barely matters yet. Phases B–D
+(kits, enemy dynamics, card rework) carry the retune back to the 6–10
+turn, near-even target. The no-card bot stays a floor metric (collapses
+to a ~4-turn repulse: it never crosses a second man).
 
 ## Playtest watchlist (decided, but on probation)
 

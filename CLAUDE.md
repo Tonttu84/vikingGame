@@ -64,26 +64,27 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: the hand-model redesign — a fresh hand of 5 every turn, the Retained
-keyword (Reinforce/Swap/Drag Him Back! wait in hand, eat draw room), the
-automatic death-save (no reaction prompt; the engine controller contract
-lost choose_reaction_save), scrapping removed everywhere (engine, bots, UI
-scrap pile). Also: headless engine (momentum, morale/routs, deterministic targeting),
-artifact hooks (4 artifacts), playable battle UI, and the boarding redesign —
-maneuvers as strategy cards (Grapple & Rush / Dawn Raid / Covering Volley /
-Careful Assault, forced-maneuver win rates 56–74% post hand-model), deck-driven reinforcement
-(Reinforce/Swap), enemy captain as final reinforcement, repulsed-boarding
-retreat, the maneuver picker UI (modal at battle start; smoke test picks
-Dawn Raid to prove the choice reaches the engine), and the web build
-(`scripts/export_web.sh` → itch.io-ready zip, single-threaded so no special
-headers; CI uploads it as the `web-build` artifact; project now runs on the
-Compatibility renderer everywhere). `docs/combat-design.md` has the full
-rules and a playtest watchlist.
+Done: **the lines redesign phase A** — positional combat on 4×2 slot grids
+(Formation), strict-column targeting with spatial misses, spear reach,
+archer auto-snipe (flat 2, second line), reserve-never-acts, the enemy
+captain as a plain final reinforcement (all exposure rules deleted, along
+with engagement tracking and the spear first-strike bonus), kill = +2
+momentum, Break the Line repurposed as the shove and Challenge as the
+cross-column captains' duel, Reinforce/Swap/commit choose slots, RosterText
+slot syntax (`f1`..`b4`), the UI rendering both grids with per-token
+incoming-damage forecast badges (engine `forecast()`, physical + morale).
+Earlier: the hand-model redesign (fresh hand of 5, Retained keyword,
+automatic death-save, scrapping removed), headless engine, artifact hooks
+(4 artifacts), playable battle UI, boarding maneuvers as strategy cards,
+deck-driven reinforcement, repulsed-boarding retreat, maneuver picker UI,
+and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
+`docs/combat-design.md` has the full shipped rules; balance is deliberately
+rough until B–D retune it (post-A sims: random bot ~25% win, ~30 turns).
 
 Agreed next slices, in rough priority:
-1. The lines redesign — positional combat per docs/lines-redesign.md
-   (agreed spec; phases A geometry → B role kits → C enemy dynamics →
-   D card rework, each its own shippable TDD slice).
+1. Lines redesign phase B — role kits (docs/lines-redesign.md): the hooks
+   table, distinct default rosters both sides, covering-volley scaling;
+   suite test_kits. Then C enemy dynamics → D card rework/retune.
 2. Officer system (prowman is currently just a strong named crewman).
 3. Raid loop (node route between fights, loot into the deck, wounds
    persisting, retreat-vs-push-on).

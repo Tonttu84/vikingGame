@@ -1,10 +1,19 @@
 # The Lines Redesign — positional boarding combat (working spec)
 
-Status: **planned, agreed, not yet implemented.** This replaces the flat-field
-combat in `docs/combat-design.md` when its phases land; until then the shipped
-rules stay authoritative there. Systems this spec does not mention (momentum
-carryover, morale waves and routs, maneuvers, Retained cards, the automatic
-death-save, artifacts, hand model) carry over unchanged.
+Status: **phase A (geometry engine) shipped;** B–D still to come. The rules
+in `docs/combat-design.md` describe the shipped state. Systems this spec
+does not mention (momentum carryover, morale waves and routs, maneuvers,
+Retained cards, the automatic death-save, artifacts, hand model) carry over
+unchanged.
+
+Phase A landed with three deliberate deviations from the phasing below:
+Break the Line (the shove, provisional cost 1) and Challenge (the captains'
+cross-column duel, provisional cost 2) were repurposed in A rather than D —
+their old effects referenced deleted rules, and shipping dead cards was
+worse than pricing early (D still owns the numbers). And the UI grew a
+per-token **incoming-damage forecast** (engine `forecast()`: physical +
+morale, from the same targeting/damage code the phases resolve with) so
+positional threat is readable at a glance.
 
 ## Why
 
@@ -147,11 +156,13 @@ grids) · the duel-bypasses-the-line rule.
 
 ## Phases (each shippable, TDD, own commit)
 
-- **A. Geometry engine** — slot grids, strict-column targeting with spatial
-  misses, reach/snipe, movement verbs (slide/advance/retire/swap/place),
-  kill = +2, reserve-never-acts, captain-as-plain-last-reinforcement,
-  RosterText grows slot syntax, UI renders 2×4 grids (functional, not
-  pretty). New suites: `test_formation`, `test_column_targeting`.
+- **A. Geometry engine — SHIPPED** — slot grids, strict-column targeting
+  with spatial misses, reach/snipe, movement verbs (slide/advance/retire/
+  swap/place; slide is player-reachable through the shove, the rest through
+  Swap/Reinforce until D's riders), kill = +2, reserve-never-acts,
+  captain-as-plain-last-reinforcement, RosterText slot syntax (`f1`..`b4`),
+  UI renders 2×4 grids (functional, not pretty) with forecast badges.
+  New suites: `test_formation`, `test_column_targeting`, `test_forecast`.
 - **B. Role kits** — the hooks table above, distinct default rosters both
   sides, covering-volley scaling with ship archers. Suite: `test_kits`.
   A+B together is when "kill order matters" is real — sim it hard.
