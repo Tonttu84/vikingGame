@@ -91,6 +91,20 @@ Deliberately small sheet stays (HP/Morale/Str/Speed/weapon/armor); a kit is
 one or two hooks, in ArtifactData style. If everyone has the same stats the
 kill order is meaningless — kits are what make "kill him FIRST" a puzzle.
 
+Implementation mapping (agreed, Phase B): kits ride the EXISTING idioms —
+boolean flags and weapon kinds, no new enum. `is_shieldman` flag (half
+damage rounded up applied last, after side-wide softening, to melee AND
+snipes but not card/tactic true damage — volleys are the shieldman
+counter-play; aura +1 armor to line-neighbors, melee only, never himself);
+cleave rides `is_berserker` (2-damage graze to the target's line-neighbors,
+captured before the main blow lands, softened and shield-halved but never
+armored, kills pay the normal bounty); the anti-aura breaker rides the axe
+weapon itself; the leader aura (+1 melee damage to line-neighbors) rides
+`is_captain`. Covering Volley fires one 2-true-damage arrow PER archer in
+your reserve, re-aiming at the weakest defender between arrows — zero ship
+archers, silent rail. RosterText grows a `shieldman` token. Forecast must
+include cleave grazes and the scaled volley.
+
 | Kit | Hooks (v0 numbers) |
 | --- | --- |
 | Shieldman | Takes half damage (rounded up, after armor). Aura: +1 armor to line-neighbors. Low damage. Place him in the hard hitter's column. |
