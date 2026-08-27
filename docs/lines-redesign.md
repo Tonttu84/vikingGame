@@ -132,6 +132,27 @@ Two layers keep the solved order dissolving:
 Their reinforcement keeps its fixed rate and now also **chooses slots**
 deterministically (fill front gaps first, left to right), captain last.
 
+Phase C rulings (decided; v0 numbers, D owns the retune):
+
+- **Wind-ups are enemy-only.** They are the enemy's telegraph layer — a
+  threat you dodge. Your own rhythm lives in cards; a player-side auto-buff
+  on a timer is bookkeeping without a decision.
+- **Heavy cleave: 2× blow, graze 4.** On the wind-up turn the berserker's
+  melee damage doubles and the graze goes 2 → 4. Vacating his column wastes
+  the whole wind-up — he swings at air and the timer resets.
+- **The mark is locked.** The archer marks the weakest fielded boarder at
+  telegraph time; next turn both arrows hit HIM specifically. If he is
+  dead, routed or pulled back to the ship, the double shot is wasted —
+  rescuing the marked man is the counter-play snipes otherwise lack.
+- **Both rhythms run on a 3-turn cycle** (visible counter: 2, 1, 0 — fires
+  at 0, then resets). The counter starts when the man is fielded; the
+  archer's mark is placed when his counter reaches 0, one turn before the
+  shot.
+- **Blocked shifts slide what can.** A shift call moves each man whose
+  destination is free, processed from the leading edge; men pinned at the
+  board edge stay. A completely full line does not move — pinning their
+  wall denies the call, which is player counter-play, not a bug.
+
 ## Cards: movement rides on effects
 
 The design principle (decided): **movement is semi-free — it rides on cards
