@@ -171,6 +171,33 @@ Fury's extra swings still benefit from the rider, since the fight resolves
 after all cards — that is the rider doing its forward-looking job, not the
 card setting itself up.)
 
+**Riders are mandatory (ruled 2026-08-28).** If any legal rider move
+exists when the rider resolves, a move MUST be taken — the player chooses
+which of the legal moves, never whether. Having to move is the fun: the
+board churns, and a rider that sometimes hurts is a price you knew when
+you played the card. Only a literally impossible move (no legal
+destination anywhere) is skipped. Every "may" in the sketch table below
+reads as "must, when possible". This opens deliberate design space for
+future cards whose rider is an *annoying* move — movement as an extra
+cost, not a perk.
+
+**Riders reposition; they never cross the rail.** A rider moves men
+between slots of the grid, so the prow pair's law (field↔reserve is
+captain↔prowman only, via the Swap card) is untouched: a rider may slide,
+step or position-swap the fielded prowman like anyone else — he stays on
+the field throughout.
+
+**Choice timing: after the effect.** The controller is asked for the
+rider move once the effect has resolved (`choose_rider` hook), because
+the move responds to what the effect just did. A controller without the
+hook, or answering illegally, gets the first legal move in reading order
+— the rule stays mandatory even for dumb bots.
+
+Ruled out for now: **Fall Back** (the breather card — skipped until
+playtests prove the need) and **Aim!** (same). Prices in the sketch keep
+their current values for the first implementation pass; the retune to
+6–10 turn fights happens against sims once riders are in.
+
 Sketch (priced in Phase D):
 
 | Card | Sketch (effect + movement rider) |
@@ -181,13 +208,15 @@ Sketch (priced in Phase D):
 | Shield Wall | Your side takes −2 this round; then swap any two of your fielded men (for the coming fight, not for the wall). |
 | Rally | Heal an ally 4; he may step one line forward or back. |
 | Battle Fury | An ally attacks twice this turn; then he may advance into an empty front slot (the fight resolves after, so the fury travels with him). |
-| War Cry | +1 momentum per kill this turn; slide one of your men toward the killing. |
+| War Cry | +1 momentum per kill this turn; slide one of your men one column ("toward the killing" is the player's call, not a rule). |
 | Feint | Draw 2; slide one of your men one column (the feint IS the step). |
-| Fall Back | Retire a front-liner to his second line; +2 morale to him (breather). |
+| Fall Back (skipped) | Was: retire a front-liner to his second line; +2 morale (breather). Ruled out until playtests prove the need. |
 | Break the Line | REPURPOSED: shove an enemy front-liner one column sideways — you re-aim THEIR formation (into the berserker's wind-up, out of the shieldman's aura). |
 | Challenge | REPURPOSED: only while both captains are fielded — they attack each other this round regardless of columns. |
-| Terrifying Bellow / Concentrated | Effects unchanged; riders to be decided per card in Phase D. |
-| Aim! (maybe) | Override the archers' auto-snipe target this turn. Only if playtests want it. |
+| Terrifying Bellow | Effect unchanged; then slide one of your men one column (ruled: the generic slide). |
+| Concentrated Attack | Reach-based strike (shipped); then slide one of your men one column (ruled: the generic slide). |
+| Push Them Back | Effect unchanged, no rider — a rail card, like the crossing pair. |
+| Aim! (skipped) | Override the archers' auto-snipe target this turn. Only if playtests want it. |
 
 Concentrated Attack becomes: everyone **who can reach the target** strikes
 it (his column's attackers + archers) — reach still respects geometry.
