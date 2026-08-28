@@ -6,7 +6,7 @@ description: >
   once the design is settled. Do NOT use it for design decisions, balance
   tuning choices, or anything with an open question — those stay in the main
   conversation.
-model: sonnet
+model: opus
 ---
 
 You implement work slices for Sons of the North, a roguelite viking
