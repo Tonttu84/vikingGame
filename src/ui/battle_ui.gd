@@ -278,7 +278,12 @@ func _fill_enemy_reserve(state: BattleState) -> void:
 			chip += " · berserker"
 		if c.is_shieldman:
 			chip += " · shieldman"
-		_enemy_reserve_list.add_child(UIPalette.label(chip, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+		var chip_label := UIPalette.label(chip, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
+		# Ellipsize instead of widening the sidebar past the canvas edge.
+		chip_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		chip_label.tooltip_text = chip
+		chip_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		_enemy_reserve_list.add_child(chip_label)
 
 
 func _refresh_enemy_captain(state: BattleState) -> void:
@@ -424,8 +429,7 @@ func _build_layout() -> void:
 	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	table.add_child(rail)
 	table.add_child(_build_player_zone())
-	table.add_child(_build_hud())
-	table.add_child(_build_hand_area())
+	table.add_child(_build_bottom_strip())
 	main.add_child(_build_log_panel())
 
 	_build_dialogs()
@@ -520,8 +524,15 @@ func _build_player_zone() -> Control:
 	var reserve_bar := HBoxContainer.new()
 	reserve_bar.add_theme_constant_override("separation", 12)
 	reserve_bar.mouse_filter = Control.MOUSE_FILTER_PASS
-	reserve_bar.add_child(UIPalette.label("Your ship — click a man to commit him (%d momentum). The reserve never fights, is never hit."
-			% BattleState.RESERVE_COMMIT_COST, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+	var hint := UIPalette.label("Your ship — click a man to commit him (%d momentum). The reserve never fights, is never hit."
+			% BattleState.RESERVE_COMMIT_COST, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
+	# Wrapped, not one long line: an unwrapped label here forces the whole
+	# table wider than the reference canvas and shoves the sidebar off it.
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 180
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	reserve_bar.add_child(hint)
 	_player_reserve_row = HBoxContainer.new()
 	_player_reserve_row.add_theme_constant_override("separation", 4)
 	_player_reserve_row.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -530,47 +541,11 @@ func _build_player_zone() -> Control:
 	return zone
 
 
-func _build_hud() -> Control:
-	var hud := HBoxContainer.new()
-	hud.add_theme_constant_override("separation", 14)
-	hud.mouse_filter = Control.MOUSE_FILTER_PASS
-
-	var momentum_box := VBoxContainer.new()
-	momentum_box.mouse_filter = Control.MOUSE_FILTER_PASS
-	_momentum_label = UIPalette.label("Momentum 0/10", UIPalette.FONT_BODY, UIPalette.GOLD)
-	momentum_box.add_child(_momentum_label)
-	_momentum_pips = HBoxContainer.new()
-	_momentum_pips.add_theme_constant_override("separation", 3)
-	_momentum_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for i in BattleState.MOMENTUM_CAP:
-		var pip := ColorRect.new()
-		pip.custom_minimum_size = Vector2(14, 14)
-		pip.color = UIPalette.SEA_LIGHT
-		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_momentum_pips.add_child(pip)
-	momentum_box.add_child(_momentum_pips)
-	_piles_label = UIPalette.label("", UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
-	momentum_box.add_child(_piles_label)
-	hud.add_child(momentum_box)
-
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_PASS
-	hud.add_child(spacer)
-
-	_retreat_button = Button.new()
-	_retreat_button.text = "Retreat"
-	_retreat_button.pressed.connect(func() -> void: _retreat_dialog.popup_centered())
-	hud.add_child(_retreat_button)
-	_end_turn_button = Button.new()
-	_end_turn_button.text = "End Turn — let them fight"
-	_end_turn_button.custom_minimum_size = Vector2(200, 40)
-	_end_turn_button.pressed.connect(func() -> void: submit({"op": "end"}))
-	hud.add_child(_end_turn_button)
-	return hud
-
-
-func _build_hand_area() -> Control:
+## The hand owns the whole bottom row of the table: five card faces need
+## the full width, so momentum and the turn buttons live in the sidebar.
+## The vertical budget of the reference canvas is the scarce thing — the
+## stretch mode scales whatever fits it into any window.
+func _build_bottom_strip() -> Control:
 	_hand_row = HBoxContainer.new()
 	_hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_hand_row.add_theme_constant_override("separation", 8)
@@ -614,6 +589,37 @@ func _build_log_panel() -> Control:
 	_log_text.add_theme_font_size_override("normal_font_size", UIPalette.FONT_SMALL)
 	box.add_child(_log_text)
 	sidebar.add_child(panel)
+
+	# Momentum and the turn buttons live at the foot of the sidebar: a full
+	# hand of five cards owns the entire bottom strip, so neither can sit
+	# beside it without pushing this very sidebar off the canvas.
+	var momentum_box := VBoxContainer.new()
+	momentum_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	_momentum_label = UIPalette.label("Momentum 0/10", UIPalette.FONT_BODY, UIPalette.GOLD)
+	momentum_box.add_child(_momentum_label)
+	_momentum_pips = HBoxContainer.new()
+	_momentum_pips.add_theme_constant_override("separation", 3)
+	_momentum_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i in BattleState.MOMENTUM_CAP:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(14, 14)
+		pip.color = UIPalette.SEA_LIGHT
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_momentum_pips.add_child(pip)
+	momentum_box.add_child(_momentum_pips)
+	_piles_label = UIPalette.label("", UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
+	momentum_box.add_child(_piles_label)
+	sidebar.add_child(momentum_box)
+
+	_end_turn_button = Button.new()
+	_end_turn_button.text = "End Turn — let them fight"
+	_end_turn_button.custom_minimum_size = Vector2(0, 40)
+	_end_turn_button.pressed.connect(func() -> void: submit({"op": "end"}))
+	sidebar.add_child(_end_turn_button)
+	_retreat_button = Button.new()
+	_retreat_button.text = "Retreat"
+	_retreat_button.pressed.connect(func() -> void: _retreat_dialog.popup_centered())
+	sidebar.add_child(_retreat_button)
 	return sidebar
 
 
@@ -659,6 +665,9 @@ func _build_outcome_layer() -> void:
 	box.add_child(_outcome_title)
 	_outcome_body = UIPalette.label("", UIPalette.FONT_BODY, UIPalette.PARCHMENT)
 	_outcome_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# The butcher's bill lists names; wrap rather than outgrow the canvas.
+	_outcome_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_outcome_body.custom_minimum_size.x = 520
 	box.add_child(_outcome_body)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER

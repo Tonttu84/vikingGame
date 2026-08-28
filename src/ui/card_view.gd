@@ -60,6 +60,8 @@ func _build() -> void:
 	elif card.target_type == CardData.TargetType.ALLY:
 		foot_text = "drag onto an ally · " + foot_text
 	var foot := UIPalette.label(foot_text, 9, UIPalette.SEA_LIGHT)
+	# The footnote must never set the card's width — ellipsize past the edge.
+	foot.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(foot)
 

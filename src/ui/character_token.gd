@@ -34,7 +34,11 @@ func _build() -> void:
 	if character.is_captain:
 		trim = UIPalette.GOLD if is_player else UIPalette.BLOOD
 	var bg := UIPalette.SEA if is_player else UIPalette.IRON_DARK
-	add_theme_stylebox_override("panel", UIPalette.panel(bg, trim, 2 if character.is_captain else 1))
+	var style := UIPalette.panel(bg, trim, 2 if character.is_captain else 1)
+	# Tokens are the layout's unit cell: a slim margin keeps a fully lit
+	# token (stats + telegraph + forecast) inside its 100px formation row.
+	style.set_content_margin_all(4)
+	add_theme_stylebox_override("panel", style)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
@@ -62,35 +66,41 @@ func _build() -> void:
 		if character.bonus_attacks > 0:
 			box.add_child(UIPalette.label("+%d attack" % character.bonus_attacks,
 					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
-	# The telegraph layer: wind-up counters on their rhythm roles, the
-	# archer's mark on the man his arrows are bound to.
+	# One status row for everything that lights up mid-battle — the telegraph
+	# layer (wind-up counter, the archer's mark) and the incoming-damage
+	# forecast. A single shared line, not a stack: a token must never outgrow
+	# its formation row, or the rows below get pushed off the canvas.
+	var status_row := HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 6)
+	status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if character.windup >= 0:
 		var windup_text: String
 		if character.windup > 0:
 			windup_text = "winds up: %d" % character.windup
 		else:
 			windup_text = "HEAVY BLOW NEXT" if character.is_berserker else "ARROWS AIMED"
-		box.add_child(UIPalette.label(windup_text, UIPalette.FONT_SMALL,
+		status_row.add_child(UIPalette.label(windup_text, UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
 	if marked:
-		box.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
+		status_row.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
-	_add_forecast_badge(box)
+	_add_forecast_badge(status_row)
+	if status_row.get_child_count() > 0:
+		box.add_child(status_row)
+	else:
+		status_row.free()
 	tooltip_text = _tooltip()
 
 
 ## The bill for standing here: incoming damage next fight phases, so the
 ## player reads threat off the board instead of adding it up per enemy.
-func _add_forecast_badge(box: VBoxContainer) -> void:
+func _add_forecast_badge(row: HBoxContainer) -> void:
 	var incoming_hp: int = forecast.get("hp", 0)
 	var incoming_morale: int = forecast.get("morale", 0)
 	set_meta("forecast_hp", incoming_hp)
 	set_meta("forecast_morale", incoming_morale)
 	if incoming_hp <= 0 and incoming_morale <= 0:
 		return
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if incoming_hp > 0:
 		var hp_label := UIPalette.label("-%d HP" % incoming_hp, UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45))
@@ -105,7 +115,6 @@ func _add_forecast_badge(box: VBoxContainer) -> void:
 				UIPalette.GOLD)
 		morale_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(morale_label)
-	box.add_child(row)
 
 
 func _bar(value: int, max_value: int, color: Color, tag: String) -> Control:
