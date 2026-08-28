@@ -71,11 +71,21 @@ class RandomBot:
 	func _crosser_for(state: BattleState) -> Character:
 		# Meleers first; an archer crosses only when no one else is left
 		# (he still needs a second-line slot to matter — random placement
-		# keeps the bot honest about how dumb it is).
+		# keeps the bot honest about how dumb it is). The prow pair never
+		# crosses this way — the engine would refuse and the bot would spin.
 		for c in state.player_reserve:
+			if _pair_member(c, state):
+				continue
 			if c.weapon.kind != Weapon.Kind.BOW:
 				return c
-		return state.player_reserve[0] if not state.player_reserve.is_empty() else null
+		for c in state.player_reserve:
+			if not _pair_member(c, state):
+				return c
+		return null
+
+	func _pair_member(c: Character, state: BattleState) -> bool:
+		return state.player_prowman != null \
+				and (c == state.player_captain or c == state.player_prowman)
 
 	func _target_for(card: CardData, state: BattleState) -> Character:
 		match card.target_type:

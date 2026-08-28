@@ -41,8 +41,10 @@ static func default_skirmish() -> Dictionary:
 	# ship (safe until sent across). First in reserve crosses first by default.
 	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 14, 7, 2, 2, Weapon.sword(), 2)
 	shieldman.is_shieldman = true
+	var prowman := Character.new("p_prow", "Prowman Sten", P, 14, 8, 4, 3, Weapon.axe(), 1)
+	prowman.is_prowman = true
 	var player_field: Array[Character] = [
-		Character.new("p_prow", "Prowman Sten", P, 14, 8, 4, 3, Weapon.axe(), 1),
+		prowman,
 		shieldman,
 		Character.new("p_spear1", "Spearman Orm", P, 12, 6, 3, 3, Weapon.spear(), 1),
 	]
@@ -111,8 +113,10 @@ static func veteran_raid() -> Dictionary:
 
 	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 16, 8, 3, 2, Weapon.sword(), 3)
 	shieldman.is_shieldman = true
+	var prowman := Character.new("p_prow", "Prowman Sten", P, 16, 9, 5, 3, Weapon.axe(), 2)
+	prowman.is_prowman = true
 	var player_field: Array[Character] = [
-		Character.new("p_prow", "Prowman Sten", P, 16, 9, 5, 3, Weapon.axe(), 2),
+		prowman,
 		shieldman,
 		Character.new("p_spear1", "Spearman Orm", P, 14, 7, 4, 3, Weapon.spear(), 2),
 	]

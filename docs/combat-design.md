@@ -127,17 +127,31 @@ with no decisions) and underrates raw momentum, so the human spread is
 tighter than these numbers suggest (a human bursts Dawn Raid's
 briefly-exposed captain on turn 1).
 
-## Officers and the prowman (planned)
+## The prow pair (officers, first slice — shipped)
 
-A few named characters will carry officer roles with outsized effects; the
-one that matters to boarding is the **prowman** (stafnbúi — the prow warrior
-who led the charge). You choose who leads the boarding: the captain up front
-fights and inspires but can die there — game over; the prowman up front
-keeps the captain safe on your ship at the cost of his presence. `Swap`
-trades them mid-fight. HP does not fully heal between a raid's battles, so
-both men's health is managed across the whole raid. (v0: the prowman is just
-a strong named crewman and Swap already works; the formal officer system
-with event rolls comes later.)
+The **prowman** (stafnbúi — the prow warrior who led the charge) is the
+captain's alternate, not his subordinate. Rulings (2026-08-28):
+
+- **One of the pair must hold the field.** The prowman leads the first
+  wave; the captain waits at his own rail. They are never fielded together.
+- **They trade places only with each other.** `Swap` played on the fielded
+  one brings the other across into his exact slot. Neither can swap with
+  ordinary crew, cross by `Reinforce`, or be sent over by the momentum
+  commit — and once the captain is the last of the pair, he cannot leave.
+- **If the prowman leaves the field for good** — slain or broken — **the
+  captain leaps the rail himself, immediately, for 1 momentum**
+  (`PAIR_ENTRY_COST`). If the crew cannot pay, panic takes them: instant
+  DEFEAT. Bank a point while the prowman fights.
+- **Nobody drags the prowman back.** The Drag Him Back! reaction save never
+  fires for him; his fall is the pair's hinge, and an automatic save would
+  chain into a forced crossing the player never chose.
+- Captain dies — game over, as ever. The rules activate only when the
+  roster declares a prowman (RosterText token `prowman`, player side);
+  bare test rosters keep the old free-crossing behavior.
+
+HP not healing fully between a raid's battles (so both men's health is
+managed across the whole raid) still lands with the raid loop; the formal
+officer system with event rolls comes later.
 
 ## Turn structure
 
@@ -336,6 +350,15 @@ column stops anchoring it), wind-ups add spike damage both ways. Phase D
 (card rework) carries the retune to the 6–10 turn, near-even target.
 The no-card bot stays a floor metric (collapses to a ~6-turn repulse: it
 never crosses a second man).
+
+Post-pair (the prow pair, n=300, random bot): skirmish 58.7% win / 33.3%
+defeat / 8.0% stalemate, avg 22 turns — the forced crossing fields the
+captain (fearless, aura, STR 4) in fights where the bot once left him
+ashore, and his entry converts many stalls into pushes. Veteran 64.0% win.
+The no-card floor changes character: 64.7% defeat / 24% stalemate — with
+no Swap card the captain, once forced across, fights until he falls, so
+repulsed boardings become captain-deaths. Both shifts are the mechanic
+speaking, not tuning targets; phase D owns the retune.
 
 ### Two balance anchors & the cost of victory
 

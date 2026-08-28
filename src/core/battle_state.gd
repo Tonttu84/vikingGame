@@ -18,6 +18,10 @@ const ARCHER_SNIPE_DAMAGE := 2
 ## The berserker's swing spills onto the target's line-neighbors: flat, never
 ## armored, but softened and shield-halved like any physical hit.
 const CLEAVE_GRAZE_DAMAGE := 2
+## The prow pair: when the prowman leaves the field for good the captain
+## leaps the rail himself for this price — and if the crew cannot pay,
+## panic takes them and the battle is lost outright.
+const PAIR_ENTRY_COST := 1
 ## Enemy wind-up rhythm: the heavy cleave and the aimed double shot fire
 ## every 3rd enemy fight phase (visible counter 2, 1, 0 — fires at 0).
 const WINDUP_PERIOD := 3
@@ -30,6 +34,9 @@ var player_reserve: Array[Character] = []
 var player_fled: Array[Character] = []
 var player_dead: Array[Character] = []
 var player_captain: Character = null
+## The captain's alternate (docs/combat-design.md, the prow pair). Null when
+## the roster declares no prowman — then the old free-crossing rules hold.
+var player_prowman: Character = null
 
 var enemy_formation := Formation.new()
 var enemy_reserve: Array[Character] = []

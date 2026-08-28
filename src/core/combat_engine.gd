@@ -55,6 +55,8 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	for c: Character in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		if c.is_captain:
 			state.player_captain = c
+		if c.is_prowman:
+			state.player_prowman = c
 	state.enemy_captain = scenario.get("enemy_captain")
 	if state.enemy_captain != null:
 		state.enemy_captain.order_id = _next_order_id()
@@ -242,12 +244,14 @@ func _effect_preconditions_met(card: CardData, target: Character,
 			CardData.EffectType.REINFORCE:
 				if state.player_formation.is_full():
 					return false
-				if state.player_reserve.is_empty():
+				if target == null and _default_crosser() == null:
 					return false
-				if target != null and not state.player_reserve.has(target):
+				if target != null and (not state.player_reserve.has(target) or _pair_member(target)):
 					return false
 			CardData.EffectType.SWAP:
 				if target == null or not state.player_formation.has(target):
+					return false
+				if not _pair_swap_legal(target, second_target):
 					return false
 				if second_target != null:
 					if second_target == target:
@@ -255,7 +259,7 @@ func _effect_preconditions_met(card: CardData, target: Character,
 					if not state.player_reserve.has(second_target) \
 							and not state.player_formation.has(second_target):
 						return false
-				elif state.player_reserve.is_empty():
+				elif not _pair_member(target) and _default_crosser() == null:
 					return false
 			CardData.EffectType.SHOVE:
 				if target == null or state.enemy_formation.line_of(target) != Formation.FRONT:
@@ -351,7 +355,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 					c.max_morale += amount
 					c.morale += amount
 		CardData.EffectType.REINFORCE:
-			var crosser := target if target != null else state.player_reserve[0]
+			var crosser := target if target != null else _default_crosser()
 			state.player_reserve.erase(crosser)
 			var index := slot if _slot_free(state.player_formation, slot) \
 					else state.player_formation.first_free_index()
@@ -360,7 +364,11 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 		CardData.EffectType.SWAP:
 			var partner := second_target
 			if partner == null:
-				partner = state.player_reserve[0]
+				if _pair_member(target):
+					partner = state.player_captain if target == state.player_prowman \
+							else state.player_prowman
+				else:
+					partner = _default_crosser()
 			if state.player_formation.has(partner):
 				state.player_formation.swap_positions(target, partner)
 				state.log_event("%s and %s trade places." %
@@ -376,8 +384,43 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 						[target.display_name, partner.display_name])
 
 
+## The prow pair is active whenever the roster declares a prowman: then the
+## captain and the prowman move only by trading places with each other (the
+## Swap card) or by the forced crossing in _pair_exit — never by Reinforce,
+## the momentum commit, or a swap with ordinary crew.
+func _pair_member(c: Character) -> bool:
+	return state.player_prowman != null \
+			and (c == state.player_captain or c == state.player_prowman)
+
+
+## First reserve man an ordinary crossing may take — pair members are not it.
+func _default_crosser() -> Character:
+	for c in state.player_reserve:
+		if not _pair_member(c):
+			return c
+	return null
+
+
+## Swap legality around the pair: a pair member trades only with his
+## counterpart, who must be alive and waiting in reserve; ordinary crew
+## never trade with a pair member.
+func _pair_swap_legal(target: Character, second_target: Character) -> bool:
+	if state.player_prowman == null:
+		return true
+	if _pair_member(target):
+		var counterpart := state.player_captain if target == state.player_prowman \
+				else state.player_prowman
+		if counterpart == null or not counterpart.is_alive() \
+				or not state.player_reserve.has(counterpart):
+			return false
+		return second_target == null or second_target == counterpart
+	return second_target == null or not _pair_member(second_target)
+
+
 func _commit_reserve(character: Character, slot := -1) -> void:
 	if character == null or not state.player_reserve.has(character):
+		return
+	if _pair_member(character):
 		return
 	if state.player_formation.is_full():
 		return
@@ -782,9 +825,11 @@ func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
 
 func _handle_death(dead: Character) -> void:
 	# Drag Him Back! fires automatically: an affordable save in hand cancels
-	# the killing blow on a crew member, no prompt, no controller.
+	# the killing blow on a crew member, no prompt, no controller. Nobody
+	# drags the prowman from the prow — his fall is the pair's hinge, and an
+	# automatic save would chain into a forced crossing the player never chose.
 	if dead.side == Character.Side.PLAYER and not dead.is_captain \
-			and state.player_formation.has(dead):
+			and not _pair_member(dead) and state.player_formation.has(dead):
 		var save := _affordable_reaction_save()
 		if save != null:
 			state.momentum -= save.cost
@@ -804,6 +849,9 @@ func _handle_death(dead: Character) -> void:
 		state.log_event("The enemy captain falls; his crew throws down its arms.")
 		return
 	var side := dead.side
+	var was_fielded := state.formation_of(side).has(dead)
+	var line := state.formation_of(side).line_of(dead) if was_fielded else -1
+	var col := state.formation_of(side).column_of(dead) if was_fielded else -1
 	state.formation_of(side).remove(dead)
 	state.reserve_of(side).erase(dead)
 	state.archer_marks.erase(dead)
@@ -815,6 +863,10 @@ func _handle_death(dead: Character) -> void:
 		if state.war_cry_active:
 			_gain_momentum(1)
 	state.log_event("%s is slain." % dead.display_name)
+	if dead == state.player_prowman and was_fielded:
+		_pair_exit(line, col)
+		if outcome != Outcome.NONE:
+			return
 	_morale_wave(side, BattleState.DEATH_MORALE_HIT)
 
 
@@ -844,6 +896,8 @@ func _check_routs(side: Character.Side) -> void:
 
 func _rout(c: Character) -> void:
 	var side := c.side
+	var line := state.formation_of(side).line_of(c)
+	var col := state.formation_of(side).column_of(c)
 	state.formation_of(side).remove(c)
 	state.archer_marks.erase(c)
 	c.shaken = true
@@ -853,8 +907,34 @@ func _rout(c: Character) -> void:
 	else:
 		state.enemy_routed.append(c)
 		state.log_event("%s panics and dives overboard." % c.display_name)
+	if c == state.player_prowman:
+		_pair_exit(line, col)
+		if outcome != Outcome.NONE:
+			return
 	for other in state.fielded(side):
 		_deal_morale_damage(other, BattleState.ROUT_MORALE_HIT)
+
+
+## The prow pair's hinge: the prowman has left the field for good, so the
+## captain must hold it — one of the pair always does. He crosses at once
+## into the vacated slot for PAIR_ENTRY_COST momentum; a crew too spent to
+## answer loses its nerve on the spot.
+func _pair_exit(line: int, col: int) -> void:
+	var captain := state.player_captain
+	if captain == null or not captain.is_alive() \
+			or not state.player_reserve.has(captain):
+		return
+	if state.momentum < BattleState.PAIR_ENTRY_COST:
+		outcome = Outcome.DEFEAT
+		state.log_event("No one holds the prow and no strength is left to answer — panic takes the crew.")
+		return
+	state.momentum -= BattleState.PAIR_ENTRY_COST
+	state.player_reserve.erase(captain)
+	if line >= 0 and state.player_formation.at(line, col) == null:
+		state.player_formation.place(captain, line, col)
+	else:
+		state.player_formation.place_at_index(captain, state.player_formation.first_free_index())
+	state.log_event("%s leaps the rail and takes the prow himself." % captain.display_name)
 
 
 # --- Enemy tactics and reinforcements ----------------------------------------

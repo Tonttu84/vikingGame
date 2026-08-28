@@ -64,7 +64,21 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **scenario anchors & the cost of victory**: a scenario registry
+Done: **the prow pair (officer system, first slice)** — rulings in
+docs/combat-design.md: captain and prowman are alternates (one must hold
+the field, never both; `Swap` trades them into each other's slot and
+neither moves any other way); the prowman's death or rout forces the
+captain across at once for 1 momentum, and an unpayable crossing is panic
+= instant DEFEAT; no death-save for the prowman; RosterText token
+`prowman`; rules activate only when a roster declares a prowman. Suite
+`test_officers` (45 checks). Post-pair sims (n=300, random bot): skirmish
+58.7% win / avg 22 turns (the forced crossing fields the captain where
+the bot left him ashore), veteran 64.0%; no-card floor now dies with the
+captain (64.7% defeat) instead of being repulsed. Numbers are the
+mechanic speaking; phase D owns the retune. UI knows the role only via
+tooltip/log so far — dimming the pair in the reserve row and a pair-swap
+affordance are open polish.
+Earlier: **scenario anchors & the cost of victory**: a scenario registry
 (`Scenarios.scenario_ids()`/`by_id`; sim `--scenario=skirmish|veteran`) with
 a second balance anchor, the veteran raid (10-man blooded crew, 39-card
 deck with 5 loot, vs a jarl's 14-man warship) — suite `test_scenarios`;

@@ -18,6 +18,7 @@ extends RefCounted
 ## Stat tokens may appear in any order and fall back to a standard grunt
 ## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. Flags:
 ## `captain` (player side; the enemy captain has its own section),
+## `prowman` (player side, the captain's alternate at the prow),
 ## `berserker` and `shieldman`. Field sections also take a slot token —
 ## `f1`..`f4` for the
 ## front line, `b1`..`b4` for the second — naming the grid slot the man
@@ -194,6 +195,8 @@ static func _character_line(c: Character, is_captain_section := false) -> String
 	]
 	if c.is_captain and not is_captain_section:
 		parts.append("captain")
+	if c.is_prowman:
+		parts.append("prowman")
 	if c.is_berserker:
 		parts.append("berserker")
 	if c.is_shieldman:
@@ -214,6 +217,7 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 	var stats := {"hp": 12, "morale": 6, "str": 3, "speed": 3, "armor": 0}
 	var weapon: Weapon = null
 	var is_captain := false
+	var is_prowman := false
 	var is_berserker := false
 	var is_shieldman := false
 	var deploy_slot := -1
@@ -233,6 +237,8 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 			weapon = _weapon_by_name(token)
 		elif token == "captain":
 			is_captain = true
+		elif token == "prowman":
+			is_prowman = true
 		elif token == "berserker":
 			is_berserker = true
 		elif token == "shieldman":
@@ -243,13 +249,14 @@ static func _parse_character(line: String, lineno: int, section: String, serial:
 			else:
 				errors.append("line %d: slot '%s' means nothing in [%s] — only fielded men stand on the grid" % [lineno, token, section])
 		else:
-			errors.append("line %d: unknown token '%s' (stats, a weapon, a slot like f2/b3, 'captain', 'berserker' or 'shieldman')" % [lineno, token])
+			errors.append("line %d: unknown token '%s' (stats, a weapon, a slot like f2/b3, 'captain', 'prowman', 'berserker' or 'shieldman')" % [lineno, token])
 	if is_captain and side == Character.Side.ENEMY:
 		errors.append("line %d: the enemy captain goes in its own [enemy captain] section" % lineno)
 		is_captain = false
 	var id := "%s_%d" % [_slug(name), serial]
 	var c := Character.new(id, name, side, stats["hp"], stats["morale"], stats["str"], stats["speed"], weapon, stats["armor"])
 	c.is_captain = is_captain or section == "enemy captain"
+	c.is_prowman = is_prowman and side == Character.Side.PLAYER
 	c.is_berserker = is_berserker
 	c.is_shieldman = is_shieldman
 	c.deploy_slot = deploy_slot

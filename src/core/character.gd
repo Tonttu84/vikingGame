@@ -17,6 +17,7 @@ var speed: int
 var weapon: Weapon
 var armor: int
 var is_captain := false    ## leader aura: line-neighbors strike +1 (CombatEngine)
+var is_prowman := false    ## the captain's alternate: one of the pair must hold the field
 var is_berserker := false  ## immune to morale damage; his attacks cleave (CombatEngine)
 var is_shieldman := false  ## takes half damage (rounded up); aura: +1 armor to line-neighbors
 var shaken := false        ## routed earlier in the raid; reduced morale
