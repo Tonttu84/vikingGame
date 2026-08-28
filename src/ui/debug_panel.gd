@@ -55,6 +55,16 @@ func _build() -> void:
 	seed_row.add_child(restart)
 	box.add_child(seed_row)
 
+	var scenario_row := HBoxContainer.new()
+	scenario_row.add_theme_constant_override("separation", 6)
+	scenario_row.add_child(UIPalette.label("Scenario", UIPalette.FONT_BODY))
+	for id in Scenarios.scenario_ids():
+		var load_button := Button.new()
+		load_button.text = id.capitalize()
+		load_button.pressed.connect(_on_load_scenario.bind(id))
+		scenario_row.add_child(load_button)
+	box.add_child(scenario_row)
+
 	box.add_child(UIPalette.label("Battle setup — same seed replays the same battle:",
 			UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
 	_roster_edit = TextEdit.new()
@@ -85,6 +95,11 @@ func show_errors(errors: Array[String]) -> void:
 func _on_restart() -> void:
 	battle_ui.battle_seed = int(_seed_spin.value)
 	battle_ui.start_battle()
+
+
+func _on_load_scenario(id: String) -> void:
+	_roster_edit.text = RosterText.serialize(Scenarios.by_id(id))
+	_on_apply()
 
 
 func _on_apply() -> void:

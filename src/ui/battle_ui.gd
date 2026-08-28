@@ -365,10 +365,23 @@ func _show_outcome(result: Dictionary) -> void:
 		"STALEMATE": "Both crews stand bloodied at the rail. Nothing is settled.",
 	}
 	_outcome_title.text = titles.get(result["outcome"], result["outcome"])
-	_outcome_body.text = "%s\n\nTurns: %d\nCrew dead: %d · fled: %d · standing: %d\nEnemies slain: %d · routed: %d" % [
+	var body := "%s\n\nTurns: %d\nCrew dead: %d · fled: %d · standing: %d\nEnemies slain: %d · routed: %d" % [
 			flavor.get(result["outcome"], ""), result["turns"], result["player_dead"],
 			result["player_fled"], result["player_survivors"],
 			result["enemy_dead"], result["enemy_routed"]]
+	# The butcher's bill by name: crew is permanent once the raid loop lands,
+	# so the outcome screen already treats every death as a lasting loss.
+	if not engine.state.player_dead.is_empty():
+		var fallen: Array[String] = []
+		for c: Character in engine.state.player_dead:
+			fallen.append(c.display_name)
+		body += "\n\nThe fallen: %s." % ", ".join(fallen)
+	if not engine.state.player_fled.is_empty():
+		var fled: Array[String] = []
+		for c: Character in engine.state.player_fled:
+			fled.append(c.display_name)
+		body += "\nFled, shaken: %s." % ", ".join(fled)
+	_outcome_body.text = body
 	_outcome_again.text = "Fight again (seed %d)" % battle_seed
 	_outcome_layer.visible = true
 
