@@ -130,8 +130,11 @@ rough until C–D retune it.
 Agreed next slices, in rough priority:
 1. Lines redesign phase D — card rework & retune (docs/lines-redesign.md):
    movement riders on the card table (effect first, rider last), prices
-   from sims, UI drag targets for slots, ~6–10 turn fights.
-2. Officer system (prowman is currently just a strong named crewman).
+   from sims, UI drag targets for slots, ~6–10 turn fights. Also carries
+   the prow-pair UI polish: dim the un-committable pair in the reserve
+   row (dead click today) and a visible pair-swap affordance.
+2. Officer system, rest of it (first slice — the prow pair — shipped;
+   remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds
    persisting, retreat-vs-push-on).
 

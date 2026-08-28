@@ -176,7 +176,7 @@ Sketch (priced in Phase D):
 | Card | Sketch (effect + movement rider) |
 | --- | --- |
 | Reinforce (retained) | Field a reserve man **into a slot you choose**. |
-| Swap (retained) | Any two of your men trade slots (fielded↔fielded or fielded↔reserve). |
+| Swap (retained) | Any two of your men trade slots (fielded↔fielded or fielded↔reserve). The prow pair keeps its own law: captain and prowman trade only with each other (combat-design.md, the prow pair). |
 | Spear Volley | 2 damage to the enemy front line, then slide one of your men one column. |
 | Shield Wall | Your side takes −2 this round; then swap any two of your fielded men (for the coming fight, not for the wall). |
 | Rally | Heal an ally 4; he may step one line forward or back. |
@@ -191,6 +191,12 @@ Sketch (priced in Phase D):
 
 Concentrated Attack becomes: everyone **who can reach the target** strikes
 it (his column's attackers + archers) — reach still respects geometry.
+
+Phase D also picks up two small prow-pair UI fixes riding along with the
+drag-target work: dim the captain (and a reserve prowman) in the reserve
+row so the un-committable pair reads as such instead of eating a dead
+click, and give the pair swap a visible affordance beyond knowing to drop
+Swap on the fielded half.
 
 ## What gets deleted
 
