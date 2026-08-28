@@ -337,6 +337,33 @@ column stops anchoring it), wind-ups add spike damage both ways. Phase D
 The no-card bot stays a floor metric (collapses to a ~6-turn repulse: it
 never crosses a second man).
 
+### Two balance anchors & the cost of victory
+
+Balance is read off two registered scenarios (`Scenarios.scenario_ids()`,
+`scripts/sim.sh --scenario=`), bracketing a campaign the raid loop will
+eventually string together:
+
+- **skirmish** — day one: the 8-man starter crew, the 27-card starter deck,
+  the karl-and-shieldman deck watch.
+- **veteran** — deep in the raid: the same crew a summer later (10 men,
+  blooded stats, armored in plunder, a second shieldman and archer), a
+  39-card deck (deeper on the rail and the punch cards, five pieces of
+  loot clogging it), boarding a jarl's levy warship (14 men, a thicker
+  wall, a berserker and a second bowman in the hold, a 36 HP captain).
+
+**Ruling: crew losses are permanent at the campaign level.** The raid loop
+(planned) carries the roster between fights; the dead never come back.
+There is no extra in-battle mechanic for this — morale waves already price
+each death inside a fight — but it changes what "balanced" means: a win
+that costs half the crew is a loss on layaway. The sim therefore grades
+victories by body count (avg dead in a win, wins-by-dead histogram), and
+tuning targets the cost of victory, not the win rate alone. Current
+numbers (n=300, random bot): skirmish 41% win, 1.04 avg dead in a win,
+40% of wins bloodless; veteran 63% win, 0.88 avg dead in a win, 53%
+bloodless — the veteran crew overpowers even the bigger ship, which is
+acceptable slack until phase D retunes prices. Both scenarios' no-card
+baselines collapse to a repulsed boarding, as designed.
+
 ## Playtest watchlist (decided, but on probation)
 
 Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:

@@ -64,7 +64,19 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the lines redesign phase C — enemy dynamics** (docs/lines-redesign.md,
+Done: **scenario anchors & the cost of victory**: a scenario registry
+(`Scenarios.scenario_ids()`/`by_id`; sim `--scenario=skirmish|veteran`) with
+a second balance anchor, the veteran raid (10-man blooded crew, 39-card
+deck with 5 loot, vs a jarl's 14-man warship) — suite `test_scenarios`;
+ruling recorded in docs/combat-design.md: crew losses are permanent at the
+campaign level (no in-battle mechanic), so the sim grades wins by body
+count (avg dead in a win + wins-by-dead histogram) and tuning reads the
+cost of victory, never win rate alone; the outcome screen names the fallen
+and the fled, and the debug panel loads either scenario. Post-slice sims
+(n=300, random bot): skirmish 41% win / 1.04 avg dead in a win / 40% of
+wins bloodless; veteran 63% win / 0.88 / 53% bloodless (veteran slack
+stands until phase D retunes).
+Earlier: **the lines redesign phase C — enemy dynamics** (docs/lines-redesign.md,
 rulings recorded there): the four captain's calls as telegraphed tactics
 (fresh men forward, shift larboard/starboard with slide-what-can edge
 pinning, step up) via new Formation verbs (`swap_lines`/`shift`/`step_up`);
