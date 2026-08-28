@@ -151,6 +151,7 @@ static func card_ids() -> Array[String]:
 		"battle_fury", "feint", "war_cry", "terrifying_bellow",
 		"reinforce", "swap",
 		"loot_silver_a", "loot_silver_b", "loot_cauldron",
+		"loot_arm_ring", "loot_tapestry",
 	]
 
 
@@ -173,6 +174,8 @@ static func by_id(p_id: String) -> CardData:
 		"loot_silver_a": return loot("loot_silver_a", "Plundered Silver")
 		"loot_silver_b": return loot("loot_silver_b", "Plundered Silver")
 		"loot_cauldron": return loot("loot_cauldron", "Iron Cauldron")
+		"loot_arm_ring": return loot("loot_arm_ring", "Golden Arm-Ring")
+		"loot_tapestry": return loot("loot_tapestry", "Frankish Tapestry")
 	return null
 
 
@@ -199,4 +202,34 @@ static func starter_deck() -> Array[CardData]:
 	deck.append(loot("loot_silver_a", "Plundered Silver"))
 	deck.append(loot("loot_silver_b", "Plundered Silver"))
 	deck.append(loot("loot_cauldron", "Iron Cauldron"))
+	return deck
+
+
+## The veteran raid's deck: the starter vocabulary a summer of raiding later.
+## 34 tactics — deeper on the rail (Reinforce/Swap) and the punch cards — and
+## 5 pieces of loot: success clogs the deck, that's the roguelite bargain.
+static func veteran_deck() -> Array[CardData]:
+	var deck: Array[CardData] = []
+	for i in 4:
+		deck.append(reinforce())
+	for i in 3:
+		deck.append(swap())
+		deck.append(spear_volley())
+		deck.append(concentrated_attack())
+		deck.append(shield_wall())
+		deck.append(battle_fury())
+	for i in 2:
+		deck.append(rally())
+		deck.append(feint())
+		deck.append(drag_him_back())
+		deck.append(challenge())
+		deck.append(break_the_line())
+		deck.append(push_them_back())
+		deck.append(war_cry())
+	deck.append(terrifying_bellow())
+	deck.append(loot("loot_silver_a", "Plundered Silver"))
+	deck.append(loot("loot_silver_b", "Plundered Silver"))
+	deck.append(loot("loot_cauldron", "Iron Cauldron"))
+	deck.append(loot("loot_arm_ring", "Golden Arm-Ring"))
+	deck.append(loot("loot_tapestry", "Frankish Tapestry"))
 	return deck
