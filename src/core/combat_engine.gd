@@ -12,6 +12,22 @@ extends RefCounted
 ##     {"op": "commit", "character": Character, "slot": int (optional)}
 ##     {"op": "retreat"} | {"op": "end"}
 ##
+##   choose_rider(state: BattleState, card: CardData, moves: Array[Dictionary])
+##       -> Dictionary  (optional, awaited)
+##     Movement riders are mandatory (docs/lines-redesign.md): the engine
+##     computes every legal move for the rider and the controller picks WHICH,
+##     never whether. Move shapes, one per rider type:
+##       RIDER_SLIDE:        {"character": Character, "direction": int}
+##                           (-1 larboard / left, +1 starboard / right)
+##       RIDER_STEP,
+##       RIDER_ADVANCE:      {"character": Character, "line": int}
+##                           (Formation.FRONT or Formation.BACK)
+##       RIDER_SWAP_FIELDED: {"a": Character, "b": Character}
+##     A controller without the hook — or one answering with a move that is
+##     not in the list — gets moves[0]: the first legal move in reading order
+##     (front line left to right, then the second line), larboard before
+##     starboard, pairs ordered by the reading order of both members.
+##
 ## Reaction saves (Drag Him Back!) need no controller: they fire
 ## automatically when a killing blow lands on a non-captain crew member,
 ## the card is in hand, and its cost is affordable.
@@ -89,7 +105,7 @@ func _boarding_phase() -> void:
 	state.boarding_maneuver = choice
 	state.log_event("Boarding: %s!" % choice.display_name)
 	for effect in choice.effects:
-		await _apply_effect(effect, null)
+		await _apply_effect(effect, null, null, -1, 0, choice)
 		if outcome != Outcome.NONE:
 			return
 	# A shield wall raised during the crossing covers the first exchange too:
@@ -230,7 +246,7 @@ func _play_card(card: CardData, target: Character, second_target: Character = nu
 	state.discard.append(card)
 	state.log_event("Played %s." % card.display_name)
 	for effect in card.effects:
-		await _apply_effect(effect, target, second_target, slot, direction)
+		await _apply_effect(effect, target, second_target, slot, direction, card)
 		if outcome != Outcome.NONE:
 			return
 
@@ -282,13 +298,18 @@ func _effect_preconditions_met(card: CardData, target: Character,
 
 
 func _apply_effect(effect: Dictionary, target: Character, second_target: Character = null,
-		slot := -1, direction := 0) -> void:
+		slot := -1, direction := 0, card: CardData = null) -> void:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):
-		CardData.EffectType.DAMAGE_ALL_ENEMIES:
+		CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE:
 			# Card damage is true damage: volleys and thrown cargo ignore armor.
-			for c in state.fielded(Character.Side.ENEMY):
-				await _deal_true_damage(c, amount)
+			# The volley falls on the rank at the rail; their second line
+			# stands behind the front men's shields.
+			for col in Formation.COLUMNS:
+				var front := state.enemy_formation.at(Formation.FRONT, col)
+				if front == null:
+					continue
+				await _deal_true_damage(front, amount)
 				if outcome != Outcome.NONE:
 					return
 		CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES:
@@ -382,6 +403,99 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				state.player_formation.place(partner, line, col)
 				state.log_event("%s falls back; %s takes his place." %
 						[target.display_name, partner.display_name])
+		CardData.EffectType.RIDER_SLIDE, CardData.EffectType.RIDER_STEP, \
+		CardData.EffectType.RIDER_ADVANCE, CardData.EffectType.RIDER_SWAP_FIELDED:
+			await _resolve_rider(effect.get("type"), target, card)
+
+
+# --- Movement riders ---------------------------------------------------------
+
+## The mandatory rider (docs/lines-redesign.md): the engine lists every legal
+## move and the controller picks WHICH — never whether. No legal move at all
+## (a packed grid, a front-liner told to advance) is the one case a rider is
+## skipped, and it passes in silence. Riders move men BETWEEN SLOTS only, so
+## they never cross the rail and the prow pair's law needs no checking here.
+func _resolve_rider(rider: CardData.EffectType, target: Character, card: CardData) -> void:
+	var moves := _rider_moves(rider, target)
+	if moves.is_empty():
+		return
+	var move: Dictionary = moves[0]
+	if controller.has_method("choose_rider"):
+		var answer = await controller.choose_rider(state, card, moves)
+		if answer is Dictionary and _rider_move_offered(moves, answer):
+			move = answer
+	_apply_rider_move(rider, move)
+
+
+## Every legal move for this rider, in reading order (front line left to
+## right, then the second line), larboard before starboard, pairs ordered by
+## the reading order of both members. moves[0] is what a controller gets when
+## it cannot or will not choose.
+func _rider_moves(rider: CardData.EffectType, target: Character) -> Array[Dictionary]:
+	var moves: Array[Dictionary] = []
+	var formation := state.player_formation
+	match rider:
+		CardData.EffectType.RIDER_SLIDE:
+			for c in formation.fielded():
+				var line := formation.line_of(c)
+				for dir in [-1, 1]:
+					var col: int = formation.column_of(c) + dir
+					if Formation.in_bounds(line, col) and formation.at(line, col) == null:
+						moves.append({"character": c, "direction": dir})
+		CardData.EffectType.RIDER_STEP, CardData.EffectType.RIDER_ADVANCE:
+			if target == null or not formation.has(target):
+				return moves
+			var line := formation.line_of(target)
+			# A column has exactly one other line, so a step is one choice at
+			# most; advance is that same step, restricted to the way forward.
+			if rider == CardData.EffectType.RIDER_ADVANCE and line != Formation.BACK:
+				return moves
+			var destination := Formation.FRONT if line == Formation.BACK else Formation.BACK
+			if formation.at(destination, formation.column_of(target)) == null:
+				moves.append({"character": target, "line": destination})
+		CardData.EffectType.RIDER_SWAP_FIELDED:
+			var men := formation.fielded()
+			for i in men.size():
+				for j in range(i + 1, men.size()):
+					moves.append({"a": men[i], "b": men[j]})
+	return moves
+
+
+## Is the controller's answer one of the moves offered? Compared field by
+## field: the same man and the same destination is the same move.
+func _rider_move_offered(moves: Array[Dictionary], answer: Dictionary) -> bool:
+	for move in moves:
+		var same := true
+		for key in move:
+			if answer.get(key) != move[key]:
+				same = false
+				break
+		if same:
+			return true
+	return false
+
+
+func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
+	var formation := state.player_formation
+	match rider:
+		CardData.EffectType.RIDER_SLIDE:
+			var slider: Character = move["character"]
+			var dir: int = move["direction"]
+			if formation.slide(slider, dir):
+				state.log_event("%s sidesteps to %s." %
+						[slider.display_name, "larboard" if dir < 0 else "starboard"])
+		CardData.EffectType.RIDER_STEP, CardData.EffectType.RIDER_ADVANCE:
+			var stepper: Character = move["character"]
+			if move["line"] == Formation.FRONT:
+				if formation.advance(stepper):
+					state.log_event("%s steps up into the front line." % stepper.display_name)
+			elif formation.retire(stepper):
+				state.log_event("%s falls back into the second line." % stepper.display_name)
+		CardData.EffectType.RIDER_SWAP_FIELDED:
+			var a: Character = move["a"]
+			var b: Character = move["b"]
+			if formation.swap_positions(a, b):
+				state.log_event("%s and %s trade places." % [a.display_name, b.display_name])
 
 
 ## The prow pair is active whenever the roster declares a prowman: then the

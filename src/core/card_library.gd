@@ -5,23 +5,29 @@ extends RefCounted
 
 
 static func spear_volley() -> CardData:
+	# The volley falls on the rank at the rail — their second line stands
+	# behind the front men's shields — and the throwers step as they loose.
 	return CardData.new("spear_volley", "Spear Volley", 2, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.DAMAGE_ALL_ENEMIES, "amount": 2}])
+			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
+			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
 
 
 static func concentrated_attack() -> CardData:
 	return CardData.new("concentrated_attack", "Concentrated Attack", 2, CardData.TargetType.ENEMY,
-			[{"type": CardData.EffectType.FOCUS_FIRE, "amount": 0}])
+			[{"type": CardData.EffectType.FOCUS_FIRE, "amount": 0},
+			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
 
 
 static func shield_wall() -> CardData:
 	return CardData.new("shield_wall", "Shield Wall", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2}])
+			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2},
+			{"type": CardData.EffectType.RIDER_SWAP_FIELDED, "amount": 1}])
 
 
 static func rally() -> CardData:
 	return CardData.new("rally", "Rally", 1, CardData.TargetType.ALLY,
-			[{"type": CardData.EffectType.HEAL, "amount": 4}])
+			[{"type": CardData.EffectType.HEAL, "amount": 4},
+			{"type": CardData.EffectType.RIDER_STEP, "amount": 1}])
 
 
 static func drag_him_back() -> CardData:
@@ -53,22 +59,26 @@ static func push_them_back() -> CardData:
 
 static func battle_fury() -> CardData:
 	return CardData.new("battle_fury", "Battle Fury", 1, CardData.TargetType.ALLY,
-			[{"type": CardData.EffectType.EXTRA_ATTACK, "amount": 1}])
+			[{"type": CardData.EffectType.EXTRA_ATTACK, "amount": 1},
+			{"type": CardData.EffectType.RIDER_ADVANCE, "amount": 1}])
 
 
 static func feint() -> CardData:
 	return CardData.new("feint", "Feint", 0, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.DRAW, "amount": 2}])
+			[{"type": CardData.EffectType.DRAW, "amount": 2},
+			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
 
 
 static func war_cry() -> CardData:
 	return CardData.new("war_cry", "War Cry", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.WAR_CRY, "amount": 1}])
+			[{"type": CardData.EffectType.WAR_CRY, "amount": 1},
+			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
 
 
 static func terrifying_bellow() -> CardData:
 	return CardData.new("terrifying_bellow", "Terrifying Bellow", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES, "amount": 2}])
+			[{"type": CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES, "amount": 2},
+			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
 
 
 static func reinforce() -> CardData:

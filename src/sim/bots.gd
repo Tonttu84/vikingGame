@@ -22,6 +22,12 @@ class RandomBot:
 	func choose_maneuver(_state: BattleState, options: Array[CardData]) -> CardData:
 		return options[rng.randi_range(0, options.size() - 1)]
 
+	## Movement riders are mandatory; the bot only picks which legal move,
+	## uniformly at random from its own seeded rng (never randi()).
+	func choose_rider(_state: BattleState, _card: CardData,
+			moves: Array[Dictionary]) -> Dictionary:
+		return moves[rng.randi_range(0, moves.size() - 1)]
+
 	func choose_action(state: BattleState) -> Dictionary:
 		# Crossing men is the highest priority: play Reinforce whenever the
 		# grid has room, fall back to the momentum commit if the hand lacks one.

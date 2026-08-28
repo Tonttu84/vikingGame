@@ -5,16 +5,21 @@ const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
 
 
-func test_spear_volley_hits_every_fielded_enemy() -> void:
+## Narrowed by the movement riders (phase D): the volley falls on the rank at
+## the rail only. Its rider lives in tests/test_riders.gd.
+func test_spear_volley_hits_the_whole_enemy_front_line() -> void:
 	var e1 := TestHelpers.grunt(E, "e1", 12, 6, 3, 3, null, 3)
 	var e2 := TestHelpers.grunt(E, "e2")
-	var eng := TestHelpers.engine_for({"enemy_field": [e1, e2]})
+	var e3 := TestHelpers.grunt(E, "e3")
+	var eng := TestHelpers.engine_for({"enemy_field": [e1, e2, e3]})
+	TestHelpers.station(eng.state.enemy_formation, e3, Formation.BACK, 0)
 	var card := CardLibrary.spear_volley()
 	eng.state.hand.append(card)
 	eng.state.momentum = 2
 	await eng._play_card(card, null)
 	assert_eq(e1.hp, 10, "card damage ignores armor")
-	assert_eq(e2.hp, 10)
+	assert_eq(e2.hp, 10, "every front-liner, not just one column")
+	assert_eq(e3.hp, 12, "the second line is spared")
 	assert_eq(eng.state.momentum, 0, "cost 2 paid")
 
 
@@ -52,18 +57,24 @@ func test_push_them_back_blocks_one_reinforcement() -> void:
 	assert_eq(eng.state.enemy_formation.size(), 2, "the next one goes through")
 
 
+## The card's movement rider (phase D) must take the only move on the board:
+## p3 sidesteps out of his empty column, and the focused column stands as it
+## was — the rider is mandatory, not free.
 func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
+	var p3 := TestHelpers.grunt(P, "p3")
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var e2 := TestHelpers.grunt(E, "e2", 30)
-	var eng := TestHelpers.engine_for({"player_field": [p1, p2], "enemy_field": [e1, e2]})
+	var eng := TestHelpers.engine_for({"player_field": [p1, p2, p3], "enemy_field": [e1, e2]})
 	TestHelpers.station(eng.state.enemy_formation, e2, Formation.BACK, 1)
 	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 1)
 	var card := CardLibrary.concentrated_attack()
 	eng.state.hand.append(card)
 	eng.state.momentum = 2
 	await eng._play_card(card, e2)
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 1), p2,
+			"the rider's only legal move is in an idle column")
 	await eng._fight_phase(P)
 	assert_eq(e2.hp, 30 - 3, "his column's attacker strikes past the front man")
 	assert_eq(e1.hp, 30, "the shielding front-liner is bypassed")

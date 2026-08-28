@@ -20,8 +20,8 @@ static func describe(card: CardData) -> String:
 static func _effect_line(effect: Dictionary) -> String:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):
-		CardData.EffectType.DAMAGE_ALL_ENEMIES:
-			return "Deal %d to every enemy on deck. Ignores armor." % amount
+		CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE:
+			return "Deal %d to every enemy in their front line. Ignores armor." % amount
 		CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES:
 			return "%d morale damage to every enemy on deck." % amount
 		CardData.EffectType.HEAL:
@@ -57,6 +57,14 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "%d extra defenders have time to form up at the rail." % amount
 		CardData.EffectType.ENEMY_MORALE_BONUS:
 			return "The watch stands composed: every defender gains %d morale." % amount
+		CardData.EffectType.RIDER_SLIDE:
+			return "Then slide one of your men one column, larboard or starboard (must move if you can)."
+		CardData.EffectType.RIDER_STEP:
+			return "Then he steps to the other line of his column, forward or back (must move if he can)."
+		CardData.EffectType.RIDER_ADVANCE:
+			return "Then he advances into the empty front slot of his column (must move if he can)."
+		CardData.EffectType.RIDER_SWAP_FIELDED:
+			return "Then two of your men on deck trade slots (must move if you can)."
 	return ""
 
 

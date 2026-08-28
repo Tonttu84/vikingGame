@@ -6,7 +6,7 @@ extends RefCounted
 enum TargetType { NONE, ENEMY, ALLY }
 
 enum EffectType {
-	DAMAGE_ALL_ENEMIES,        ## flat damage to every fielded enemy (ignores armor)
+	DAMAGE_ENEMY_FRONT_LINE,   ## flat damage to every enemy front-liner (ignores armor)
 	MORALE_DAMAGE_ALL_ENEMIES, ## morale damage to every fielded enemy
 	HEAL,                      ## heal targeted ally
 	FOCUS_FIRE,                ## everyone who can reach the target strikes it this fight phase
@@ -27,6 +27,14 @@ enum EffectType {
 	                           ## arrow volley, amount true damage to the lowest-HP defender
 	PLAYER_ARMOR_BONUS,        ## battle-long: your side takes -amount per hit
 	ENEMY_MORALE_BONUS,        ## +amount morale (and cap) for the whole enemy crew
+	# --- Movement riders (docs/lines-redesign.md, "Cards: movement rides on
+	# effects"). A rider is listed LAST in a card's effects: the punch lands,
+	# then the men move. Riders are mandatory — if any legal move exists the
+	# engine makes one, the controller only picks which.
+	RIDER_SLIDE,               ## one of your fielded men slides one column sideways
+	RIDER_STEP,                ## the ally target steps to the other line of his column
+	RIDER_ADVANCE,             ## the ally target advances from the second line to the front
+	RIDER_SWAP_FIELDED,        ## any two of your fielded men trade slots
 }
 
 var id: String

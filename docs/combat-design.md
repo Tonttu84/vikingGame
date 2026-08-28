@@ -232,23 +232,29 @@ Cards come from your captain's skills, crew abilities, ship fittings, and
 
 | Card | Cost | Effect |
 | --- | --- | --- |
-| Spear Volley | 2 | 2 damage to every fielded enemy |
-| Concentrated Attack | 2 | Everyone who can REACH the target (his column's attackers + your archers) strikes it this turn |
-| Shield Wall | 1 | Your side takes −2 damage per hit until your next turn |
-| Rally | 1 | Heal a character 4 |
+| Spear Volley | 2 | 2 damage to every enemy in their front line; then slide |
+| Concentrated Attack | 2 | Everyone who can REACH the target (his column's attackers + your archers) strikes it this turn; then slide |
+| Shield Wall | 1 | Your side takes −2 damage per hit until your next turn; then any two of your fielded men trade slots |
+| Rally | 1 | Heal a character 4; he then steps to the other line of his column |
 | Drag Him Back! | 1 | Retained. Fires automatically when a killing blow lands on a crew member: cancels it, pulls them to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) |
 | Break the Line | 1 | Shove an enemy front-liner one column sideways — you re-aim THEIR formation (out of his duel, into a worse one) |
 | Challenge | 2 | Only while both captains are fielded: they attack each other this round regardless of columns; everyone else fights on |
 | Push Them Back | 2 | No enemy reinforcements next turn |
-| Battle Fury | 1 | A character attacks twice this turn |
-| Feint | 0 | Draw 2 cards |
-| Terrifying Bellow | 1 | 2 morale damage to every fielded enemy |
+| Battle Fury | 1 | A character attacks twice this turn; he then advances into the empty front slot of his column (the fury travels with him) |
+| Feint | 0 | Draw 2 cards; then slide |
+| Terrifying Bellow | 1 | 2 morale damage to every fielded enemy; then slide |
 | Reinforce | 1 | Retained. Field a man from your ship into a slot you choose |
 | Swap | 1 | Retained. Any two of your men trade slots (fielded↔fielded or fielded↔reserve) |
-| War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball) |
+| War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball); then slide |
 
-Movement riders on the wider card pool (Spear Volley sliding a man, Rally
-with a step, Feint as the step) are Phase D of the lines redesign.
+**Movement riders** (phase D of the lines redesign): "then slide" is one of
+your fielded men moving one column sideways into an empty slot. Riders
+resolve LAST, after the card's own effect, and they are **mandatory** — if
+any legal move exists the engine makes one and you only choose which; a
+rider with no legal destination at all is skipped in silence. Riders move
+men between slots, never across the rail, so the prow pair's law is
+untouched. Prices in this table are still the pre-rider ones; the retune to
+6–10 turn fights is the rest of phase D.
 
 Design rules: damage cards should rarely beat just letting characters fight —
 cards **bend** the fight (tempo, protection, targeting, windows), they don't
