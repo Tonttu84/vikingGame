@@ -68,8 +68,8 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "Pull an ally out of the fight, back to your ship."
 		CardData.EffectType.SHOVE:
 			return "Shove an enemy front-liner one column sideways — re-aim THEIR line."
-		CardData.EffectType.CHALLENGE:
-			return "Both captains must be in the line: they attack each other this round, columns be damned."
+		CardData.EffectType.TAUNT:
+			return "Name a defender and one of your men: he is dragged into the front slot of your man's column, swapping with whoever stood there."
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			return "The enemy gets no reinforcements next turn."
 		CardData.EffectType.EXTRA_ATTACK:

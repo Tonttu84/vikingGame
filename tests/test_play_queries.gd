@@ -296,6 +296,39 @@ func test_pair_swap_counterpart_is_null_without_a_prowman() -> void:
 	assert_eq(eng.pair_swap_counterpart(eng.state.player_reserve[0]), null)
 
 
+## Everyone Taunt could drag onto this man's column: every fielded defender
+## except the one already standing in its front slot, who has nowhere to come
+## from. The UI lights this list and submits nothing else.
+func test_taunt_targets_lists_every_defender_who_could_be_dragged_over() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var anchor := eng.state.player_formation.fielded()[0]
+	TestHelpers.station(eng.state.player_formation, anchor, Formation.FRONT, 2)
+	TestHelpers.station(f, f.fielded()[1], Formation.BACK, 3)
+	TestHelpers.station(f, f.fielded()[0], Formation.FRONT, 0)
+	assert_eq(eng.taunt_targets(anchor).size(), 2, "both of them can be shouted across")
+
+
+func test_taunt_targets_drops_the_man_already_standing_across_from_him() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var anchor := eng.state.player_formation.fielded()[0]
+	var facing := f.fielded()[0]
+	TestHelpers.station(eng.state.player_formation,
+			eng.state.player_formation.fielded()[1], Formation.BACK, 0)
+	TestHelpers.station(eng.state.player_formation, anchor, Formation.FRONT, 1)
+	TestHelpers.station(f, f.fielded()[1], Formation.BACK, 3)
+	TestHelpers.station(f, facing, Formation.FRONT, 1)
+	assert_false(eng.taunt_targets(anchor).has(facing), "he is already in that duel")
+	assert_eq(eng.taunt_targets(anchor).size(), 1)
+
+
+func test_taunt_targets_of_a_man_who_is_not_on_the_field_is_empty() -> void:
+	var eng := _engine()
+	assert_eq(eng.taunt_targets(eng.state.player_reserve[0]).size(), 0)
+	assert_eq(eng.taunt_targets(null).size(), 0)
+
+
 func test_shove_directions_lists_larboard_before_starboard() -> void:
 	var eng := _engine()
 	var f := eng.state.enemy_formation

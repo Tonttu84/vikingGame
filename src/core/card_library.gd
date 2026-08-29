@@ -50,11 +50,14 @@ static func break_the_line() -> CardData:
 			[{"type": CardData.EffectType.SHOVE, "amount": 1}])
 
 
-static func challenge() -> CardData:
-	# Repurposed: only while both captains are fielded — they attack each
-	# other this round regardless of columns. Everyone else fights on.
-	return CardData.new("challenge", "Challenge", 2, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.CHALLENGE, "amount": 0}])
+static func taunt() -> CardData:
+	# The challenge, expressed as movement rather than as a targeting override:
+	# name a defender and one of your men, and the defender is dragged into the
+	# front slot of your man's column. Works on their second line too — and on
+	# the jarl himself, which is the "force a window to the captain" moment the
+	# design asks for once a fight.
+	return CardData.new("taunt", "Taunt", 2, CardData.TargetType.ENEMY,
+			[{"type": CardData.EffectType.TAUNT, "amount": 0}])
 
 
 static func push_them_back() -> CardData:
@@ -169,7 +172,7 @@ static func default_maneuvers() -> Array[CardData]:
 static func card_ids() -> Array[String]:
 	return [
 		"spear_volley", "concentrated_attack", "shield_wall", "rally",
-		"drag_him_back", "break_the_line", "challenge", "push_them_back",
+		"drag_him_back", "break_the_line", "taunt", "push_them_back",
 		"battle_fury", "feint", "war_cry", "terrifying_bellow",
 		"reinforce", "swap",
 		"loot_silver_a", "loot_silver_b", "loot_cauldron",
@@ -185,7 +188,7 @@ static func by_id(p_id: String) -> CardData:
 		"rally": return rally()
 		"drag_him_back": return drag_him_back()
 		"break_the_line": return break_the_line()
-		"challenge": return challenge()
+		"taunt": return taunt()
 		"push_them_back": return push_them_back()
 		"battle_fury": return battle_fury()
 		"feint": return feint()
@@ -217,7 +220,7 @@ static func starter_deck() -> Array[CardData]:
 		deck.append(swap())
 	deck.append(drag_him_back())
 	deck.append(break_the_line())
-	deck.append(challenge())
+	deck.append(taunt())
 	deck.append(push_them_back())
 	deck.append(war_cry())
 	deck.append(terrifying_bellow())
@@ -244,11 +247,14 @@ static func veteran_deck() -> Array[CardData]:
 		deck.append(rally())
 		deck.append(feint())
 		deck.append(drag_him_back())
-		deck.append(challenge())
 		deck.append(break_the_line())
 		deck.append(push_them_back())
 		deck.append(war_cry())
 		deck.append(terrifying_bellow())
+	# Taunt is near-singleton by design: it aims at a slot rather than a
+	# direction and reaches their second line, so it is strictly stronger than
+	# the shove it shares a family with.
+	deck.append(taunt())
 	deck.append(loot("loot_silver_a", "Plundered Silver"))
 	deck.append(loot("loot_silver_b", "Plundered Silver"))
 	deck.append(loot("loot_cauldron", "Iron Cauldron"))

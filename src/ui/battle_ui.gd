@@ -636,8 +636,6 @@ func _active_effects(state: BattleState) -> Array[String]:
 	var chips: Array[String] = []
 	if state.shield_wall_active:
 		chips.append("Shield Wall up")
-	if state.challenge_active:
-		chips.append("CHALLENGE — the captains seek each other")
 	if state.focus_target != null and state.focus_target.is_alive():
 		chips.append("Focus: " + state.focus_target.display_name)
 	if state.block_reinforcements:

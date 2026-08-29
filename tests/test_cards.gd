@@ -133,6 +133,108 @@ func test_terrifying_bellow_breaks_shaky_enemies() -> void:
 	assert_eq(eng.state.momentum, 0, "routs grant no momentum")
 
 
+# --- Taunt: you name the duel ------------------------------------------------
+# docs/card-design-proposal.md §4. Name an enemy and one of your men: he is
+# dragged into the FRONT SLOT OF YOUR MAN'S COLUMN, swapping with whoever
+# stood there. The destination is your own column, so it is always in bounds —
+# Taunt is the one movement in the set that cannot be edge-blocked.
+
+func _taunt(eng: CombatEngine, target: Character, anchor: Character = null) -> CardData:
+	var card := CardLibrary.taunt()
+	eng.state.hand.append(card)
+	eng.state.momentum = maxi(eng.state.momentum, card.cost)
+	await eng._play_card(card, target, anchor)
+	return card
+
+
+func test_taunt_drags_an_enemy_into_an_empty_slot_across_from_your_man() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 3)
+	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 0)
+	await _taunt(eng, e1, p1)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 3), e1,
+			"he answers the shout and comes to the column you chose")
+	assert_eq(eng.state.momentum, 0, "cost 2 paid")
+
+
+func test_taunt_ejects_the_man_who_stood_there() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var wanted := TestHelpers.grunt(E, "wanted")
+	var standing := TestHelpers.grunt(E, "standing")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [wanted, standing]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 1)
+	TestHelpers.station(eng.state.enemy_formation, wanted, Formation.FRONT, 3)
+	TestHelpers.station(eng.state.enemy_formation, standing, Formation.FRONT, 1)
+	await _taunt(eng, wanted, p1)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 1), wanted, "they trade slots")
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 3), standing,
+			"the man who was in the way is thrown into the duel the other just left")
+
+
+func test_taunt_hauls_a_second_liner_forward() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var hiding := TestHelpers.grunt(E, "hiding")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [hiding]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 2)
+	TestHelpers.station(eng.state.enemy_formation, hiding, Formation.BACK, 0)
+	await _taunt(eng, hiding, p1)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 2), hiding,
+			"the second line is no refuge: he comes forward, not merely across")
+
+
+## Fact 4 of the design: an archer snipes only from the second line. Dragging
+## their bow to the rail is the first counter to the aimed double shot that is
+## not "rescue the man he marked".
+func test_taunt_takes_a_bowman_out_of_sniping_position() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [bow]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 2)
+	TestHelpers.station(eng.state.enemy_formation, bow, Formation.BACK, 0)
+	assert_true(eng._is_sniper(bow), "back line with a bow: he is picking off your weakest")
+	await _taunt(eng, bow, p1)
+	assert_false(eng._is_sniper(bow), "at the rail he is just a man with the wrong weapon")
+
+
+func test_taunt_may_be_anchored_on_a_man_in_your_own_second_line() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.BACK, 1)
+	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 3)
+	await _taunt(eng, e1, p1)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 1), e1,
+			"'his column' is a column, not a slot — a bad play, not an illegal one")
+
+
+func test_taunt_is_refused_when_the_man_already_stands_there() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 2)
+	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 2)
+	eng.state.momentum = 5
+	var card := await _taunt(eng, e1, p1)
+	assert_true(eng.state.hand.has(card), "no movement is possible: refused, card kept")
+	assert_eq(eng.state.momentum, 5, "nothing paid")
+
+
+func test_taunt_leaves_the_reserve_alone() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var waiting := TestHelpers.grunt(P, "waiting")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "player_reserve": [waiting],
+			"enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 3)
+	eng.state.momentum = 5
+	var card := await _taunt(eng, e1, waiting)
+	assert_true(eng.state.hand.has(card), "a man on your own ship anchors nothing")
+	assert_eq(eng.state.momentum, 5)
+
+
 func test_cannot_play_unaffordable_card() -> void:
 	var eng := TestHelpers.engine_for({"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	var card := CardLibrary.spear_volley()

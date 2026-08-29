@@ -73,17 +73,7 @@ class RandomBot:
 		var target := _target_for(card, state)
 		if card.target_type != CardData.TargetType.NONE and target == null:
 			return false
-		if engine != null:
-			return engine.can_play(card, target)
-		for effect in card.effects:
-			if effect.get("type") == CardData.EffectType.CHALLENGE:
-				if state.player_captain == null \
-						or not state.player_formation.has(state.player_captain):
-					return false
-				if state.enemy_captain == null \
-						or not state.enemy_formation.has(state.enemy_captain):
-					return false
-		return true
+		return engine.can_play(card, target) if engine != null else true
 
 	func _random_free_slot(state: BattleState) -> int:
 		var free: Array[int] = []

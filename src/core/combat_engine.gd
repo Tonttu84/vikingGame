@@ -213,7 +213,6 @@ func _enemy_turn() -> void:
 	await _pace()
 	_advance_windups()
 	state.surge_active = false
-	state.challenge_active = false
 	state.next_tactic = _pick_tactic()
 
 
@@ -281,12 +280,10 @@ func _effect_preconditions_met(card: CardData, target: Character,
 			CardData.EffectType.SHOVE:
 				if shove_directions(target).is_empty():
 					return false
-			CardData.EffectType.CHALLENGE:
-				if state.player_captain == null \
-						or not state.player_formation.has(state.player_captain):
-					return false
-				if state.enemy_captain == null \
-						or not state.enemy_formation.has(state.enemy_captain):
+			CardData.EffectType.TAUNT:
+				var anchor := second_target if second_target != null \
+						else _default_taunt_anchor(target)
+				if anchor == null or not taunt_targets(anchor).has(target):
 					return false
 			# The rider gate (docs/card-design-proposal.md §5 Q3): the movement
 			# is part of the price, so a card whose rider cannot move is refused
@@ -391,6 +388,31 @@ func shove_directions(target: Character) -> Array[int]:
 	return out
 
 
+## Everyone Taunt could drag onto this man's column: every fielded defender
+## except the one already standing in its front slot, who has nowhere to come
+## from. The destination is your own column, so the board edge never enters
+## into it — Taunt is the one movement in the set that cannot be edge-blocked.
+func taunt_targets(anchor: Character) -> Array[Character]:
+	var out: Array[Character] = []
+	if anchor == null or not state.player_formation.has(anchor):
+		return out
+	var col := state.player_formation.column_of(anchor)
+	for c in state.enemy_formation.fielded():
+		if c != state.enemy_formation.at(Formation.FRONT, col):
+			out.append(c)
+	return out
+
+
+## Who a Taunt is shouted across to when the controller names only the enemy:
+## the first man on deck, in reading order, whose column that enemy is not
+## already standing in front of. Null means the card cannot be played at all.
+func _default_taunt_anchor(target: Character) -> Character:
+	for c in state.player_formation.fielded():
+		if taunt_targets(c).has(target):
+			return c
+	return null
+
+
 ## The man a waiting pair member would trade places with — his counterpart,
 ## and only while that counterpart is the one holding the field. Null for
 ## everyone else: ordinary crew have no counterpart, and the fielded half is
@@ -440,10 +462,21 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				if not state.enemy_formation.slide(target, -1):
 					state.enemy_formation.slide(target, 1)
 			state.log_event("%s is shoved out of his column." % target.display_name)
-		CardData.EffectType.CHALLENGE:
-			state.challenge_active = true
-			state.log_event("%s calls %s out across the deck!" %
-					[state.player_captain.display_name, state.enemy_captain.display_name])
+		CardData.EffectType.TAUNT:
+			# Movement IS the effect here, so it may displace where a rider may
+			# not: the man who was standing in the way is thrown into the duel
+			# the taunted man just left. One column, always in bounds.
+			var anchor := second_target if second_target != null \
+					else _default_taunt_anchor(target)
+			var col := state.player_formation.column_of(anchor)
+			var standing := state.enemy_formation.at(Formation.FRONT, col)
+			if standing != null:
+				state.enemy_formation.swap_positions(target, standing)
+			else:
+				state.enemy_formation.remove(target)
+				state.enemy_formation.place(target, Formation.FRONT, col)
+			state.log_event("%s answers the shout and squares up against %s." %
+					[target.display_name, anchor.display_name])
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			state.block_reinforcements = true
 		CardData.EffectType.EXTRA_ATTACK:
@@ -775,16 +808,15 @@ func _attack_order(side: Character.Side) -> Array[Character]:
 
 
 ## Deterministic targeting, published rules (docs/lines-redesign.md):
-## a challenged captain goes for the other captain; snipers pick the weakest
-## fielded enemy anywhere; melee hits the nearest occupied slot in its own
-## column — front first, then their second line, empty column = miss (null).
-## Focus fire redirects everyone who can reach the target (same column for
-## melee, anywhere for snipers). Never random.
+## snipers pick the weakest fielded enemy anywhere; melee hits the nearest
+## occupied slot in its own column — front first, then their second line,
+## empty column = miss (null). Focus fire redirects everyone who can reach the
+## target (same column for melee, anywhere for snipers). Never random. There
+## is no targeting override left in the engine: a duel is arranged by moving
+## men (Taunt), not by suspending the column rule.
 func _pick_target(attacker: Character) -> Character:
 	var own := state.formation_of(attacker.side)
 	var opposing := state.opposing_formation(attacker.side)
-	if state.challenge_active and attacker.is_captain and _opposing_captain_fielded(attacker.side):
-		return _opposing_captain(attacker.side)
 	if _is_sniper(attacker):
 		if _focus_valid(attacker):
 			return state.focus_target
@@ -834,11 +866,8 @@ func _is_sniper(c: Character) -> bool:
 			and state.formation_of(c.side).line_of(c) == Formation.BACK
 
 
-## Front-liners fight their column; spears reach over their front man; a
-## challenged captain reaches the other captain from anywhere.
+## Front-liners fight their column; spears reach over their front man.
 func _can_melee(c: Character) -> bool:
-	if state.challenge_active and c.is_captain and _opposing_captain_fielded(c.side):
-		return true
 	var line := state.formation_of(c.side).line_of(c)
 	if line == Formation.FRONT:
 		return true
@@ -874,15 +903,6 @@ func _weakest_fielded(formation: Formation) -> Character:
 				or (c.hp == weakest.hp and c.order_id < weakest.order_id)):
 			weakest = c
 	return weakest
-
-
-func _opposing_captain(side: Character.Side) -> Character:
-	return state.enemy_captain if side == Character.Side.PLAYER else state.player_captain
-
-
-func _opposing_captain_fielded(side: Character.Side) -> bool:
-	var cap := _opposing_captain(side)
-	return cap != null and cap.is_alive() and state.opposing_formation(side).has(cap)
 
 
 func _attack(attacker: Character, defender: Character) -> void:

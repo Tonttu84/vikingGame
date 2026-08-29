@@ -13,7 +13,7 @@ enum EffectType {
 	SHIELD_WALL,               ## your side takes -2 per hit until your next turn; blocks arrow volleys
 	PULL_TO_RESERVE,           ## move targeted ally from field to reserve
 	SHOVE,                     ## shove a targeted enemy front-liner one column sideways
-	CHALLENGE,                 ## both fielded captains attack each other this round
+	TAUNT,                     ## drag a named enemy into the front slot of your man's column
 	BLOCK_REINFORCEMENTS,      ## enemy reinforcement step is skipped next enemy turn
 	EXTRA_ATTACK,              ## targeted ally attacks one extra time this fight phase
 	DRAW,                      ## draw cards
