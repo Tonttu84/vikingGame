@@ -235,6 +235,83 @@ func test_taunt_leaves_the_reserve_alone() -> void:
 	assert_eq(eng.state.momentum, 5)
 
 
+# --- Drive Him Back: a disarm, and a trade you do not always like -----------
+# docs/card-design-proposal.md §4. An enemy front-liner is driven into the
+# second line of his own column, swapping with the man behind him.
+
+func _drive(eng: CombatEngine, target: Character) -> CardData:
+	var card := CardLibrary.drive_him_back()
+	eng.state.hand.append(card)
+	eng.state.momentum = maxi(eng.state.momentum, card.cost)
+	await eng._play_card(card, target)
+	return card
+
+
+func test_drive_him_back_swaps_with_the_man_behind_him() -> void:
+	var driven := TestHelpers.grunt(E, "driven")
+	var behind := TestHelpers.grunt(E, "behind")
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [driven, behind]})
+	TestHelpers.station(eng.state.enemy_formation, behind, Formation.BACK, 1)
+	TestHelpers.station(eng.state.enemy_formation, driven, Formation.FRONT, 1)
+	await _drive(eng, driven)
+	assert_eq(eng.state.enemy_formation.at(Formation.BACK, 1), driven)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 1), behind,
+			"you promoted whoever was standing behind him — your choice, not always your friend")
+
+
+func test_drive_him_back_retires_him_into_an_empty_slot() -> void:
+	var driven := TestHelpers.grunt(E, "driven")
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [driven]})
+	TestHelpers.station(eng.state.enemy_formation, driven, Formation.FRONT, 2)
+	await _drive(eng, driven)
+	assert_eq(eng.state.enemy_formation.at(Formation.BACK, 2), driven)
+	assert_eq(eng.state.enemy_formation.at(Formation.FRONT, 2), null)
+
+
+## Fact 1 again, from their side: falling back inside your own column is a
+## disarm, never an escape. He still takes the column's hits — he just cannot
+## answer them.
+func test_a_driven_man_still_takes_his_column_s_blows() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var driven := TestHelpers.grunt(E, "driven", 30, 6, 3, 3, Weapon.sword())
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [driven]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 0)
+	TestHelpers.station(eng.state.enemy_formation, driven, Formation.FRONT, 0)
+	await _drive(eng, driven)
+	assert_eq(eng.state.enemy_formation.column_melee_target(0), driven,
+			"an empty front slot does not shield the man behind it")
+	var hp_before := driven.hp
+	await eng._fight_phase(P)
+	assert_true(driven.hp < hp_before, "your man still reaches him")
+	assert_false(eng._can_melee(driven), "and he has no swing to answer with")
+
+
+## The card's whole skill test: it silences a swordsman and ARMS a bowman,
+## because sniping is a second-line privilege.
+func test_driving_a_bowman_back_upgrades_him() -> void:
+	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [bow]})
+	TestHelpers.station(eng.state.enemy_formation, bow, Formation.FRONT, 3)
+	assert_false(eng._is_sniper(bow), "at the rail he is a man with the wrong weapon")
+	await _drive(eng, bow)
+	assert_true(eng._is_sniper(bow), "driven back he starts picking off your weakest — play it on the wrong man and you help them")
+
+
+func test_drive_him_back_is_refused_on_a_second_liner() -> void:
+	var hiding := TestHelpers.grunt(E, "hiding")
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [hiding]})
+	TestHelpers.station(eng.state.enemy_formation, hiding, Formation.BACK, 1)
+	eng.state.momentum = 5
+	var card := await _drive(eng, hiding)
+	assert_true(eng.state.hand.has(card), "he is already off the rail: refused, card kept")
+	assert_eq(eng.state.momentum, 5, "nothing paid")
+	assert_eq(eng.state.enemy_formation.at(Formation.BACK, 1), hiding)
+
+
 func test_cannot_play_unaffordable_card() -> void:
 	var eng := TestHelpers.engine_for({"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	var card := CardLibrary.spear_volley()

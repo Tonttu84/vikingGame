@@ -285,6 +285,9 @@ func _effect_preconditions_met(card: CardData, target: Character,
 						else _default_taunt_anchor(target)
 				if anchor == null or not taunt_targets(anchor).has(target):
 					return false
+			CardData.EffectType.DRIVE_BACK:
+				if not can_drive_back(target):
+					return false
 			# The rider gate (docs/card-design-proposal.md §5 Q3): the movement
 			# is part of the price, so a card whose rider cannot move is refused
 			# before payment rather than fizzling. It makes the penalty riders
@@ -388,6 +391,15 @@ func shove_directions(target: Character) -> Array[int]:
 	return out
 
 
+## Can this defender be driven off the rail? Only the rank at the rail can be:
+## a man already in their second line has nowhere further back to go. He keeps
+## taking his column's blows either way (Formation.column_melee_target) — the
+## card disarms him, it does not hide him.
+func can_drive_back(target: Character) -> bool:
+	return target != null and state.enemy_formation.has(target) \
+			and state.enemy_formation.line_of(target) == Formation.FRONT
+
+
 ## Everyone Taunt could drag onto this man's column: every fielded defender
 ## except the one already standing in its front slot, who has nowhere to come
 ## from. The destination is your own column, so the board edge never enters
@@ -477,6 +489,17 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				state.enemy_formation.place(target, Formation.FRONT, col)
 			state.log_event("%s answers the shout and squares up against %s." %
 					[target.display_name, anchor.display_name])
+		CardData.EffectType.DRIVE_BACK:
+			# Movement is the effect again, so it displaces: the man who was
+			# behind him is promoted into the rank at the rail. Along the line
+			# axis, which always has exactly two positions — no edge case.
+			var col := state.enemy_formation.column_of(target)
+			var behind := state.enemy_formation.at(Formation.BACK, col)
+			if behind != null:
+				state.enemy_formation.swap_positions(target, behind)
+			else:
+				state.enemy_formation.retire(target)
+			state.log_event("%s is driven back out of the rank at the rail." % target.display_name)
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			state.block_reinforcements = true
 		CardData.EffectType.EXTRA_ATTACK:

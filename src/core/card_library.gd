@@ -60,6 +60,15 @@ static func taunt() -> CardData:
 			[{"type": CardData.EffectType.TAUNT, "amount": 0}])
 
 
+static func drive_him_back() -> CardData:
+	# Weapon-aware by construction: it silences a swordsman, does nothing to a
+	# spearman (reach works from the second line) and ARMS a bowman, who only
+	# snipes from back there. And it takes him out of Spear Volley's area, so
+	# the two are sequenced the wrong way round at your peril.
+	return CardData.new("drive_him_back", "Drive Him Back", 2, CardData.TargetType.ENEMY,
+			[{"type": CardData.EffectType.DRIVE_BACK, "amount": 0}])
+
+
 static func push_them_back() -> CardData:
 	# A turn of no fresh defenders, paid for by committing a man to the front
 	# rank while it lasts.
@@ -172,7 +181,8 @@ static func default_maneuvers() -> Array[CardData]:
 static func card_ids() -> Array[String]:
 	return [
 		"spear_volley", "concentrated_attack", "shield_wall", "rally",
-		"drag_him_back", "break_the_line", "taunt", "push_them_back",
+		"drag_him_back", "break_the_line", "taunt", "drive_him_back",
+		"push_them_back",
 		"battle_fury", "feint", "war_cry", "terrifying_bellow",
 		"reinforce", "swap",
 		"loot_silver_a", "loot_silver_b", "loot_cauldron",
@@ -189,6 +199,7 @@ static func by_id(p_id: String) -> CardData:
 		"drag_him_back": return drag_him_back()
 		"break_the_line": return break_the_line()
 		"taunt": return taunt()
+		"drive_him_back": return drive_him_back()
 		"push_them_back": return push_them_back()
 		"battle_fury": return battle_fury()
 		"feint": return feint()
@@ -205,7 +216,8 @@ static func by_id(p_id: String) -> CardData:
 
 
 ## The v0 starter deck: 24 tactics + 3 pieces of loot clogging it. Crossing
-## the rail lives in the deck, so Reinforce/Swap are well represented.
+## the rail lives in the deck, so Reinforce/Trade Places are well represented,
+## and the larboard and starboard riders are carried in equal numbers.
 static func starter_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
 	for i in 3:
@@ -221,6 +233,7 @@ static func starter_deck() -> Array[CardData]:
 	deck.append(drag_him_back())
 	deck.append(break_the_line())
 	deck.append(taunt())
+	deck.append(drive_him_back())
 	deck.append(push_them_back())
 	deck.append(war_cry())
 	deck.append(terrifying_bellow())
@@ -231,7 +244,7 @@ static func starter_deck() -> Array[CardData]:
 
 
 ## The veteran raid's deck: the starter vocabulary a summer of raiding later.
-## 34 tactics — deeper on the rail (Reinforce/Swap) and the punch cards — and
+## 36 tactics — deeper on the rail (Reinforce/Trade Places) and the punch cards — and
 ## 5 pieces of loot: success clogs the deck, that's the roguelite bargain.
 static func veteran_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
@@ -255,6 +268,8 @@ static func veteran_deck() -> Array[CardData]:
 	# direction and reaches their second line, so it is strictly stronger than
 	# the shove it shares a family with.
 	deck.append(taunt())
+	for i in 2:
+		deck.append(drive_him_back())
 	deck.append(loot("loot_silver_a", "Plundered Silver"))
 	deck.append(loot("loot_silver_b", "Plundered Silver"))
 	deck.append(loot("loot_cauldron", "Iron Cauldron"))

@@ -70,6 +70,8 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "Shove an enemy front-liner one column sideways — re-aim THEIR line."
 		CardData.EffectType.TAUNT:
 			return "Name a defender and one of your men: he is dragged into the front slot of your man's column, swapping with whoever stood there."
+		CardData.EffectType.DRIVE_BACK:
+			return "Drive an enemy front-liner into the second line of his column, swapping with the man behind him. He still takes his column's blows — he just cannot answer them."
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			return "The enemy gets no reinforcements next turn."
 		CardData.EffectType.EXTRA_ATTACK:

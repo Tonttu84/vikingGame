@@ -329,6 +329,18 @@ func test_taunt_targets_of_a_man_who_is_not_on_the_field_is_empty() -> void:
 	assert_eq(eng.taunt_targets(null).size(), 0)
 
 
+func test_can_drive_back_reaches_the_rank_at_the_rail_only() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var foe := f.fielded()[0]
+	assert_true(eng.can_drive_back(foe), "a front-liner can be driven off the rail")
+	TestHelpers.station(f, foe, Formation.BACK, 2)
+	assert_false(eng.can_drive_back(foe), "there is nowhere further back to drive him")
+	assert_false(eng.can_drive_back(null))
+	assert_false(eng.can_drive_back(eng.state.player_formation.fielded()[0]),
+			"and it is a card you play on them, not on your own line")
+
+
 func test_shove_directions_lists_larboard_before_starboard() -> void:
 	var eng := _engine()
 	var f := eng.state.enemy_formation

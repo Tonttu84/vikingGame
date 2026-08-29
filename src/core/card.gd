@@ -14,6 +14,7 @@ enum EffectType {
 	PULL_TO_RESERVE,           ## move targeted ally from field to reserve
 	SHOVE,                     ## shove a targeted enemy front-liner one column sideways
 	TAUNT,                     ## drag a named enemy into the front slot of your man's column
+	DRIVE_BACK,                ## drive an enemy front-liner into the second line of his column
 	BLOCK_REINFORCEMENTS,      ## enemy reinforcement step is skipped next enemy turn
 	EXTRA_ATTACK,              ## targeted ally attacks one extra time this fight phase
 	DRAW,                      ## draw cards
