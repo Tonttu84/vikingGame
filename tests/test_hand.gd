@@ -88,3 +88,52 @@ func test_scrap_action_is_gone() -> void:
 	assert_true(eng.state.hand.has(card), "scrap is no longer an action")
 	assert_eq(eng.state.momentum, 0, "and pays nothing")
 	assert_false(eng.has_method("_scrap_card"), "the mechanic is removed, not disabled")
+
+
+## The turn refill deals to HAND_SIZE, but a card that draws (Feint) pushes
+## past it mid-turn. A hand has to stop somewhere: MAX_HAND_SIZE is that
+## somewhere, and a draw that would overflow simply does not happen — the
+## card stays in the deck rather than being drawn and binned.
+func test_draw_stops_at_the_hand_limit() -> void:
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "crew")]})
+	eng.state.hand.clear()
+	for i in BattleState.MAX_HAND_SIZE:
+		eng.state.hand.append(CardLibrary.loot("l%d" % i, "Silver"))
+	for i in 4:
+		eng.state.deck.append(CardLibrary.loot("d%d" % i, "Deck silver"))
+	var deck_before := eng.state.deck.size()
+	assert_false(eng._draw(1), "a full hand draws nothing")
+	assert_eq(eng.state.hand.size(), BattleState.MAX_HAND_SIZE, "and stays at the limit")
+	assert_eq(eng.state.deck.size(), deck_before, "the card is left in the deck, not binned")
+
+
+func test_draw_fills_only_up_to_the_limit() -> void:
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "crew")]})
+	eng.state.hand.clear()
+	for i in BattleState.MAX_HAND_SIZE - 1:
+		eng.state.hand.append(CardLibrary.loot("l%d" % i, "Silver"))
+	for i in 4:
+		eng.state.deck.append(CardLibrary.loot("d%d" % i, "Deck silver"))
+	assert_true(eng._draw(3), "there is room for one")
+	assert_eq(eng.state.hand.size(), BattleState.MAX_HAND_SIZE,
+			"and the rest of the draw is refused")
+
+
+func test_the_limit_leaves_room_for_the_turn_refill_plus_a_feint() -> void:
+	assert_true(BattleState.MAX_HAND_SIZE >= BattleState.HAND_SIZE + 2,
+			"Feint draws 2 from a full refill; the limit must not swallow it")
+
+
+func test_feint_can_push_the_hand_past_the_refill_size() -> void:
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "crew")]})
+	eng.state.hand.clear()
+	for i in BattleState.HAND_SIZE:
+		eng.state.hand.append(CardLibrary.loot("l%d" % i, "Silver"))
+	for i in 4:
+		eng.state.deck.append(CardLibrary.loot("d%d" % i, "Deck silver"))
+	var feint := CardLibrary.feint()
+	eng.state.hand.append(feint)
+	eng.state.momentum = 5
+	await eng._play_card(feint, null)
+	assert_eq(eng.state.hand.size(), BattleState.HAND_SIZE + 2,
+			"five held, the Feint leaves, two arrive")

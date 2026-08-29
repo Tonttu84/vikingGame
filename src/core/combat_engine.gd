@@ -1329,6 +1329,10 @@ func _draw_to_hand_size() -> void:
 func _draw(amount: int) -> bool:
 	var drew_any := false
 	for i in amount:
+		# A full hand refuses the card rather than drawing and binning it:
+		# it stays in the deck and comes round again.
+		if state.hand.size() >= BattleState.MAX_HAND_SIZE:
+			return drew_any
 		if state.deck.is_empty():
 			if state.discard.is_empty():
 				return drew_any

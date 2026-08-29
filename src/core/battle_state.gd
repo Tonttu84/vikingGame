@@ -4,6 +4,11 @@ extends RefCounted
 ## that change it live in CombatEngine.
 
 const HAND_SIZE := 5
+## The turn refill deals HAND_SIZE, but cards that draw (Feint) push past it
+## mid-turn, so the hand needs a ceiling of its own — both as a rule and so
+## the table can be laid out for a known worst case. Room for a full refill
+## plus the biggest draw in the set.
+const MAX_HAND_SIZE := 7
 const MOMENTUM_CAP := 10
 const REINFORCE_RATE := 2
 const SURGE_REINFORCE_RATE := 4
