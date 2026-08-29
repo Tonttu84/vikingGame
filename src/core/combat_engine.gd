@@ -14,19 +14,20 @@ extends RefCounted
 ##
 ##   choose_rider(state: BattleState, card: CardData, moves: Array[Dictionary])
 ##       -> Dictionary  (optional, awaited)
-##     Movement riders are mandatory (docs/lines-redesign.md): the engine
-##     computes every legal move for the rider and the controller picks WHICH,
-##     never whether. Move shapes, one per rider type:
-##       RIDER_SLIDE:        {"character": Character, "direction": int}
+##     Movement riders are mandatory and their direction is fixed by the card
+##     (docs/card-design-proposal.md §1): the engine computes every legal move
+##     and the controller picks WHICH MAN, never whether and never which way.
+##     A card that names an ally binds the rider to him, so it offers 0 or 1
+##     moves and nothing is asked. Move shapes:
+##       RIDER_LARBOARD, RIDER_STARBOARD,
+##       RIDER_CLOSE:        {"character": Character, "direction": int}
 ##                           (-1 larboard / left, +1 starboard / right)
-##       RIDER_STEP,
-##       RIDER_ADVANCE:      {"character": Character, "line": int}
+##       RIDER_FORWARD,
+##       RIDER_BACKWARD:     {"character": Character, "line": int}
 ##                           (Formation.FRONT or Formation.BACK)
-##       RIDER_SWAP_FIELDED: {"a": Character, "b": Character}
 ##     A controller without the hook — or one answering with a move that is
 ##     not in the list — gets moves[0]: the first legal move in reading order
-##     (front line left to right, then the second line), larboard before
-##     starboard, pairs ordered by the reading order of both members.
+##     (front line left to right, then the second line).
 ##
 ## Reaction saves (Drag Him Back!) need no controller: they fire
 ## automatically when a killing blow lands on a non-captain crew member,
@@ -212,7 +213,6 @@ func _enemy_turn() -> void:
 	await _pace()
 	_advance_windups()
 	state.surge_active = false
-	state.challenge_active = false
 	state.next_tactic = _pick_tactic()
 
 
@@ -280,12 +280,23 @@ func _effect_preconditions_met(card: CardData, target: Character,
 			CardData.EffectType.SHOVE:
 				if shove_directions(target).is_empty():
 					return false
-			CardData.EffectType.CHALLENGE:
-				if state.player_captain == null \
-						or not state.player_formation.has(state.player_captain):
+			CardData.EffectType.TAUNT:
+				var anchor := second_target if second_target != null \
+						else _default_taunt_anchor(target)
+				if anchor == null or not taunt_targets(anchor).has(target):
 					return false
-				if state.enemy_captain == null \
-						or not state.enemy_formation.has(state.enemy_captain):
+			CardData.EffectType.DRIVE_BACK:
+				if not can_drive_back(target):
+					return false
+			# The rider gate (docs/card-design-proposal.md §5 Q3): the movement
+			# is part of the price, so a card whose rider cannot move is refused
+			# before payment rather than fizzling. It makes the penalty riders
+			# honest — you cannot engineer them away by packing your grid — and
+			# turns a crowded deck into a real constraint on your hand.
+			CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
+			CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
+			CardData.EffectType.RIDER_CLOSE:
+				if _rider_moves(effect.get("type"), card, target).is_empty():
 					return false
 	return true
 
@@ -320,10 +331,13 @@ func _target_valid(card: CardData, target: Character) -> bool:
 			if target == null or target.side != Character.Side.PLAYER or not target.is_alive():
 				return false
 			# Some effects only mean anything to a man in the fight itself.
+			# HEAL is among them: a breather taken safe on the ship is not the
+			# decision Rally asks for, and its rider would have nothing to ride
+			# on — the card would silently lose half of itself.
 			for effect in card.effects:
 				match effect.get("type"):
 					CardData.EffectType.PULL_TO_RESERVE, CardData.EffectType.EXTRA_ATTACK, \
-					CardData.EffectType.SWAP:
+					CardData.EffectType.SWAP, CardData.EffectType.HEAL:
 						if not state.player_formation.has(target):
 							return false
 			return true
@@ -377,6 +391,40 @@ func shove_directions(target: Character) -> Array[int]:
 	return out
 
 
+## Can this defender be driven off the rail? Only the rank at the rail can be:
+## a man already in their second line has nowhere further back to go. He keeps
+## taking his column's blows either way (Formation.column_melee_target) — the
+## card disarms him, it does not hide him.
+func can_drive_back(target: Character) -> bool:
+	return target != null and state.enemy_formation.has(target) \
+			and state.enemy_formation.line_of(target) == Formation.FRONT
+
+
+## Everyone Taunt could drag onto this man's column: every fielded defender
+## except the one already standing in its front slot, who has nowhere to come
+## from. The destination is your own column, so the board edge never enters
+## into it — Taunt is the one movement in the set that cannot be edge-blocked.
+func taunt_targets(anchor: Character) -> Array[Character]:
+	var out: Array[Character] = []
+	if anchor == null or not state.player_formation.has(anchor):
+		return out
+	var col := state.player_formation.column_of(anchor)
+	for c in state.enemy_formation.fielded():
+		if c != state.enemy_formation.at(Formation.FRONT, col):
+			out.append(c)
+	return out
+
+
+## Who a Taunt is shouted across to when the controller names only the enemy:
+## the first man on deck, in reading order, whose column that enemy is not
+## already standing in front of. Null means the card cannot be played at all.
+func _default_taunt_anchor(target: Character) -> Character:
+	for c in state.player_formation.fielded():
+		if taunt_targets(c).has(target):
+			return c
+	return null
+
+
 ## The man a waiting pair member would trade places with — his counterpart,
 ## and only while that counterpart is the one holding the field. Null for
 ## everyone else: ordinary crew have no counterpart, and the fielded half is
@@ -426,10 +474,32 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				if not state.enemy_formation.slide(target, -1):
 					state.enemy_formation.slide(target, 1)
 			state.log_event("%s is shoved out of his column." % target.display_name)
-		CardData.EffectType.CHALLENGE:
-			state.challenge_active = true
-			state.log_event("%s calls %s out across the deck!" %
-					[state.player_captain.display_name, state.enemy_captain.display_name])
+		CardData.EffectType.TAUNT:
+			# Movement IS the effect here, so it may displace where a rider may
+			# not: the man who was standing in the way is thrown into the duel
+			# the taunted man just left. One column, always in bounds.
+			var anchor := second_target if second_target != null \
+					else _default_taunt_anchor(target)
+			var col := state.player_formation.column_of(anchor)
+			var standing := state.enemy_formation.at(Formation.FRONT, col)
+			if standing != null:
+				state.enemy_formation.swap_positions(target, standing)
+			else:
+				state.enemy_formation.remove(target)
+				state.enemy_formation.place(target, Formation.FRONT, col)
+			state.log_event("%s answers the shout and squares up against %s." %
+					[target.display_name, anchor.display_name])
+		CardData.EffectType.DRIVE_BACK:
+			# Movement is the effect again, so it displaces: the man who was
+			# behind him is promoted into the rank at the rail. Along the line
+			# axis, which always has exactly two positions — no edge case.
+			var col := state.enemy_formation.column_of(target)
+			var behind := state.enemy_formation.at(Formation.BACK, col)
+			if behind != null:
+				state.enemy_formation.swap_positions(target, behind)
+			else:
+				state.enemy_formation.retire(target)
+			state.log_event("%s is driven back out of the rank at the rail." % target.display_name)
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			state.block_reinforcements = true
 		CardData.EffectType.EXTRA_ATTACK:
@@ -492,20 +562,22 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				state.player_formation.place(partner, line, col)
 				state.log_event("%s falls back; %s takes his place." %
 						[target.display_name, partner.display_name])
-		CardData.EffectType.RIDER_SLIDE, CardData.EffectType.RIDER_STEP, \
-		CardData.EffectType.RIDER_ADVANCE, CardData.EffectType.RIDER_SWAP_FIELDED:
+		CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
+		CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
+		CardData.EffectType.RIDER_CLOSE:
 			await _resolve_rider(effect.get("type"), target, card)
 
 
 # --- Movement riders ---------------------------------------------------------
 
-## The mandatory rider (docs/lines-redesign.md): the engine lists every legal
-## move and the controller picks WHICH — never whether. No legal move at all
-## (a packed grid, a front-liner told to advance) is the one case a rider is
-## skipped, and it passes in silence. Riders move men BETWEEN SLOTS only, so
-## they never cross the rail and the prow pair's law needs no checking here.
+## The mandatory rider (docs/card-design-proposal.md §1): the DIRECTION is the
+## card's, fixed; the engine lists every man who can take that step and the
+## controller picks WHICH — never whether, and never which way. Riders move men
+## BETWEEN SLOTS only, so they never cross the rail and the prow pair's law
+## needs no checking here. An empty list cannot normally reach this: the card
+## is refused before payment when its rider has nowhere to go.
 func _resolve_rider(rider: CardData.EffectType, target: Character, card: CardData) -> void:
-	var moves := _rider_moves(rider, target)
+	var moves := _rider_moves(rider, card, target)
 	if moves.is_empty():
 		return
 	var move: Dictionary = moves[0]
@@ -516,38 +588,65 @@ func _resolve_rider(rider: CardData.EffectType, target: Character, card: CardDat
 	_apply_rider_move(rider, move)
 
 
-## Every legal move for this rider, in reading order (front line left to
-## right, then the second line), larboard before starboard, pairs ordered by
-## the reading order of both members. moves[0] is what a controller gets when
-## it cannot or will not choose.
-func _rider_moves(rider: CardData.EffectType, target: Character) -> Array[Dictionary]:
+## Every legal move for this rider, in reading order (front line left to right,
+## then the second line). moves[0] is what a controller gets when it cannot or
+## will not choose.
+func _rider_moves(rider: CardData.EffectType, card: CardData,
+		target: Character) -> Array[Dictionary]:
 	var moves: Array[Dictionary] = []
-	var formation := state.player_formation
-	match rider:
-		CardData.EffectType.RIDER_SLIDE:
-			for c in formation.fielded():
-				var line := formation.line_of(c)
-				for dir in [-1, 1]:
-					var col: int = formation.column_of(c) + dir
-					if Formation.in_bounds(line, col) and formation.at(line, col) == null:
-						moves.append({"character": c, "direction": dir})
-		CardData.EffectType.RIDER_STEP, CardData.EffectType.RIDER_ADVANCE:
-			if target == null or not formation.has(target):
-				return moves
-			var line := formation.line_of(target)
-			# A column has exactly one other line, so a step is one choice at
-			# most; advance is that same step, restricted to the way forward.
-			if rider == CardData.EffectType.RIDER_ADVANCE and line != Formation.BACK:
-				return moves
-			var destination := Formation.FRONT if line == Formation.BACK else Formation.BACK
-			if formation.at(destination, formation.column_of(target)) == null:
-				moves.append({"character": target, "line": destination})
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			var men := formation.fielded()
-			for i in men.size():
-				for j in range(i + 1, men.size()):
-					moves.append({"a": men[i], "b": men[j]})
+	for mover in _rider_movers(card, target):
+		var move := _rider_move_for(rider, mover)
+		if not move.is_empty():
+			moves.append(move)
 	return moves
+
+
+## Who the rider may move. A card that already names an ally moves THAT man and
+## nobody else — 0 or 1 legal moves, so the controller is never asked. Any
+## other card offers every man on deck, and the pick is which of them steps.
+func _rider_movers(card: CardData, target: Character) -> Array[Character]:
+	var formation := state.player_formation
+	if card != null and card.target_type == CardData.TargetType.ALLY:
+		if target == null or not formation.has(target):
+			return [] as Array[Character]
+		return [target] as Array[Character]
+	return formation.fielded()
+
+
+## This man's one move under this rider, or {} when the step is off the board,
+## into an occupied slot, or (Close) toward nothing. Riders never displace.
+func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary:
+	var formation := state.player_formation
+	var line := formation.line_of(mover)
+	var col := formation.column_of(mover)
+	if line == -1:
+		return {}
+	match rider:
+		CardData.EffectType.RIDER_LARBOARD:
+			return _rider_slide_move(mover, line, col, -1)
+		CardData.EffectType.RIDER_STARBOARD:
+			return _rider_slide_move(mover, line, col, 1)
+		CardData.EffectType.RIDER_CLOSE:
+			# The closing rule's own direction, and its own legality: it already
+			# refuses the board edge, an occupied slot and an empty enemy board.
+			var dir := _close_direction(mover)
+			return {} if dir == 0 else {"character": mover, "direction": dir}
+		CardData.EffectType.RIDER_FORWARD:
+			if line != Formation.BACK or formation.at(Formation.FRONT, col) != null:
+				return {}
+			return {"character": mover, "line": Formation.FRONT}
+		CardData.EffectType.RIDER_BACKWARD:
+			if line != Formation.FRONT or formation.at(Formation.BACK, col) != null:
+				return {}
+			return {"character": mover, "line": Formation.BACK}
+	return {}
+
+
+func _rider_slide_move(mover: Character, line: int, col: int, dir: int) -> Dictionary:
+	if not Formation.in_bounds(line, col + dir) \
+			or state.player_formation.at(line, col + dir) != null:
+		return {}
+	return {"character": mover, "direction": dir}
 
 
 ## Is the controller's answer one of the moves offered? Compared field by
@@ -566,25 +665,21 @@ func _rider_move_offered(moves: Array[Dictionary], answer: Dictionary) -> bool:
 
 func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 	var formation := state.player_formation
-	match rider:
-		CardData.EffectType.RIDER_SLIDE:
-			var slider: Character = move["character"]
-			var dir: int = move["direction"]
-			if formation.slide(slider, dir):
-				state.log_event("%s sidesteps to %s." %
-						[slider.display_name, "larboard" if dir < 0 else "starboard"])
-		CardData.EffectType.RIDER_STEP, CardData.EffectType.RIDER_ADVANCE:
-			var stepper: Character = move["character"]
-			if move["line"] == Formation.FRONT:
-				if formation.advance(stepper):
-					state.log_event("%s steps up into the front line." % stepper.display_name)
-			elif formation.retire(stepper):
-				state.log_event("%s falls back into the second line." % stepper.display_name)
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			var a: Character = move["a"]
-			var b: Character = move["b"]
-			if formation.swap_positions(a, b):
-				state.log_event("%s and %s trade places." % [a.display_name, b.display_name])
+	var mover: Character = move["character"]
+	if move.has("direction"):
+		var dir: int = move["direction"]
+		if not formation.slide(mover, dir):
+			return
+		if rider == CardData.EffectType.RIDER_CLOSE:
+			state.log_event("%s presses toward the fighting." % mover.display_name)
+		else:
+			state.log_event("%s sidesteps to %s." %
+					[mover.display_name, "larboard" if dir < 0 else "starboard"])
+	elif move["line"] == Formation.FRONT:
+		if formation.advance(mover):
+			state.log_event("%s steps up into the front line." % mover.display_name)
+	elif formation.retire(mover):
+		state.log_event("%s falls back into the second line." % mover.display_name)
 
 
 ## The prow pair is active whenever the roster declares a prowman: then the
@@ -736,16 +831,15 @@ func _attack_order(side: Character.Side) -> Array[Character]:
 
 
 ## Deterministic targeting, published rules (docs/lines-redesign.md):
-## a challenged captain goes for the other captain; snipers pick the weakest
-## fielded enemy anywhere; melee hits the nearest occupied slot in its own
-## column — front first, then their second line, empty column = miss (null).
-## Focus fire redirects everyone who can reach the target (same column for
-## melee, anywhere for snipers). Never random.
+## snipers pick the weakest fielded enemy anywhere; melee hits the nearest
+## occupied slot in its own column — front first, then their second line,
+## empty column = miss (null). Focus fire redirects everyone who can reach the
+## target (same column for melee, anywhere for snipers). Never random. There
+## is no targeting override left in the engine: a duel is arranged by moving
+## men (Taunt), not by suspending the column rule.
 func _pick_target(attacker: Character) -> Character:
 	var own := state.formation_of(attacker.side)
 	var opposing := state.opposing_formation(attacker.side)
-	if state.challenge_active and attacker.is_captain and _opposing_captain_fielded(attacker.side):
-		return _opposing_captain(attacker.side)
 	if _is_sniper(attacker):
 		if _focus_valid(attacker):
 			return state.focus_target
@@ -795,11 +889,8 @@ func _is_sniper(c: Character) -> bool:
 			and state.formation_of(c.side).line_of(c) == Formation.BACK
 
 
-## Front-liners fight their column; spears reach over their front man; a
-## challenged captain reaches the other captain from anywhere.
+## Front-liners fight their column; spears reach over their front man.
 func _can_melee(c: Character) -> bool:
-	if state.challenge_active and c.is_captain and _opposing_captain_fielded(c.side):
-		return true
 	var line := state.formation_of(c.side).line_of(c)
 	if line == Formation.FRONT:
 		return true
@@ -835,15 +926,6 @@ func _weakest_fielded(formation: Formation) -> Character:
 				or (c.hp == weakest.hp and c.order_id < weakest.order_id)):
 			weakest = c
 	return weakest
-
-
-func _opposing_captain(side: Character.Side) -> Character:
-	return state.enemy_captain if side == Character.Side.PLAYER else state.player_captain
-
-
-func _opposing_captain_fielded(side: Character.Side) -> bool:
-	var cap := _opposing_captain(side)
-	return cap != null and cap.is_alive() and state.opposing_formation(side).has(cap)
 
 
 func _attack(attacker: Character, defender: Character) -> void:

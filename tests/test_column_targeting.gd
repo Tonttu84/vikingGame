@@ -247,50 +247,6 @@ func test_focus_fire_strikes_through_the_column() -> void:
 	assert_true(_log_has(eng, "swings at air"), "focus does not grant reach across columns: pC still misses")
 
 
-func test_challenge_makes_fielded_captains_trade_blows() -> void:
-	var pcap := TestHelpers.captain_of(P, "pcap")
-	var p1 := TestHelpers.grunt(P, "p1")
-	var ecap := TestHelpers.captain_of(E, "ecap", 30)
-	var e1 := TestHelpers.grunt(E, "e1")
-	var eng := TestHelpers.engine_for({
-		"player_field": [pcap, p1],
-		"enemy_field": [e1],
-		"enemy_captain": ecap,
-	})
-	TestHelpers.station(eng.state.player_formation, p1, F, 1)
-	TestHelpers.station(eng.state.enemy_formation, e1, F, 1)
-	eng.state.enemy_formation.place(ecap, F, 3)
-	var card := CardLibrary.challenge()
-	eng.state.hand.append(card)
-	eng.state.momentum = card.cost
-	await eng._play_card(card, null)
-	assert_true(eng.state.challenge_active, "the gauntlet is down")
-	await eng._fight_phase(P)
-	assert_eq(ecap.hp, 30 - 4, "your captain strikes theirs across the columns")
-	assert_eq(e1.hp, 12 - 4, "everyone else fights his column as usual (+1: he stands at the captain's shoulder)")
-	await eng._enemy_turn()
-	assert_eq(pcap.hp, 20 - 4, "their captain answers in their fight phase")
-	assert_false(eng.state.challenge_active, "the challenge is spent after their answer")
-
-
-func test_challenge_refused_unless_both_captains_are_fielded() -> void:
-	var pcap := TestHelpers.captain_of(P, "pcap")
-	var ecap := TestHelpers.captain_of(E, "ecap", 30)
-	var e1 := TestHelpers.grunt(E, "e1")
-	var eng := TestHelpers.engine_for({
-		"player_field": [pcap],
-		"enemy_field": [e1],
-		"enemy_captain": ecap,
-	})
-	var card := CardLibrary.challenge()
-	eng.state.hand.append(card)
-	eng.state.momentum = 5
-	await eng._play_card(card, null)
-	assert_true(eng.state.hand.has(card), "their captain still waits below: refused, card kept")
-	assert_eq(eng.state.momentum, 5, "nothing paid")
-	assert_false(eng.state.challenge_active)
-
-
 func test_break_the_line_shoves_a_front_liner_sideways() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var e1 := TestHelpers.grunt(E, "e1")

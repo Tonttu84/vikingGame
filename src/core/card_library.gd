@@ -7,27 +7,32 @@ extends RefCounted
 static func spear_volley() -> CardData:
 	# The volley falls on the rank at the rail — their second line stands
 	# behind the front men's shields — and the throwers step as they loose.
+	# The shieldman answer, at the price of a step you did not choose.
 	return CardData.new("spear_volley", "Spear Volley", 2, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
 
 
 static func concentrated_attack() -> CardData:
 	return CardData.new("concentrated_attack", "Concentrated Attack", 2, CardData.TargetType.ENEMY,
 			[{"type": CardData.EffectType.FOCUS_FIRE, "amount": 0},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_STARBOARD, "amount": 1}])
 
 
 static func shield_wall() -> CardData:
+	# The wall is standing off, not standing firm: a front-liner you name gives
+	# ground, so the whole crew's round is bought with one man's swings.
 	return CardData.new("shield_wall", "Shield Wall", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SWAP_FIELDED, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_BACKWARD, "amount": 1}])
 
 
 static func rally() -> CardData:
+	# The breather: heal him and lose his swings — unless he carries a spear,
+	# whose reach makes the second line no cage at all and the price zero.
 	return CardData.new("rally", "Rally", 1, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.HEAL, "amount": 4},
-			{"type": CardData.EffectType.RIDER_STEP, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_BACKWARD, "amount": 1}])
 
 
 static func drag_him_back() -> CardData:
@@ -45,40 +50,56 @@ static func break_the_line() -> CardData:
 			[{"type": CardData.EffectType.SHOVE, "amount": 1}])
 
 
-static func challenge() -> CardData:
-	# Repurposed: only while both captains are fielded — they attack each
-	# other this round regardless of columns. Everyone else fights on.
-	return CardData.new("challenge", "Challenge", 2, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.CHALLENGE, "amount": 0}])
+static func taunt() -> CardData:
+	# The challenge, expressed as movement rather than as a targeting override:
+	# name a defender and one of your men, and the defender is dragged into the
+	# front slot of your man's column. Works on their second line too — and on
+	# the jarl himself, which is the "force a window to the captain" moment the
+	# design asks for once a fight.
+	return CardData.new("taunt", "Taunt", 2, CardData.TargetType.ENEMY,
+			[{"type": CardData.EffectType.TAUNT, "amount": 0}])
+
+
+static func drive_him_back() -> CardData:
+	# Weapon-aware by construction: it silences a swordsman, does nothing to a
+	# spearman (reach works from the second line) and ARMS a bowman, who only
+	# snipes from back there. And it takes him out of Spear Volley's area, so
+	# the two are sequenced the wrong way round at your peril.
+	return CardData.new("drive_him_back", "Drive Him Back", 2, CardData.TargetType.ENEMY,
+			[{"type": CardData.EffectType.DRIVE_BACK, "amount": 0}])
 
 
 static func push_them_back() -> CardData:
+	# A turn of no fresh defenders, paid for by committing a man to the front
+	# rank while it lasts.
 	return CardData.new("push_them_back", "Push Them Back", 2, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.BLOCK_REINFORCEMENTS, "amount": 0}])
+			[{"type": CardData.EffectType.BLOCK_REINFORCEMENTS, "amount": 0},
+			{"type": CardData.EffectType.RIDER_FORWARD, "amount": 1}])
 
 
 static func battle_fury() -> CardData:
 	return CardData.new("battle_fury", "Battle Fury", 1, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.EXTRA_ATTACK, "amount": 1},
-			{"type": CardData.EffectType.RIDER_ADVANCE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_FORWARD, "amount": 1}])
 
 
 static func feint() -> CardData:
+	# Cards for free, and a man walked into contact for free with them.
 	return CardData.new("feint", "Feint", 0, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DRAW, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_CLOSE, "amount": 1}])
 
 
 static func war_cry() -> CardData:
 	return CardData.new("war_cry", "War Cry", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.WAR_CRY, "amount": 1},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
 
 
 static func terrifying_bellow() -> CardData:
 	return CardData.new("terrifying_bellow", "Terrifying Bellow", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_STARBOARD, "amount": 1}])
 
 
 static func reinforce() -> CardData:
@@ -89,7 +110,10 @@ static func reinforce() -> CardData:
 
 
 static func swap() -> CardData:
-	var card := CardData.new("swap", "Swap", 1, CardData.TargetType.ALLY,
+	# The set's strongest positional tool: any two of your men trade slots,
+	# on deck or over the rail. Priced as an effect, not smuggled in as a
+	# rider — the id stays "swap" so decks and debug tools do not churn.
+	var card := CardData.new("swap", "Trade Places", 2, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.SWAP, "amount": 1}])
 	card.retained = true
 	return card
@@ -157,7 +181,8 @@ static func default_maneuvers() -> Array[CardData]:
 static func card_ids() -> Array[String]:
 	return [
 		"spear_volley", "concentrated_attack", "shield_wall", "rally",
-		"drag_him_back", "break_the_line", "challenge", "push_them_back",
+		"drag_him_back", "break_the_line", "taunt", "drive_him_back",
+		"push_them_back",
 		"battle_fury", "feint", "war_cry", "terrifying_bellow",
 		"reinforce", "swap",
 		"loot_silver_a", "loot_silver_b", "loot_cauldron",
@@ -173,7 +198,8 @@ static func by_id(p_id: String) -> CardData:
 		"rally": return rally()
 		"drag_him_back": return drag_him_back()
 		"break_the_line": return break_the_line()
-		"challenge": return challenge()
+		"taunt": return taunt()
+		"drive_him_back": return drive_him_back()
 		"push_them_back": return push_them_back()
 		"battle_fury": return battle_fury()
 		"feint": return feint()
@@ -190,7 +216,8 @@ static func by_id(p_id: String) -> CardData:
 
 
 ## The v0 starter deck: 24 tactics + 3 pieces of loot clogging it. Crossing
-## the rail lives in the deck, so Reinforce/Swap are well represented.
+## the rail lives in the deck, so Reinforce/Trade Places are well represented,
+## and the larboard and starboard riders are carried in equal numbers.
 static func starter_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
 	for i in 3:
@@ -205,7 +232,8 @@ static func starter_deck() -> Array[CardData]:
 		deck.append(swap())
 	deck.append(drag_him_back())
 	deck.append(break_the_line())
-	deck.append(challenge())
+	deck.append(taunt())
+	deck.append(drive_him_back())
 	deck.append(push_them_back())
 	deck.append(war_cry())
 	deck.append(terrifying_bellow())
@@ -216,7 +244,7 @@ static func starter_deck() -> Array[CardData]:
 
 
 ## The veteran raid's deck: the starter vocabulary a summer of raiding later.
-## 34 tactics — deeper on the rail (Reinforce/Swap) and the punch cards — and
+## 36 tactics — deeper on the rail (Reinforce/Trade Places) and the punch cards — and
 ## 5 pieces of loot: success clogs the deck, that's the roguelite bargain.
 static func veteran_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
@@ -232,11 +260,16 @@ static func veteran_deck() -> Array[CardData]:
 		deck.append(rally())
 		deck.append(feint())
 		deck.append(drag_him_back())
-		deck.append(challenge())
 		deck.append(break_the_line())
 		deck.append(push_them_back())
 		deck.append(war_cry())
-	deck.append(terrifying_bellow())
+		deck.append(terrifying_bellow())
+	# Taunt is near-singleton by design: it aims at a slot rather than a
+	# direction and reaches their second line, so it is strictly stronger than
+	# the shove it shares a family with.
+	deck.append(taunt())
+	for i in 2:
+		deck.append(drive_him_back())
 	deck.append(loot("loot_silver_a", "Plundered Silver"))
 	deck.append(loot("loot_silver_b", "Plundered Silver"))
 	deck.append(loot("loot_cauldron", "Iron Cauldron"))

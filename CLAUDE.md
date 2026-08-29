@@ -64,7 +64,45 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **UI robustness — nothing a card says can move the board.** The web
+Done: **the real card set** (docs/card-design-proposal.md, now marked
+IMPLEMENTED with the owner's answers to its §5; the shipped rules are
+tabulated in docs/combat-design.md). **Every card carries an effect AND a
+movement, and the movement's direction is printed on the card.** 15 tactics
+in three families: the rail pair plus the reaction save (their movement is
+the crossing), the *theirs* family (Break the Line, the new Drive Him Back,
+the new Taunt — the movement is forced on an enemy), and the riders. Five
+fixed rider movements — Close, Press, Larboard, Starboard, Give Ground —
+priced in registers: perks on the cheap cards, the coin-flip pair on the mid
+ones, Give Ground on the bombs. The player picks WHICH man steps, never which
+way, and a card that names an ally binds the rider to him so it asks nothing
+at all. Three things make that more than a rename. **The rider gate**: a card
+whose movement has no legal destination is refused before payment (Battle
+Fury on a front-liner, Rally on a second-liner, Shield Wall with nobody able
+to retire) — the movement is part of the price, so it can no longer be
+engineered away by packing your grid. **Challenge is folded into Taunt** —
+dragging an enemy into the front slot of your man's column *is* a challenge,
+so `challenge_active` and the captain branches in `_pick_target`/`_can_melee`
+are gone and there is no targeting override left in the engine at all; a duel
+is arranged by moving men. **A live bug fixed**: `HEAL` was missing from the
+fielded-only list, so Rally could be spent on a man safe on the ship, where
+its rider evaporated. Trade Places (was Swap) costs 2 and keeps its id.
+Larboard and starboard counts are equal in both decks, held there by a test.
+Sims (n=300, random bot) before → after: skirmish 46.3% → 31.0% win, 14.1 →
+14.1 turns, 1.12 → 1.09 dead in a win; veteran 58.7% → 51.3%, 16.7 → 17.3,
+0.81 → 1.14. A comparison, not a target — **the gate bites hard on a bot that
+never arranges its formation on purpose**: 43–49% of the affordable cards it
+holds are refused and ~35% of its decision points have nothing playable at
+all. That is the headline for the retune, and it is the reason the sim bot
+now asks the engine `can_play` instead of guessing (new suite `test_bots`; a
+bot that proposes refused cards burns its turn and quietly distorts every
+number).
+815 unit + 91 smoke checks. **Prices and roster HP are still deliberately
+untuned** — that is the next slice, and it now has real cards to tune.
+Jump stays out: not on principle, but a fixed jump is illegal from half the
+board and a jump out of contact re-opens the stall the closing rule closed;
+if it ships it must be a player-aimed jump on a card that also carries a real
+effect, after the retune.
+Earlier: **UI robustness — nothing a card says can move the board.** The web
 build was cut off: card faces sized themselves to their rules text, so phase
 D's rider wording grew the card, the hand row, and pushed End Turn/Retreat
 off the 800px canvas (they sat at y=806/852). Sizing a box from its own text
@@ -196,23 +234,20 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Card design — the real cards, replacing the placeholder set. There is now
-   a written proposal at **docs/card-design-proposal.md** against the owner's
-   brief: every card carries BOTH an effect and a movement, and the movement
-   is FIXED (move left/right/forward/back), never player-chosen, because a
-   free direction is always good and so never a cost. Read its two findings
-   first: fixing the direction alone does NOT fix the cost (the mandatory
-   slide is answered by moving the archer, for whom position means nothing —
-   the free *mover* is half the problem), and it recommends cutting
-   two-column jumps (a fixed jump is illegal from half a 4-column board, and
-   jumping out of contact can re-open the stall the closing rule just
-   closed). It also rules Taunt in full and flags a REAL BUG: Rally can
-   currently be played on a man in reserve (HEAL is missing from the
-   fielded-only list in `_target_valid`) — fix starts with a regression test.
-   Only once the cards are real does the numeric retune mean anything: card
-   prices and roster HP are the last mile to ~6–10 turn fights (the closing
-   rule got skirmish to 14.1), and the user has explicitly deferred them
-   until then. Balance stays a design conversation; bring before/after sims.
+1. **The numeric retune** — the slice the owner has been deferring until the
+   cards were real, which they now are. Card prices and roster HP against
+   both scenario anchors, reading turn count and the cost of victory
+   together; the goal is ~6–10 turn fights (the closing rule got skirmish to
+   14.1 and the card rework left it there at 14.2). Two things to weigh
+   first, both new: **the rider gate refuses 43–49% of the affordable cards
+   the random bot holds** and leaves ~35% of its decision points empty — decide
+   whether that is the bot being positionally stupid (likely, and a human
+   would arrange his line to keep his hand live) or the gate being too sharp,
+   before moving any price. The proposal's fallback if playtest says it is
+   the gate: gate only the penalty riders (`RIDER_BACKWARD`) and let the
+   perks skip. And **Taunt + Concentrated Attack in one hand is a two-card
+   assassination** — the combo to check first if the player kills too fast.
+   Balance stays a design conversation; bring before/after sims.
 
    **Deferred design decisions the owner has already made** (do not
    re-litigate, do not build yet; rulings refined 2026-08-29):

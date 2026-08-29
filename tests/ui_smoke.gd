@@ -236,7 +236,7 @@ func check_card_box_is_fixed(ui) -> void:
 		{"type": CardData.EffectType.PLAYER_ARMOR_BONUS, "amount": 1},
 		{"type": CardData.EffectType.WAR_CRY, "amount": 1},
 		{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
-		{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1},
+		{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1},
 	]
 	var wordy := CardData.new("probe_wordy",
 			"A Card Whose Name Runs On Far Longer Than Any Real One", 3,
@@ -364,9 +364,9 @@ func _run() -> void:
 	check(badge_found, "a front-liner in a contested column shows incoming damage")
 
 	# A card with a movement rider: the punch lands, then the board asks
-	# which man moves. Shield Wall's rider trades two men on deck, so with a
-	# three-man first wave the engine hands over a real choice — and being
-	# mandatory, it offers no way out.
+	# which man moves — never which way, that is printed on the card. Shield
+	# Wall makes a front-liner give ground, so with a three-man first wave the
+	# engine hands over a real choice, and being mandatory it offers no way out.
 	var wall := CardLibrary.shield_wall()
 	_put_in_hand(ui, wall)
 	ui.engine.state.momentum = maxi(ui.engine.state.momentum, wall.cost)
@@ -375,8 +375,10 @@ func _run() -> void:
 	ui.play_card(wall, null)
 	await _await_until(func() -> bool: return not ui._pick.is_empty(),
 			"the rider asks which man moves")
-	check(ui._pick["prompt"].contains("Shield Wall") and ui._pick["prompt"].contains("swap"),
-			"the prompt names the card and the rider, saw: %s" % ui._pick.get("prompt", ""))
+	check(ui._pick["prompt"].contains("Shield Wall")
+			and ui._pick["prompt"].contains("give ground"),
+			"the prompt names the card and the fixed movement, saw: %s"
+			% ui._pick.get("prompt", ""))
 	check(not ui._pick_cancel_button.visible, "a mandatory rider offers no cancel")
 	check(ui._end_turn_button.disabled, "the turn cannot be ended out from under a pick")
 	var lit := 0
@@ -385,12 +387,13 @@ func _run() -> void:
 			lit += 1
 	check(lit == ui._pick["options"].size(),
 			"every man the engine offered is lit (%d lit, %d offered)" % [lit, ui._pick["options"].size()])
+	# One pick and the whole rider is resolved: the direction was never a
+	# question, so there is no second step to answer.
 	ui.choose_pick(ui._pick["options"][0])
-	check(not ui._pick.is_empty(), "and then where he goes")
-	ui.choose_pick(ui._pick["options"][0])
+	check(ui._pick.is_empty(), "picking the man is the whole of the rider")
 	await _settle(ui)
 	check(ui.engine.state.player_formation.slots != slots_before,
-			"the mandatory rider actually moved men")
+			"the mandatory rider actually moved a man")
 	check(ui._awaiting_action, "back to waiting after the rider resolves")
 
 	# Reinforce names the slot its man lands in: drag the card onto a lit
@@ -530,9 +533,11 @@ func _run() -> void:
 		if c.id == "rally" and c.cost <= ui.engine.state.momentum:
 			rally = c
 	if rally != null:
+		# Rally makes its man give ground, so the engine refuses it on anyone
+		# whose second-line slot is taken. Ask it, do not guess.
 		var wounded: Character = null
 		for ch: Character in ui.engine.state.fielded(Character.Side.PLAYER):
-			if ch.hp < ch.max_hp:
+			if ch.hp < ch.max_hp and ui.engine.can_play(rally, ch):
 				wounded = ch
 		if wounded != null:
 			var hp_before := wounded.hp

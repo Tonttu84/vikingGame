@@ -72,9 +72,6 @@ var shield_wall_active := false
 var war_cry_active := false
 var block_reinforcements := false
 var surge_active := false
-## Challenge: both fielded captains attack each other this round, columns
-## be damned. Everyone else fights as usual.
-var challenge_active := false
 var focus_target: Character = null
 var next_tactic := ""
 ## Locked marks: enemy archer -> the boarder his aimed double shot is bound

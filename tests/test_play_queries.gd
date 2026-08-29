@@ -56,7 +56,9 @@ func test_can_play_rejects_an_unaffordable_card() -> void:
 func test_can_play_accepts_an_affordable_untargeted_card() -> void:
 	var eng := _engine()
 	var card := _in_hand(eng, CardLibrary.war_cry())
-	assert_true(eng.can_play(card))
+	TestHelpers.station(eng.state.player_formation, eng.state.player_formation.fielded()[1],
+			Formation.FRONT, 2)
+	assert_true(eng.can_play(card), "somebody can take its larboard step")
 
 
 func test_can_play_rejects_a_target_for_an_untargeted_card() -> void:
@@ -99,7 +101,61 @@ func test_can_play_wants_battle_fury_on_a_man_who_is_actually_fighting() -> void
 	var card := _in_hand(eng, CardLibrary.battle_fury())
 	assert_false(eng.can_play(card, eng.state.player_reserve[0]),
 			"the reserve never fights; furying a man on your own ship does nothing")
+	var crew := eng.state.player_formation.fielded()[0]
+	TestHelpers.station(eng.state.player_formation, crew, Formation.BACK, 3)
+	assert_true(eng.can_play(card, crew))
+
+
+## The Rally hole (docs/card-design-proposal.md, fact 9): HEAL was missing from
+## the fielded-only list, so the card could be spent on a man safe on the ship —
+## where its rider has nothing to ride on and quietly evaporates.
+func test_can_play_refuses_rally_on_a_man_on_your_own_ship() -> void:
+	var eng := _engine()
+	var card := _in_hand(eng, CardLibrary.rally())
+	var resting := eng.state.player_reserve[0]
+	resting.hp = 1
+	assert_false(eng.can_play(card, resting),
+			"you rally the men in the fight, not the ones behind you")
 	assert_true(eng.can_play(card, eng.state.player_formation.fielded()[0]))
+
+
+# --- The rider gate: a card whose movement is impossible is refused ----------
+# docs/card-design-proposal.md §5 Q3. Nothing is paid and the card is kept:
+# the same principle that refuses a Reinforce with nowhere to land.
+
+func test_can_play_refuses_a_card_whose_rider_has_nowhere_to_go() -> void:
+	var eng := _engine()
+	var card := _in_hand(eng, CardLibrary.battle_fury())
+	var crew := eng.state.player_formation.fielded()[0]
+	TestHelpers.station(eng.state.player_formation, crew, Formation.FRONT, 3)
+	assert_false(eng.can_play(card, crew),
+			"Press has no move for a man already at the rail, so the card is refused")
+
+
+func test_the_rider_gate_reads_the_whole_deck_when_no_ally_is_named() -> void:
+	var eng := _engine()
+	var probe := CardData.new("probe_larboard", "Probe", 0, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}] as Array[Dictionary])
+	_in_hand(eng, probe)
+	var f := eng.state.player_formation
+	var crew1 := f.fielded()[0]
+	var crew2 := f.fielded()[1]
+	TestHelpers.station(f, crew2, Formation.FRONT, 2)
+	assert_true(eng.can_play(probe), "crew2 has an empty slot to larboard of him")
+	TestHelpers.station(f, crew2, Formation.BACK, 0)
+	TestHelpers.station(f, crew1, Formation.FRONT, 0)
+	assert_false(eng.can_play(probe), "both men are at the larboard rail: nobody can take the step")
+
+
+func test_a_refused_rider_costs_nothing_at_all() -> void:
+	var eng := _engine(5)
+	var card := _in_hand(eng, CardLibrary.battle_fury())
+	var crew := eng.state.player_formation.fielded()[0]
+	TestHelpers.station(eng.state.player_formation, crew, Formation.FRONT, 3)
+	await eng._play_card(card, crew)
+	assert_true(eng.state.hand.has(card), "the card is kept")
+	assert_eq(eng.state.momentum, 5, "and nothing is paid")
+	assert_eq(crew.bonus_attacks, 0, "the effect never happened either")
 
 
 func test_can_play_reads_the_shove_precondition() -> void:
@@ -238,6 +294,51 @@ func test_pair_swap_counterpart_names_the_man_on_the_field() -> void:
 func test_pair_swap_counterpart_is_null_without_a_prowman() -> void:
 	var eng := _engine()
 	assert_eq(eng.pair_swap_counterpart(eng.state.player_reserve[0]), null)
+
+
+## Everyone Taunt could drag onto this man's column: every fielded defender
+## except the one already standing in its front slot, who has nowhere to come
+## from. The UI lights this list and submits nothing else.
+func test_taunt_targets_lists_every_defender_who_could_be_dragged_over() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var anchor := eng.state.player_formation.fielded()[0]
+	TestHelpers.station(eng.state.player_formation, anchor, Formation.FRONT, 2)
+	TestHelpers.station(f, f.fielded()[1], Formation.BACK, 3)
+	TestHelpers.station(f, f.fielded()[0], Formation.FRONT, 0)
+	assert_eq(eng.taunt_targets(anchor).size(), 2, "both of them can be shouted across")
+
+
+func test_taunt_targets_drops_the_man_already_standing_across_from_him() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var anchor := eng.state.player_formation.fielded()[0]
+	var facing := f.fielded()[0]
+	TestHelpers.station(eng.state.player_formation,
+			eng.state.player_formation.fielded()[1], Formation.BACK, 0)
+	TestHelpers.station(eng.state.player_formation, anchor, Formation.FRONT, 1)
+	TestHelpers.station(f, f.fielded()[1], Formation.BACK, 3)
+	TestHelpers.station(f, facing, Formation.FRONT, 1)
+	assert_false(eng.taunt_targets(anchor).has(facing), "he is already in that duel")
+	assert_eq(eng.taunt_targets(anchor).size(), 1)
+
+
+func test_taunt_targets_of_a_man_who_is_not_on_the_field_is_empty() -> void:
+	var eng := _engine()
+	assert_eq(eng.taunt_targets(eng.state.player_reserve[0]).size(), 0)
+	assert_eq(eng.taunt_targets(null).size(), 0)
+
+
+func test_can_drive_back_reaches_the_rank_at_the_rail_only() -> void:
+	var eng := _engine()
+	var f := eng.state.enemy_formation
+	var foe := f.fielded()[0]
+	assert_true(eng.can_drive_back(foe), "a front-liner can be driven off the rail")
+	TestHelpers.station(f, foe, Formation.BACK, 2)
+	assert_false(eng.can_drive_back(foe), "there is nowhere further back to drive him")
+	assert_false(eng.can_drive_back(null))
+	assert_false(eng.can_drive_back(eng.state.player_formation.fielded()[0]),
+			"and it is a card you play on them, not on your own line")
 
 
 func test_shove_directions_lists_larboard_before_starboard() -> void:

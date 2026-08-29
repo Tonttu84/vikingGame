@@ -125,7 +125,11 @@ func test_the_limit_leaves_room_for_the_turn_refill_plus_a_feint() -> void:
 
 
 func test_feint_can_push_the_hand_past_the_refill_size() -> void:
-	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "crew")]})
+	var crew := TestHelpers.grunt(P, "crew")
+	var eng := TestHelpers.engine_for({"player_field": [crew],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	# The Feint's Close rider must have a step to take, or the card is refused.
+	TestHelpers.station(eng.state.enemy_formation, eng.state.fielded(E)[0], Formation.FRONT, 2)
 	eng.state.hand.clear()
 	for i in BattleState.HAND_SIZE:
 		eng.state.hand.append(CardLibrary.loot("l%d" % i, "Silver"))

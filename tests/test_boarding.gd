@@ -234,7 +234,7 @@ func test_swap_rotates_wounded_for_fresh() -> void:
 	})
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, tired)
 	assert_true(eng.state.player_reserve.has(tired), "the wounded man falls back")
 	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), fresh,
@@ -249,7 +249,7 @@ func test_swap_trades_two_fielded_men() -> void:
 	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, front, back)
 	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), back, "they trade slots")
 	assert_eq(eng.state.player_formation.at(Formation.BACK, 0), front)
@@ -263,7 +263,7 @@ func test_swap_honors_explicit_second_target() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [out], "player_reserve": [r1, r2]})
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, out, r2)
 	assert_true(eng.state.player_formation.has(r2), "the chosen man crosses")
 	assert_true(eng.state.player_reserve.has(r1), "not the first in line")
@@ -274,7 +274,7 @@ func test_swap_refused_without_a_reserve() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [solo]})
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, solo)
 	assert_true(eng.state.hand.has(card), "no one to trade with: refused")
 
@@ -290,7 +290,7 @@ func test_swap_takes_the_ship_first_when_a_man_waits_there() -> void:
 	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, front)
 	assert_true(eng.state.player_formation.has(waiting), "the man on the ship comes over")
 	assert_true(eng.state.player_reserve.has(front), "the named man falls back")
@@ -306,7 +306,7 @@ func test_swap_falls_back_to_the_deck_when_the_ship_is_empty() -> void:
 	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
 	var card := CardLibrary.swap()
 	eng.state.hand.append(card)
-	eng.state.momentum = 1
+	eng.state.momentum = 2
 	await eng._play_card(card, front)
 	assert_false(eng.state.hand.has(card), "a fielded trade is legal with an empty reserve")
 	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), back, "they trade slots")

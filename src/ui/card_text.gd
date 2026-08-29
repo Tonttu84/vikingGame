@@ -38,14 +38,16 @@ static func rider_kind(card: CardData) -> String:
 		return "move"
 	for effect in card.effects:
 		match effect.get("type"):
-			CardData.EffectType.RIDER_SLIDE:
-				return "slide"
-			CardData.EffectType.RIDER_STEP:
-				return "step"
-			CardData.EffectType.RIDER_ADVANCE:
-				return "advance"
-			CardData.EffectType.RIDER_SWAP_FIELDED:
-				return "swap"
+			CardData.EffectType.RIDER_LARBOARD:
+				return "step to larboard"
+			CardData.EffectType.RIDER_STARBOARD:
+				return "step to starboard"
+			CardData.EffectType.RIDER_FORWARD:
+				return "press forward"
+			CardData.EffectType.RIDER_BACKWARD:
+				return "give ground"
+			CardData.EffectType.RIDER_CLOSE:
+				return "close"
 	return "move"
 
 
@@ -66,8 +68,10 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "Pull an ally out of the fight, back to your ship."
 		CardData.EffectType.SHOVE:
 			return "Shove an enemy front-liner one column sideways — re-aim THEIR line."
-		CardData.EffectType.CHALLENGE:
-			return "Both captains must be in the line: they attack each other this round, columns be damned."
+		CardData.EffectType.TAUNT:
+			return "Name a defender and one of your men: he is dragged into the front slot of your man's column, swapping with whoever stood there."
+		CardData.EffectType.DRIVE_BACK:
+			return "Drive an enemy front-liner into the second line of his column, swapping with the man behind him. He still takes his column's blows — he just cannot answer them."
 		CardData.EffectType.BLOCK_REINFORCEMENTS:
 			return "The enemy gets no reinforcements next turn."
 		CardData.EffectType.EXTRA_ATTACK:
@@ -89,14 +93,16 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "%d extra defenders have time to form up at the rail." % amount
 		CardData.EffectType.ENEMY_MORALE_BONUS:
 			return "The watch stands composed: every defender gains %d morale." % amount
-		CardData.EffectType.RIDER_SLIDE:
-			return "Then slide one of your men one column, larboard or starboard (must move if you can)."
-		CardData.EffectType.RIDER_STEP:
-			return "Then he steps to the other line of his column, forward or back (must move if he can)."
-		CardData.EffectType.RIDER_ADVANCE:
-			return "Then he advances into the empty front slot of his column (must move if he can)."
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			return "Then two of your men on deck trade slots (must move if you can)."
+		CardData.EffectType.RIDER_LARBOARD:
+			return "Then one of your men steps one column to LARBOARD. Mandatory."
+		CardData.EffectType.RIDER_STARBOARD:
+			return "Then one of your men steps one column to STARBOARD. Mandatory."
+		CardData.EffectType.RIDER_FORWARD:
+			return "PRESS: then he advances into the empty front slot of his column. Mandatory."
+		CardData.EffectType.RIDER_BACKWARD:
+			return "GIVE GROUND: then he falls back into the empty second-line slot of his column. Mandatory."
+		CardData.EffectType.RIDER_CLOSE:
+			return "CLOSE: then one of your men steps one column toward the nearest enemy. Mandatory."
 	return ""
 
 
@@ -139,7 +145,7 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Momentum[/b] powers cards: +1 each turn, more for each enemy slain. Routs pay nothing — breaking men is free but earns no tempo.
 
-[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards — most also move your men, and that move is mandatory: the board lights up every man who can take it and you pick which, never whether. Then both formations fight, fastest first. Axes ignore 2 armor.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Trade Places, Drag Him Back!), which wait in hand for their moment. Play cards — most also move one of your men, and that move is mandatory and its DIRECTION IS PRINTED ON THE CARD: larboard, starboard, press forward, give ground, or close on the nearest enemy. The board lights up every man who could take that step and you pick which one, never whether and never which way — and a card whose step nobody can take cannot be played at all. Then both formations fight, fastest first. Axes ignore 2 armor.
 
 [b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
 
@@ -147,4 +153,4 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Morale[/b]: every death shakes the fallen side (-2 morale on deck, captains and berserkers excepted). At 0 a fighter routs, shaking the line further. Routs win battles as surely as blood.
 
-[b]The rail[/b]: enemies reinforce 2 per turn into their front gaps. Commit your own reserve for 1 momentum each — click the man, then the slot; the reserve itself never fights and is never hit. Your captain and his prowman are alternates: one of them always holds the field, and only Swap trades them, so the waiting one shows dimmed on your rail. Retreat is always on the table — a live crew beats a dead legend."""
+[b]The rail[/b]: enemies reinforce 2 per turn into their front gaps. Commit your own reserve for 1 momentum each — click the man, then the slot; the reserve itself never fights and is never hit. Your captain and his prowman are alternates: one of them always holds the field, and only Trade Places trades them, so the waiting one shows dimmed on your rail. Retreat is always on the table — a live crew beats a dead legend."""

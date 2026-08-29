@@ -160,6 +160,17 @@ Phase C rulings (decided; v0 numbers, D owns the retune):
 
 ## Cards: movement rides on effects
 
+> **Superseded in part by the card rework** (docs/card-design-proposal.md,
+> shipped; the set is tabulated in docs/combat-design.md). What survives from
+> this section: riders are mandatory, they resolve after the effect, and they
+> never cross the rail. What changed: **the direction is now fixed by the
+> card** rather than chosen by the player (a free direction is always good and
+> so is never a cost), the mover is the card's ally target where it has one,
+> the "generic slide" and the position-dependent "step" are gone, **a card
+> whose rider has no legal move is refused before payment** instead of being
+> skipped in silence, and Challenge has been folded into the new Taunt. The
+> sketch table below is the pre-rework state, kept for the history.
+
 The design principle (decided): **movement is semi-free — it rides on cards
 you would play anyway.** A pure movement card has to compete with direct
 effects for the same card slot and loses; a free-move action makes position

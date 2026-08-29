@@ -1,11 +1,33 @@
 # Card Design Proposal — the real card set (phase D, card rework)
 
-**Status: PROPOSAL. Nothing here is implemented.** No file in `src/`,
-`tests/` or the shipped docs was touched to write this. Every cost in this
-document is a *starting guess*, not a measured value: the owner's standing
-ruling is that prices and roster HP are tuned against sims only once the
-cards are real, and this document is the "make them real" step, not the
-tuning step. Suite was green at 740 checks when this was written.
+**Status: IMPLEMENTED** (everything except the jump, §4/Q6 — see the
+answers below). The shipped rules now live in `docs/combat-design.md`,
+"Cards = the captain's voice"; this document is kept as the reasoning behind
+them. Every cost in it is still a *starting guess*, not a measured value: the
+owner's standing ruling is that prices and roster HP are tuned against sims
+only once the cards are real, and this document was the "make them real"
+step, not the tuning step. Suite was green at 740 checks when this was
+written and at 815 unit + 91 smoke when it shipped.
+
+**The owner's answers to §5**, all final:
+
+| | Question | Answer |
+| --- | --- | --- |
+| Q1 | Fixed direction, or fixed direction *and* a named mover? | **As recommended.** Direction always fixed; the mover is the card's ally target where it has one (so 0 or 1 moves and no prompt), the player's pick otherwise. |
+| Q2 | Absolute or relational directions? | **Both, in registers**, exactly as §2 assigns them: perk riders (Close, Press) on the cheap cards, the coin-flip pair on the mid ones, Give Ground on the strong ones. |
+| Q3 | Refuse a card whose rider cannot move? | **Yes — gate them all**, in `_effect_preconditions_met`. Battle Fury is refused on a front-liner, Rally on a second-liner or a man whose slot behind is taken, Shield Wall when nobody can retire. That is intended, not collateral. |
+| Q4 | Fold Challenge into Taunt? | **Fold it.** The card, `challenge_active`, the branches in `_pick_target` and `_can_melee`, the bot's special case and the UI chip are all deleted. |
+| Q5 | Trade Places at cost 2, still Retained? | **Yes to both.** The id stays `swap` so decks and debug tools do not churn; only the face and the price change. |
+| Q6 | Jump: in or out? | **Deferred, not cut on principle.** If it ever ships it must be a *player-aimed* jump movement on a card that also carries a real effect — never a pure-movement card — and it lands after the numeric retune. |
+| Q7 | Should riders displace? | **No.** The destination must be empty, always. A swap is a strong effect worth its own card. |
+| Q8 | Equal larboard/starboard counts? | **Yes, enforced by a test** over both decks (starter 3/3, veteran 5/5). |
+| Q9 | Do the defenders get Taunt and Drive Him Back? | **Not in this slice.** Player-side only, so the coming turn stays readable off the board. |
+| Q10 | Rally restricted to fielded allies? | **Yes** — `HEAL` joins the fielded-only list in `_target_valid`. It was a live bug and started with a regression test. |
+
+One thing was added that the proposal did not call for: naming only the enemy
+on a Taunt falls back to the first man on deck who could anchor it, the way
+Reinforce and Trade Places already default their second pick. The UI always
+names both; the default is what keeps the card playable for a bot.
 
 It answers the brief: **every card carries both a movement and an effect;
 the movement is a FIXED direction, never "your choice of direction";

@@ -236,33 +236,109 @@ killable.
 
 You are the captain shouting orders; the deck is your tactical vocabulary.
 Cards come from your captain's skills, crew abilities, ship fittings, and
-(dead weight) loot. Starter vocabulary, ~15 cards for v0:
+(dead weight) loot. **The shipped set is 15 tactics** (card rework, phase D —
+docs/card-design-proposal.md is the design; every ruling in it is implemented
+except the jump, see below).
 
-| Card | Cost | Effect |
+**Every card carries both an effect and a movement, and the movement's
+direction is fixed by the card.** That is the structural rule the set is
+built on, and it partitions cleanly into three families:
+
+| Family | The movement is | Cards |
 | --- | --- | --- |
-| Spear Volley | 2 | 2 damage to every enemy in their front line; then slide |
-| Concentrated Attack | 2 | Everyone who can REACH the target (his column's attackers + your archers) strikes it this turn; then slide |
-| Shield Wall | 1 | Your side takes −2 damage per hit until your next turn; then any two of your fielded men trade slots |
-| Rally | 1 | Heal a character 4; he then steps to the other line of his column |
-| Drag Him Back! | 1 | Retained. Fires automatically when a killing blow lands on a crew member: cancels it, pulls them to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) |
-| Break the Line | 1 | Shove an enemy front-liner one column sideways — you re-aim THEIR formation (out of his duel, into a worse one) |
-| Challenge | 2 | Only while both captains are fielded: they attack each other this round regardless of columns; everyone else fights on |
-| Push Them Back | 2 | No enemy reinforcements next turn |
-| Battle Fury | 1 | A character attacks twice this turn; he then advances into the empty front slot of his column (the fury travels with him) |
-| Feint | 0 | Draw 2 cards; then slide |
-| Terrifying Bellow | 1 | 2 morale damage to every fielded enemy; then slide |
-| Reinforce | 1 | Retained. Field a man from your ship into a slot you choose |
-| Swap | 1 | Retained. Any two of your men trade slots (fielded↔fielded or fielded↔reserve) |
-| War Cry | 1 | +1 momentum per enemy killed this turn (stacks the snowball); then slide |
+| **Rail** | a crossing, field ↔ reserve | Reinforce, Trade Places, Drag Him Back! |
+| **Theirs** | forced on an enemy — the effect itself | Break the Line, Drive Him Back, Taunt |
+| **Riders** | a fixed step by one of your own men | everything else |
 
-**Movement riders** (phase D of the lines redesign): "then slide" is one of
-your fielded men moving one column sideways into an empty slot. Riders
-resolve LAST, after the card's own effect, and they are **mandatory** — if
-any legal move exists the engine makes one and you only choose which; a
-rider with no legal destination at all is skipped in silence. Riders move
-men between slots, never across the rail, so the prow pair's law is
-untouched. Prices in this table are still the pre-rider ones; the retune to
-6–10 turn fights is the rest of phase D.
+### The five fixed movements (riders)
+
+| Keyword | Meaning | Register |
+| --- | --- | --- |
+| **Close** | one column toward the nearest occupied enemy column (larboard on a tie) — the closing rule's own direction | perk |
+| **Press** | second line → the empty front slot of his column | perk / setup |
+| **Larboard** | one column toward column 0, along his own line | coin-flip cost |
+| **Starboard** | one column toward column 3, along his own line | coin-flip cost |
+| **Give Ground** | front → the empty second-line slot of his column | penalty |
+
+Perk riders ride the cheap cards, the coin-flip pair the mid cards, Give
+Ground the strong ones. Larboard and starboard are carried in **equal numbers
+in every deck** (a test enforces it): on a symmetric board an imbalance is not
+flavour, it is a silent drift of the whole crew toward one rail.
+
+### The set
+
+| Card | Cost | Effect | Movement |
+| --- | --- | --- | --- |
+| Reinforce | 1 | Retained. Field a man from your ship into a slot you choose | the crossing |
+| Trade Places | 2 | Retained. Any two of your men trade slots (fielded↔fielded or fielded↔reserve) | the trade |
+| Drag Him Back! | 1 | Retained, reaction. Fires automatically when a killing blow lands on a crew member: cancels it, pulls him to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) | the pull |
+| Break the Line | 1 | Shove an enemy front-liner one column sideways — you re-aim THEIR formation | theirs, your chosen direction |
+| Drive Him Back | 2 | An enemy front-liner is driven into the second line of his column, swapping with the man behind him | theirs |
+| Taunt | 2 | Name a defender and one of your men: the defender is dragged into the front slot of your man's column, swapping with whoever stood there | theirs |
+| Feint | 0 | Draw 2 | Close |
+| War Cry | 1 | +1 momentum per enemy slain this turn | Larboard |
+| Terrifying Bellow | 1 | 2 morale damage to every fielded enemy | Starboard |
+| Spear Volley | 2 | 2 true damage to every enemy front-liner | Larboard |
+| Concentrated Attack | 2 | Everyone who can REACH the target (his column's attackers + your archers) strikes it this fight phase | Starboard |
+| Battle Fury | 1 | An ally strikes one extra time this fight phase | Press |
+| Push Them Back | 2 | No enemy reinforcements next turn | Press |
+| Shield Wall | 1 | Your side takes −2 from every hit until your next turn; stops arrow volleys | Give Ground |
+| Rally | 1 | Heal a **fielded** ally 4 | Give Ground |
+
+Prices are still the pre-retune ones; card prices and roster HP are the last
+mile to 6–10 turn fights and are deliberately untuned until the cards are
+real, which is what this set is.
+
+### Rulings the set depends on
+
+- **The direction is never the player's.** A free direction is always good
+  and so is never a cost. The player picks WHICH man takes the step; a card
+  that names an ally binds the rider to him, so it asks nothing at all.
+- **You may aim what you do to them; you may not aim what an order does to
+  your own crew.** That is why Break the Line keeps a chosen direction: the
+  shove *is* its effect, not a price attached to one.
+- **Riders never displace** — the destination must be empty. A swap is a
+  strong effect worth a card of its own (Trade Places), not a rider.
+- **A card whose rider has no legal move is refused before payment**, card
+  kept, nothing paid, exactly as a Reinforce with nowhere to land is. The
+  movement is part of the price, so it cannot be engineered away by packing
+  your grid. Battle Fury cannot be played on a front-liner; Rally cannot be
+  played on a second-liner or on a man whose slot behind is taken; Shield
+  Wall needs a front-liner who can retire. That is intended. The three
+  rider-less rail cards are the escape valve, and ending the turn is always
+  legal.
+- **Rally is fielded-only.** Healing a man safe on the ship is not the
+  decision the card asks for, and its rider would have nothing to ride on.
+- **Give Ground is a disarm, never an escape** (and so is Drive Him Back
+  from the other side): a man who retires inside his own column is still the
+  man that column's attacker hits — `Formation.column_melee_target` takes the
+  front man *if there is one, else the back man*. He has only given up his
+  own swing. Only emptying a whole column dodges anything.
+- **Challenge is folded into Taunt.** Taunt on the enemy captain *is* a
+  challenge, expressed as movement rather than as a targeting override. The
+  card, `challenge_active`, and the captain branches in `_pick_target` and
+  `_can_melee` are deleted: there is no targeting override left in the
+  engine, and a duel is arranged by moving men.
+- **Taunt cannot be edge-blocked** — its destination is your own man's
+  column — and it hauls a second-liner FORWARD, which is what drags their
+  archer out of sniping position (`_is_sniper` requires the back line). It
+  only ever increases contact, so it can never manufacture dead air.
+- **Drive Him Back is weapon-aware without weapon code**: a spearman shrugs
+  it off (reach works from the second line), a bowman is *upgraded* by it,
+  everyone else is silenced while he stays back. Playing it on the wrong man
+  helps them.
+- **No enemy Taunt or Drive Him Back.** Enemy movement is telegraphed a turn
+  ahead by design; an untelegraphed drag on their turn would break the rule
+  that the player can always read the coming turn off the board. If it is
+  ever added it arrives as a fifth captain's call, with a one-turn intent.
+- **Jump (two columns) is not in the set, and is not cut on principle.** A
+  fixed-direction jump is illegal from half the board at all times, and a
+  jump *out* of contact buys two turns of dead air for one card — it is the
+  one movement that can re-open the stall the closing rule closed. If it ever
+  ships it must be a **player-aimed jump attached to a card that also carries
+  a real effect** (every card is movement + effect; a pure-movement card
+  loses its slot to a real one), and it lands **after** the numeric retune,
+  not before.
 
 Design rules: damage cards should rarely beat just letting characters fight —
 cards **bend** the fight (tempo, protection, targeting, windows), they don't
@@ -275,8 +351,9 @@ explicitly to be validated in M2 playtests (see the watchlist at the end).
 
 - **Targeting is deterministic and spatial.** Who hits whom is decided by
   where people stand: a fighter attacks the nearest occupied enemy slot in
-  his own column, archers snipe the weakest man anywhere, a challenged
-  captain seeks the other captain. Who gets hit is never lucky or unlucky;
+  his own column and archers snipe the weakest man anywhere. There is no
+  override: to force a duel you MOVE a man into it (Taunt). Who gets hit is
+  never lucky or unlucky;
   targeting RNG would undermine the no-dice rule below. Predictable AI is
   a feature — you plan around it like a puzzle, and the sim can verify it.
 - **The bill is on the board.** The UI forecasts, per fighter, the physical

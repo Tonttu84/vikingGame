@@ -15,6 +15,18 @@ class NoCardBot:
 ## exercise the rules and set a floor, not to play well.
 class RandomBot:
 	var rng: RandomNumberGenerator
+	## The engine whose legality queries this bot asks before it proposes a
+	## play — the same questions the UI asks, so no rule is re-derived here.
+	## Left unset (older harnesses) the bot falls back to its own cheap checks
+	## and simply wastes an action whenever the engine refuses a card.
+	## Held WEAKLY: the engine holds its controller, so a strong link back
+	## would close a RefCounted cycle and leak every battle of a long sim.
+	var _engine_ref: WeakRef = null
+	var engine:
+		set(value):
+			_engine_ref = weakref(value) if value != null else null
+		get:
+			return _engine_ref.get_ref() if _engine_ref != null else null
 
 	func _init(p_rng: RandomNumberGenerator) -> void:
 		rng = p_rng
@@ -54,18 +66,14 @@ class RandomBot:
 		return {"op": "play", "card": card, "target": _target_for(card, state)}
 
 	## Skip cards the engine would refuse, so the bot never spins on them.
+	## Since the rider gate landed this is not a nicety: a card can be
+	## unplayable because of where your own men stand, and a bot that keeps
+	## offering one burns its turn instead of making a decision.
 	func _card_usable(card: CardData, state: BattleState) -> bool:
-		for effect in card.effects:
-			if effect.get("type") == CardData.EffectType.CHALLENGE:
-				if state.player_captain == null \
-						or not state.player_formation.has(state.player_captain):
-					return false
-				if state.enemy_captain == null \
-						or not state.enemy_formation.has(state.enemy_captain):
-					return false
-		if card.target_type != CardData.TargetType.NONE and _target_for(card, state) == null:
+		var target := _target_for(card, state)
+		if card.target_type != CardData.TargetType.NONE and target == null:
 			return false
-		return true
+		return engine.can_play(card, target) if engine != null else true
 
 	func _random_free_slot(state: BattleState) -> int:
 		var free: Array[int] = []
