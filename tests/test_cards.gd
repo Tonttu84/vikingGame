@@ -11,8 +11,11 @@ func test_spear_volley_hits_the_whole_enemy_front_line() -> void:
 	var e1 := TestHelpers.grunt(E, "e1", 12, 6, 3, 3, null, 3)
 	var e2 := TestHelpers.grunt(E, "e2")
 	var e3 := TestHelpers.grunt(E, "e3")
-	var eng := TestHelpers.engine_for({"enemy_field": [e1, e2, e3]})
+	var thrower := TestHelpers.grunt(P, "thrower")
+	var eng := TestHelpers.engine_for({"player_field": [thrower], "enemy_field": [e1, e2, e3]})
 	TestHelpers.station(eng.state.enemy_formation, e3, Formation.BACK, 0)
+	# Somebody has to be able to take the card's larboard step, or it is refused.
+	TestHelpers.station(eng.state.player_formation, thrower, Formation.FRONT, 1)
 	var card := CardLibrary.spear_volley()
 	eng.state.hand.append(card)
 	eng.state.momentum = 2
@@ -35,7 +38,11 @@ func test_rally_heals_capped_at_max() -> void:
 
 
 func test_feint_draws_two() -> void:
-	var eng := TestHelpers.engine_for({"deck": CardLibrary.starter_deck()})
+	var scout := TestHelpers.grunt(P, "scout")
+	var eng := TestHelpers.engine_for({"deck": CardLibrary.starter_deck(),
+		"player_field": [scout], "enemy_field": [TestHelpers.grunt(E, "e1")]})
+	# Feint's Close rider needs somewhere to close: their man is two columns off.
+	TestHelpers.station(eng.state.enemy_formation, eng.state.fielded(E)[0], Formation.FRONT, 2)
 	var card := CardLibrary.feint()
 	eng.state.hand.append(card)
 	var before := eng.state.hand.size()
@@ -44,9 +51,13 @@ func test_feint_draws_two() -> void:
 
 
 func test_push_them_back_blocks_one_reinforcement() -> void:
+	var runner := TestHelpers.grunt(P, "runner")
 	var eng := TestHelpers.engine_for({
+		"player_field": [runner],
 		"enemy_reserve": [TestHelpers.grunt(E, "r1"), TestHelpers.grunt(E, "r2")],
 	})
+	# Its Press rider needs a second-liner with an empty slot in front of him.
+	TestHelpers.station(eng.state.player_formation, runner, Formation.BACK, 0)
 	var card := CardLibrary.push_them_back()
 	eng.state.hand.append(card)
 	eng.state.momentum = 2
@@ -112,7 +123,8 @@ func test_drag_him_back_cancels_a_killing_blow() -> void:
 func test_terrifying_bellow_breaks_shaky_enemies() -> void:
 	var e1 := TestHelpers.grunt(E, "e1", 12, 2)
 	var e2 := TestHelpers.grunt(E, "e2", 12, 2)
-	var eng := TestHelpers.engine_for({"enemy_field": [e1, e2]})
+	var roarer := TestHelpers.grunt(P, "roarer")
+	var eng := TestHelpers.engine_for({"player_field": [roarer], "enemy_field": [e1, e2]})
 	var card := CardLibrary.terrifying_bellow()
 	eng.state.hand.append(card)
 	eng.state.momentum = 1
@@ -153,3 +165,34 @@ func test_card_library_builds_cards_by_id() -> void:
 func test_starter_deck_ids_all_resolve() -> void:
 	for card in CardLibrary.starter_deck():
 		assert_true(CardLibrary.by_id(card.id) != null, "starter card resolvable: " + card.id)
+
+
+## Trade Places is the strongest positional tool in the game: any two of your
+## men, on deck or on the ship. It is priced as an effect, not as a rider.
+func test_trade_places_is_a_two_momentum_card_and_still_retained() -> void:
+	var card := CardLibrary.swap()
+	assert_eq(card.id, "swap", "the id is deck data; only the face changed")
+	assert_eq(card.display_name, "Trade Places")
+	assert_eq(card.cost, 2)
+	assert_true(card.retained, "its job is the emergency rotation, on the turn it is needed")
+
+
+## Larboard and starboard have no intrinsic meaning on a symmetric board, so
+## an unequal deck is not flavour — it is a silent structural drift of your
+## whole crew toward one rail (docs/card-design-proposal.md §2).
+func test_both_decks_pull_equally_to_larboard_and_starboard() -> void:
+	for deck_name in ["starter", "veteran"]:
+		var deck: Array[CardData] = CardLibrary.starter_deck() if deck_name == "starter" \
+				else CardLibrary.veteran_deck()
+		var larboard := 0
+		var starboard := 0
+		for card in deck:
+			for effect in card.effects:
+				match effect.get("type"):
+					CardData.EffectType.RIDER_LARBOARD:
+						larboard += 1
+					CardData.EffectType.RIDER_STARBOARD:
+						starboard += 1
+		assert_true(larboard > 0, "%s deck carries the coin-flip riders at all" % deck_name)
+		assert_eq(larboard, starboard,
+				"%s deck: %d larboard vs %d starboard" % [deck_name, larboard, starboard])

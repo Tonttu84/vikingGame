@@ -323,6 +323,131 @@ func test_rider_never_fires_when_the_card_ends_the_battle() -> void:
 	assert_eq(eng.state.player_formation.at(F, 1), p1, "a won battle carries no rider")
 
 
+# --- The shipped set: which card carries which direction ---------------------
+# docs/card-design-proposal.md §2. Perk riders (Close, Press) ride the cheap
+# cards, the coin-flip pair (Larboard, Starboard) the mid ones, Give Ground
+# the strong ones. The direction is on the card face; only the man is a choice.
+
+func test_spear_volley_steps_a_man_to_larboard() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 2)
+	await _play(eng, CardLibrary.spear_volley())
+	assert_eq(eng.state.player_formation.at(F, 1), p1)
+
+
+func test_war_cry_steps_a_man_to_larboard() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 2)
+	await _play(eng, CardLibrary.war_cry())
+	assert_true(eng.state.war_cry_active)
+	assert_eq(eng.state.player_formation.at(F, 1), p1)
+
+
+func test_concentrated_attack_steps_a_man_to_starboard() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 2)
+	await _play(eng, CardLibrary.concentrated_attack(), e1)
+	assert_eq(eng.state.focus_target, e1)
+	assert_eq(eng.state.player_formation.at(F, 3), p1)
+
+
+func test_terrifying_bellow_steps_a_man_to_starboard() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1", 12, 2)]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 2)
+	await _play(eng, CardLibrary.terrifying_bellow())
+	assert_eq(eng.state.player_formation.at(F, 3), p1)
+
+
+func test_feint_closes_a_man_toward_the_fighting() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var e1 := TestHelpers.grunt(E, "e1")
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1],
+			"deck": CardLibrary.starter_deck()})
+	TestHelpers.station(eng.state.player_formation, p1, F, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 3)
+	await _play(eng, CardLibrary.feint())
+	assert_eq(eng.state.hand.size(), 2, "drew two, spent itself")
+	assert_eq(eng.state.player_formation.at(F, 1), p1, "and walked a man into the fight for free")
+
+
+## Rally's price is his swings — unless he carries a spear, whose reach makes
+## the second line no cage at all. Two shipped rules meeting, no new mechanism.
+func test_rally_gives_ground_with_the_man_it_heals() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	p1.hp = 6
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 2)
+	await _play(eng, CardLibrary.rally(), p1)
+	assert_eq(p1.hp, 10, "healed 4 first")
+	assert_eq(eng.state.player_formation.at(B, 2), p1, "then he falls back out of the swinging")
+
+
+func test_rally_is_refused_on_a_man_who_cannot_give_ground() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	p1.hp = 6
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	TestHelpers.station(eng.state.player_formation, p1, B, 2)
+	var card := CardLibrary.rally()
+	eng.state.hand.append(card)
+	eng.state.momentum = 3
+	await eng._play_card(card, p1)
+	assert_eq(p1.hp, 6, "a second-liner has no ground to give: refused, unhealed")
+	assert_eq(eng.state.momentum, 3, "and unpaid for")
+
+
+func test_shield_wall_makes_a_front_liner_give_ground() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	TestHelpers.station(eng.state.player_formation, p1, F, 1)
+	await _play(eng, CardLibrary.shield_wall())
+	assert_true(eng.state.shield_wall_active, "the wall goes up first")
+	assert_eq(eng.state.player_formation.at(B, 1), p1,
+			"the wall is standing off, not standing firm: one man takes the round off")
+
+
+func test_push_them_back_presses_a_second_liner_forward() -> void:
+	var p1 := TestHelpers.grunt(P, "p1")
+	var eng := TestHelpers.engine_for({"player_field": [p1],
+			"enemy_reserve": [TestHelpers.grunt(E, "r1")]})
+	TestHelpers.station(eng.state.player_formation, p1, B, 1)
+	await _play(eng, CardLibrary.push_them_back())
+	assert_true(eng.state.block_reinforcements, "the rail is held")
+	assert_eq(eng.state.player_formation.at(F, 1), p1, "and a man is committed to the front rank")
+
+
+func test_battle_fury_presses_its_target_forward() -> void:
+	var p1 := TestHelpers.grunt(P, "p1", 12, 6, 3, 3, Weapon.sword(), 0)
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 0)
+	await _play(eng, CardLibrary.battle_fury(), p1)
+	assert_eq(eng.state.player_formation.at(F, 0), p1, "he pushes into the empty front slot")
+	assert_eq(p1.bonus_attacks, 1, "the fury travels with him")
+	await eng._fight_phase(P)
+	assert_eq(e1.hp, 30 - 5 - 5, "two swings from his new place in the line")
+
+
+func test_the_rail_cards_carry_no_rider_at_all() -> void:
+	for card in [CardLibrary.reinforce(), CardLibrary.swap(), CardLibrary.drag_him_back(),
+			CardLibrary.break_the_line()]:
+		for effect in card.effects:
+			var text := CardText._effect_line(effect)
+			assert_false(text.contains("Mandatory"),
+					"%s is movement in its own right; it rides on nothing" % card.id)
+
+
 # --- The rail and the prow pair are untouched --------------------------------
 
 func test_a_rider_never_reaches_over_the_rail() -> void:

@@ -48,12 +48,6 @@ static func rider_kind(card: CardData) -> String:
 				return "give ground"
 			CardData.EffectType.RIDER_CLOSE:
 				return "close"
-			CardData.EffectType.RIDER_SLIDE:
-				return "slide"
-			CardData.EffectType.RIDER_STEP:
-				return "step"
-			CardData.EffectType.RIDER_SWAP_FIELDED:
-				return "swap"
 	return "move"
 
 
@@ -107,12 +101,6 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "GIVE GROUND: then he falls back into the empty second-line slot of his column. Mandatory."
 		CardData.EffectType.RIDER_CLOSE:
 			return "CLOSE: then one of your men steps one column toward the nearest enemy. Mandatory."
-		CardData.EffectType.RIDER_SLIDE:
-			return "Then slide one of your men one column, larboard or starboard (must move if you can)."
-		CardData.EffectType.RIDER_STEP:
-			return "Then he steps to the other line of his column, forward or back (must move if he can)."
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			return "Then two of your men on deck trade slots (must move if you can)."
 	return ""
 
 

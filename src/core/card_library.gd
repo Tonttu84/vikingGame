@@ -7,27 +7,32 @@ extends RefCounted
 static func spear_volley() -> CardData:
 	# The volley falls on the rank at the rail — their second line stands
 	# behind the front men's shields — and the throwers step as they loose.
+	# The shieldman answer, at the price of a step you did not choose.
 	return CardData.new("spear_volley", "Spear Volley", 2, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
 
 
 static func concentrated_attack() -> CardData:
 	return CardData.new("concentrated_attack", "Concentrated Attack", 2, CardData.TargetType.ENEMY,
 			[{"type": CardData.EffectType.FOCUS_FIRE, "amount": 0},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_STARBOARD, "amount": 1}])
 
 
 static func shield_wall() -> CardData:
+	# The wall is standing off, not standing firm: a front-liner you name gives
+	# ground, so the whole crew's round is bought with one man's swings.
 	return CardData.new("shield_wall", "Shield Wall", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.SHIELD_WALL, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SWAP_FIELDED, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_BACKWARD, "amount": 1}])
 
 
 static func rally() -> CardData:
+	# The breather: heal him and lose his swings — unless he carries a spear,
+	# whose reach makes the second line no cage at all and the price zero.
 	return CardData.new("rally", "Rally", 1, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.HEAL, "amount": 4},
-			{"type": CardData.EffectType.RIDER_STEP, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_BACKWARD, "amount": 1}])
 
 
 static func drag_him_back() -> CardData:
@@ -53,8 +58,11 @@ static func challenge() -> CardData:
 
 
 static func push_them_back() -> CardData:
+	# A turn of no fresh defenders, paid for by committing a man to the front
+	# rank while it lasts.
 	return CardData.new("push_them_back", "Push Them Back", 2, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.BLOCK_REINFORCEMENTS, "amount": 0}])
+			[{"type": CardData.EffectType.BLOCK_REINFORCEMENTS, "amount": 0},
+			{"type": CardData.EffectType.RIDER_FORWARD, "amount": 1}])
 
 
 static func battle_fury() -> CardData:
@@ -64,21 +72,22 @@ static func battle_fury() -> CardData:
 
 
 static func feint() -> CardData:
+	# Cards for free, and a man walked into contact for free with them.
 	return CardData.new("feint", "Feint", 0, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DRAW, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_CLOSE, "amount": 1}])
 
 
 static func war_cry() -> CardData:
 	return CardData.new("war_cry", "War Cry", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.WAR_CRY, "amount": 1},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
 
 
 static func terrifying_bellow() -> CardData:
 	return CardData.new("terrifying_bellow", "Terrifying Bellow", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES, "amount": 2},
-			{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_STARBOARD, "amount": 1}])
 
 
 static func reinforce() -> CardData:
@@ -89,7 +98,10 @@ static func reinforce() -> CardData:
 
 
 static func swap() -> CardData:
-	var card := CardData.new("swap", "Swap", 1, CardData.TargetType.ALLY,
+	# The set's strongest positional tool: any two of your men trade slots,
+	# on deck or over the rail. Priced as an effect, not smuggled in as a
+	# rider — the id stays "swap" so decks and debug tools do not churn.
+	var card := CardData.new("swap", "Trade Places", 2, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.SWAP, "amount": 1}])
 	card.retained = true
 	return card
@@ -236,7 +248,7 @@ static func veteran_deck() -> Array[CardData]:
 		deck.append(break_the_line())
 		deck.append(push_them_back())
 		deck.append(war_cry())
-	deck.append(terrifying_bellow())
+		deck.append(terrifying_bellow())
 	deck.append(loot("loot_silver_a", "Plundered Silver"))
 	deck.append(loot("loot_silver_b", "Plundered Silver"))
 	deck.append(loot("loot_cauldron", "Iron Cauldron"))

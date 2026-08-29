@@ -37,12 +37,6 @@ enum EffectType {
 	RIDER_FORWARD,             ## "Press": second line into the empty front slot of his column
 	RIDER_BACKWARD,            ## "Give Ground": front into the empty second-line slot
 	RIDER_CLOSE,               ## one column toward the nearest occupied enemy column
-	# --- Retired rider vocabulary, still carried by the pre-rework cards until
-	# the card set is re-riddden (they let the player pick the direction, which
-	# is the fake cost the rework exists to remove).
-	RIDER_SLIDE,               ## one of your fielded men slides one column sideways
-	RIDER_STEP,                ## the ally target steps to the other line of his column
-	RIDER_SWAP_FIELDED,        ## any two of your fielded men trade slots
 }
 
 var id: String

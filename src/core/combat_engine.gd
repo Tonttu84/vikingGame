@@ -508,9 +508,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 						[target.display_name, partner.display_name])
 		CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
 		CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
-		CardData.EffectType.RIDER_CLOSE, \
-		CardData.EffectType.RIDER_SLIDE, CardData.EffectType.RIDER_STEP, \
-		CardData.EffectType.RIDER_SWAP_FIELDED:
+		CardData.EffectType.RIDER_CLOSE:
 			await _resolve_rider(effect.get("type"), target, card)
 
 
@@ -540,10 +538,6 @@ func _resolve_rider(rider: CardData.EffectType, target: Character, card: CardDat
 func _rider_moves(rider: CardData.EffectType, card: CardData,
 		target: Character) -> Array[Dictionary]:
 	var moves: Array[Dictionary] = []
-	match rider:
-		CardData.EffectType.RIDER_SLIDE, CardData.EffectType.RIDER_STEP, \
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			return _legacy_rider_moves(rider, target)
 	for mover in _rider_movers(card, target):
 		var move := _rider_move_for(rider, mover)
 		if not move.is_empty():
@@ -599,34 +593,6 @@ func _rider_slide_move(mover: Character, line: int, col: int, dir: int) -> Dicti
 	return {"character": mover, "direction": dir}
 
 
-## The pre-rework riders, still carried by the cards until the set is
-## re-ridden. Deleted with the last card that uses one.
-func _legacy_rider_moves(rider: CardData.EffectType, target: Character) -> Array[Dictionary]:
-	var moves: Array[Dictionary] = []
-	var formation := state.player_formation
-	match rider:
-		CardData.EffectType.RIDER_SLIDE:
-			for c in formation.fielded():
-				var line := formation.line_of(c)
-				for dir in [-1, 1]:
-					var col: int = formation.column_of(c) + dir
-					if Formation.in_bounds(line, col) and formation.at(line, col) == null:
-						moves.append({"character": c, "direction": dir})
-		CardData.EffectType.RIDER_STEP:
-			if target == null or not formation.has(target):
-				return moves
-			var line := formation.line_of(target)
-			var destination := Formation.FRONT if line == Formation.BACK else Formation.BACK
-			if formation.at(destination, formation.column_of(target)) == null:
-				moves.append({"character": target, "line": destination})
-		CardData.EffectType.RIDER_SWAP_FIELDED:
-			var men := formation.fielded()
-			for i in men.size():
-				for j in range(i + 1, men.size()):
-					moves.append({"a": men[i], "b": men[j]})
-	return moves
-
-
 ## Is the controller's answer one of the moves offered? Compared field by
 ## field: the same man and the same destination is the same move.
 func _rider_move_offered(moves: Array[Dictionary], answer: Dictionary) -> bool:
@@ -643,12 +609,6 @@ func _rider_move_offered(moves: Array[Dictionary], answer: Dictionary) -> bool:
 
 func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 	var formation := state.player_formation
-	if rider == CardData.EffectType.RIDER_SWAP_FIELDED:
-		var a: Character = move["a"]
-		var b: Character = move["b"]
-		if formation.swap_positions(a, b):
-			state.log_event("%s and %s trade places." % [a.display_name, b.display_name])
-		return
 	var mover: Character = move["character"]
 	if move.has("direction"):
 		var dir: int = move["direction"]

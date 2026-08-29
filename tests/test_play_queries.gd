@@ -56,7 +56,9 @@ func test_can_play_rejects_an_unaffordable_card() -> void:
 func test_can_play_accepts_an_affordable_untargeted_card() -> void:
 	var eng := _engine()
 	var card := _in_hand(eng, CardLibrary.war_cry())
-	assert_true(eng.can_play(card))
+	TestHelpers.station(eng.state.player_formation, eng.state.player_formation.fielded()[1],
+			Formation.FRONT, 2)
+	assert_true(eng.can_play(card), "somebody can take its larboard step")
 
 
 func test_can_play_rejects_a_target_for_an_untargeted_card() -> void:

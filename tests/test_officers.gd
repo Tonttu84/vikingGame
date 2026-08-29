@@ -82,7 +82,7 @@ func test_swap_trades_prowman_for_captain() -> void:
 	assert_eq(eng.state.player_formation.line_of(captain), line)
 	assert_eq(eng.state.player_formation.column_of(captain), col)
 	assert_true(eng.state.player_reserve.has(prow), "the prowman falls back to the ship")
-	assert_eq(eng.state.momentum, 2, "the swap is paid as usual")
+	assert_eq(eng.state.momentum, 1, "Trade Places is paid as usual")
 
 
 func test_swap_back_brings_the_prowman_again() -> void:

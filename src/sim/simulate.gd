@@ -69,6 +69,8 @@ func _init() -> void:
 		var bot_rng := RandomNumberGenerator.new()
 		bot_rng.seed = base_seed + i
 		var bot = Bots.NoCardBot.new() if bot_kind == "none" else Bots.RandomBot.new(bot_rng)
+		if bot is Bots.RandomBot:
+			bot.engine = engine  # so it asks the engine what is legal, as the UI does
 		var scenario := Scenarios.by_id(scenario_id)
 		var artifacts: Array[ArtifactData] = []
 		for id in artifact_ids:
