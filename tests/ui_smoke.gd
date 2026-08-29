@@ -121,6 +121,193 @@ func _card_view(ui, card: CardData):
 	return null
 
 
+## --- Layout guard -----------------------------------------------------------
+## The design canvas. Anything sticking out of it is invisible in the real
+## window: the stretch mode scales this rectangle and nothing else, so a
+## control past the edge is simply gone — which is how the End Turn button
+## vanished once the rules text on a card grew long enough to inflate the
+## hand row. Checked at every stage rather than once at boot, because the
+## opening screen fit perfectly while the dealt hand did not.
+const CANVAS := Vector2(1280, 800)
+
+
+func _overflowing(node: Node, out: Array) -> void:
+	if node is Control:
+		var c := node as Control
+		if c.is_visible_in_tree():
+			var r := c.get_global_rect()
+			if r.size.x > 0.0 and r.size.y > 0.0:
+				var ow: float = r.end.x - CANVAS.x
+				var oh: float = r.end.y - CANVAS.y
+				if ow > 0.5 or oh > 0.5 or r.position.x < -0.5 or r.position.y < -0.5:
+					out.append("%s (%s) rect=%.0f,%.0f %.0fx%.0f over w+%.0f h+%.0f" % [
+						c.name, c.get_class(), r.position.x, r.position.y,
+						r.size.x, r.size.y, maxf(0.0, ow), maxf(0.0, oh)])
+		# A clipping control paints nothing outside itself, so its children
+		# cannot reach the edge of the screen even when their own rect is
+		# bigger — that is exactly how a long card body is contained. Check
+		# the clipper, then stop: everything below it is already covered.
+		if c.clip_contents:
+			return
+	for child in node.get_children():
+		_overflowing(child, out)
+
+
+## Every visible control must sit inside the design canvas at this moment.
+## Two frames first: a container measured before it has been given its width
+## reports the height its labels would need wrapped at zero width, which is
+## enormous and not what any player ever sees.
+func check_fits_canvas(ui, stage: String) -> void:
+	await process_frame
+	await process_frame
+	var out: Array = []
+	_overflowing(ui, out)
+	checks += 1
+	if not out.is_empty():
+		failures.append("layout escapes the %dx%d canvas at %s: %s" % [
+				int(CANVAS.x), int(CANVAS.y), stage,
+				", ".join(PackedStringArray(out.slice(0, 4)))])
+
+
+## Lighting the board must never MOVE it. Slots only become droppable once a
+## card is picked up, which re-renders the board — and every element that
+## sized itself from its own text (the slot's label, a token's stat line, the
+## sidebar's log) shifted the formation rows sideways at that exact moment, so
+## a drop aimed at a slot landed in the gap beside it. Nothing may move.
+func check_lighting_does_not_move_the_board(ui) -> void:
+	if ui.engine.state.hand.is_empty():
+		skipped.append("the lighting-shift check (no cards in hand)")
+		return
+	var before := {}
+	for slot in _all_slots(ui):
+		before[slot.get_instance_id()] = slot.get_global_rect()
+	var before_by_cell := {}
+	for slot in _all_slots(ui):
+		before_by_cell["%d-%d-%d" % [slot.side, slot.line, slot.col]] = slot.get_global_rect()
+
+	# Light the board exactly as picking a card up does.
+	ui.on_card_drag_started(ui.engine.state.hand[0])
+	await process_frame
+	await process_frame
+
+	var moved: Array = []
+	for slot in _all_slots(ui):
+		var key := "%d-%d-%d" % [slot.side, slot.line, slot.col]
+		if before_by_cell.has(key) and before_by_cell[key] != slot.get_global_rect():
+			moved.append("%s%d %s -> %s" % [
+					"F" if slot.line == Formation.FRONT else "B", slot.col + 1,
+					str(before_by_cell[key]), str(slot.get_global_rect())])
+	check(moved.is_empty(),
+			"the board holds still when a card is picked up: " +
+			", ".join(PackedStringArray(moved.slice(0, 3))))
+	await check_fits_canvas(ui, "the board lit for a drag")
+	# Put the board back the way a finished drag would.
+	ui._drag_card = null
+	ui._render()
+	await process_frame
+
+
+## A card face must be a fixed box no matter how much its rules text says —
+## the guarantee that designing new cards cannot break the screen again.
+func check_card_box_is_fixed(ui) -> void:
+	# Measured in a hidden holder: a loose card face parented to the UI would
+	# sit over the board and eat the mouse events the rest of this run needs.
+	var holder := Control.new()
+	holder.visible = false
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(holder)
+
+	for id in CardLibrary.card_ids():
+		var view := CardView.create(CardLibrary.by_id(id), ui, false)
+		holder.add_child(view)
+		await process_frame
+		var size := view.get_combined_minimum_size()
+		check(is_equal_approx(size.y, CardView.CARD_SIZE.y)
+				and size.x <= CardView.CARD_SIZE.x + 0.5,
+				"card %s keeps the fixed %dx%d box, got %.0fx%.0f" % [
+						id, int(CardView.CARD_SIZE.x), int(CardView.CARD_SIZE.y),
+						size.x, size.y])
+
+	# Six effects and a name far longer than the design would ever ship, and
+	# still the same box.
+	var effects: Array[Dictionary] = [
+		{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
+		{"type": CardData.EffectType.DRAW, "amount": 2},
+		{"type": CardData.EffectType.PLAYER_ARMOR_BONUS, "amount": 1},
+		{"type": CardData.EffectType.WAR_CRY, "amount": 1},
+		{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
+		{"type": CardData.EffectType.RIDER_SLIDE, "amount": 1},
+	]
+	var wordy := CardData.new("probe_wordy",
+			"A Card Whose Name Runs On Far Longer Than Any Real One", 3,
+			CardData.TargetType.NONE, effects)
+	wordy.retained = true
+	var view := CardView.create(wordy, ui, false)
+	holder.add_child(view)
+	await process_frame
+	var size := view.get_combined_minimum_size()
+	check(is_equal_approx(size.y, CardView.CARD_SIZE.y),
+			"a wall of rules text leaves the card %d high, got %.0f" % [
+					int(CardView.CARD_SIZE.y), size.y])
+	check(size.x <= CardView.CARD_SIZE.x + 0.5,
+			"and a very long card name does not widen it, got %.0f" % size.x)
+	check(view.tooltip_text.contains(CardText.describe(wordy)),
+			"whatever is clipped is still readable on the tooltip")
+
+	# The fitter itself: more text means smaller print, never a taller box.
+	var short_size := CardView.fit_font_size("Draw 2 cards.", 164, 62)
+	var long_size := CardView.fit_font_size("Draw 2 cards. ".repeat(40), 164, 62)
+	check(long_size <= short_size,
+			"the body font shrinks as the text grows (%d -> %d)" % [short_size, long_size])
+	check(long_size >= CardView.BODY_FONT_FLOOR, "but never below the legible floor")
+
+	holder.queue_free()
+	await process_frame
+
+
+## Put a card in hand for a test without pushing past the hand limit. A Feint
+## can legitimately take the hand to BattleState.MAX_HAND_SIZE, so that is the
+## real ceiling — but a test that stacked cards beyond even that built a hand
+## the game cannot deal, and a row wider than the table it sits in.
+func _put_in_hand(ui, card: CardData) -> void:
+	var hand: Array = ui.engine.state.hand
+	if hand.size() < BattleState.MAX_HAND_SIZE:
+		hand.append(card)
+		return
+	for i in hand.size():
+		if not hand[i].retained:
+			hand[i] = card
+			return
+	hand[0] = card
+
+
+## The widest the hand ever gets is MAX_HAND_SIZE, and it must still fit.
+func check_a_full_hand_fits(ui) -> void:
+	var saved: Array = ui.engine.state.hand.duplicate()
+	while ui.engine.state.hand.size() < BattleState.MAX_HAND_SIZE:
+		ui.engine.state.hand.append(CardLibrary.concentrated_attack())
+	ui.refresh(ui.engine.state)
+	await process_frame
+	check(ui.engine.state.hand.size() == BattleState.MAX_HAND_SIZE,
+			"a hand of %d to lay out" % BattleState.MAX_HAND_SIZE)
+	check(ui._hand_row.get_combined_minimum_size().x <= BattleUI.TABLE_WIDTH + 0.5,
+			"the widest legal hand still fits the table (needs %.0f of %.0f)" % [
+					ui._hand_row.get_combined_minimum_size().x, BattleUI.TABLE_WIDTH])
+	await check_fits_canvas(ui, "a full hand of %d cards" % BattleState.MAX_HAND_SIZE)
+	ui.engine.state.hand.assign(saved)
+	ui.refresh(ui.engine.state)
+	await process_frame
+
+
+func _all_slots(node: Node) -> Array:
+	var out: Array = []
+	if node is SlotPanel:
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_all_slots(c))
+	return out
+
+
 func _run() -> void:
 	var scene: PackedScene = load("res://src/ui/battle_ui.tscn")
 	check(scene != null, "battle scene loads")
@@ -133,6 +320,7 @@ func _run() -> void:
 		"maneuver picker shown")
 	check(ui.engine != null, "engine created")
 	check(ui.engine.state.boarding_maneuver == null, "nothing auto-played before the pick")
+	await check_fits_canvas(ui, "the maneuver picker")
 	check(ui._maneuver_options.get_child_count() == 4,
 			"4 maneuvers offered, saw %d" % ui._maneuver_options.get_child_count())
 	# Pick Dawn Raid — NOT the engine's first-option fallback — to prove the
@@ -148,6 +336,15 @@ func _run() -> void:
 	check(ui.engine.state.boarding_maneuver != null
 			and ui.engine.state.boarding_maneuver.id == "dawn_raid",
 			"Dawn Raid is the maneuver that resolved")
+	# The regression that started all this: a dealt hand used to push the End
+	# Turn and Retreat buttons clean off the bottom of the canvas.
+	await check_fits_canvas(ui, "turn 1 with a hand dealt")
+	check(ui._end_turn_button.get_global_rect().end.y <= CANVAS.y,
+			"the End Turn button is on screen, not below the canvas")
+	check(ui._retreat_button.get_global_rect().end.y <= CANVAS.y,
+			"the Retreat button is on screen, not below the canvas")
+	await check_card_box_is_fixed(ui)
+	await check_a_full_hand_fits(ui)
 	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
 	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
 	check(_tokens_in(ui._player_front_row).size() == 3, "first wave of 3 on their deck")
@@ -171,7 +368,7 @@ func _run() -> void:
 	# three-man first wave the engine hands over a real choice — and being
 	# mandatory, it offers no way out.
 	var wall := CardLibrary.shield_wall()
-	ui.engine.state.hand.append(wall)
+	_put_in_hand(ui, wall)
 	ui.engine.state.momentum = maxi(ui.engine.state.momentum, wall.cost)
 	ui.refresh(ui.engine.state)
 	var slots_before: Array = ui.engine.state.player_formation.slots.duplicate()
@@ -205,7 +402,7 @@ func _run() -> void:
 				reinforce = c
 		if reinforce == null:
 			reinforce = CardLibrary.reinforce()
-			ui.engine.state.hand.append(reinforce)
+			_put_in_hand(ui, reinforce)
 		ui.engine.state.momentum = maxi(ui.engine.state.momentum, reinforce.cost)
 		ui.refresh(ui.engine.state)
 		var target_slot = null
@@ -376,7 +573,7 @@ func _run() -> void:
 			check(captain_token.display.get("hint", "") != "",
 					"and carries his swap hint")
 			var swap_card := CardLibrary.swap()
-			ui.engine.state.hand.append(swap_card)
+			_put_in_hand(ui, swap_card)
 			ui.engine.state.momentum = maxi(ui.engine.state.momentum, swap_card.cost)
 			ui.refresh(ui.engine.state)
 			captain_token = _reserve_token(ui, captain)
@@ -390,6 +587,12 @@ func _run() -> void:
 					"and the prowman came back aboard")
 	else:
 		skipped.append("the prow-pair reserve row (battle already decided)")
+
+	# Last look, with the board as full and as lit as this run ever got it.
+	await check_fits_canvas(ui, "late battle")
+	# Kept to the end: this one fakes a card pick-up, and a faked drag would
+	# disturb the real drag-and-drop checks above.
+	await check_lighting_does_not_move_the_board(ui)
 
 	ui.queue_free()
 	for i in 3:

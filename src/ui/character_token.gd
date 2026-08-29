@@ -35,12 +35,22 @@ static func create(p_character: Character, p_ui: Control, p_compact := false,
 	return token
 
 
+## The token is the layout's unit cell and its size is FIXED. Names, stat
+## lines, wind-up counters and forecast badges all vary in width, and letting
+## them set the token's size re-flowed the whole formation row every time the
+## board re-rendered — so a card dragged at a slot found the board had slid
+## out from under it. Content is clipped to the cell instead.
+const TOKEN_SIZE := Vector2(128, 96)
+const COMPACT_SIZE := Vector2(104, 64)
+const PAD := 4  ## the panel style's content margin
+
+
 func highlighted() -> bool:
 	return display.get("highlight", false)
 
 
 func _build() -> void:
-	custom_minimum_size = Vector2(104, 64) if compact else Vector2(128, 96)
+	custom_minimum_size = COMPACT_SIZE if compact else TOKEN_SIZE
 	var is_player := character.side == Character.Side.PLAYER
 	var trim := UIPalette.GOLD if is_player else UIPalette.IRON
 	if character.is_captain:
@@ -59,10 +69,20 @@ func _build() -> void:
 	style.set_content_margin_all(4)
 	add_theme_stylebox_override("panel", style)
 
+	# A plain Control does not take its size from its children the way a
+	# Container does, so nothing below can grow the cell.
+	var holder := Control.new()
+	holder.custom_minimum_size = (COMPACT_SIZE if compact else TOKEN_SIZE) \
+			- Vector2(2 * PAD, 2 * PAD)
+	holder.clip_contents = true
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(holder)
+
 	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.add_theme_constant_override("separation", 2)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(box)
+	holder.add_child(box)
 
 	var name_size := UIPalette.FONT_SMALL if compact else UIPalette.FONT_BODY
 	var name_label := UIPalette.label(character.display_name, name_size,
@@ -81,7 +101,9 @@ func _build() -> void:
 		var stats := "%s · STR %d · SPD %d" % [character.weapon.display_name, character.strength, character.speed]
 		if character.armor > 0:
 			stats += " · ARM %d" % character.armor
-		box.add_child(UIPalette.label(stats, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))
+		var stats_label := UIPalette.label(stats, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
+		stats_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		box.add_child(stats_label)
 		if character.bonus_attacks > 0:
 			box.add_child(UIPalette.label("+%d attack" % character.bonus_attacks,
 					UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM))

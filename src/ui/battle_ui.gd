@@ -37,6 +37,12 @@ var _enemy_front_row: HBoxContainer
 var _player_front_row: HBoxContainer
 var _player_back_row: HBoxContainer
 var _player_reserve_row: HBoxContainer
+const SIDEBAR_WIDTH := 285
+const HAND_SEPARATION := 8
+## What the board column is given once the margins and the sidebar have taken
+## their share of the 1280-wide canvas: 1280 - 2*10 margin - 285 - 10 gap.
+const TABLE_WIDTH := 965.0
+
 var _hand_row: HBoxContainer
 var _momentum_pips: HBoxContainer
 var _momentum_label: Label
@@ -592,10 +598,13 @@ func _refresh_enemy_captain(state: BattleState) -> void:
 func _refresh_hand(state: BattleState) -> void:
 	for child in _hand_row.get_children():
 		child.queue_free()
+	# A Feint can take the hand past the turn's five, so the faces narrow to
+	# whatever fits rather than the row growing wider than the table.
+	var card_width := CardView.width_for(state.hand.size(), TABLE_WIDTH, HAND_SEPARATION)
 	for card in state.hand:
 		var affordable := _affordable(card)
 		var draggable := _awaiting_action and _pick.is_empty() and affordable
-		var view := CardView.create(card, self, draggable, affordable)
+		var view := CardView.create(card, self, draggable, affordable, card_width)
 		_hand_row.add_child(view)
 
 
@@ -850,17 +859,30 @@ func _build_player_zone() -> Control:
 func _build_bottom_strip() -> Control:
 	_hand_row = HBoxContainer.new()
 	_hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_hand_row.add_theme_constant_override("separation", 8)
-	_hand_row.custom_minimum_size.y = 124
+	_hand_row.add_theme_constant_override("separation", HAND_SEPARATION)
+	_hand_row.custom_minimum_size.y = CardView.CARD_SIZE.y
 	_hand_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	return _hand_row
 
 
 func _build_log_panel() -> Control:
+	# The sidebar is a FIXED column. It sits beside the board, so anything
+	# that widens it — a long log line, one more chip in the enemy reserve —
+	# narrows the table and re-centres every formation row. That is how the
+	# board used to slide sideways the instant a card was picked up, leaving
+	# a drop aimed at a slot to land in the gap beside it. A plain Control
+	# does not take its width from its children, so nothing in here can move
+	# the board.
+	var column := Control.new()
+	column.custom_minimum_size.x = SIDEBAR_WIDTH
+	column.clip_contents = true
+	column.mouse_filter = Control.MOUSE_FILTER_PASS
+
 	var sidebar := VBoxContainer.new()
-	sidebar.custom_minimum_size.x = 285
+	sidebar.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sidebar.add_theme_constant_override("separation", 6)
 	sidebar.mouse_filter = Control.MOUSE_FILTER_PASS
+	column.add_child(sidebar)
 
 	var reserve_panel := PanelContainer.new()
 	reserve_panel.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.IRON_DARK.darkened(0.2)))
@@ -922,7 +944,7 @@ func _build_log_panel() -> Control:
 	_retreat_button.text = "Retreat"
 	_retreat_button.pressed.connect(func() -> void: _retreat_dialog.popup_centered())
 	sidebar.add_child(_retreat_button)
-	return sidebar
+	return column
 
 
 func _build_dialogs() -> void:

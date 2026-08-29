@@ -8,6 +8,9 @@ extends PanelContainer
 ## It never decides anything: the option it answers is handed to it by
 ## BattleUI, which got it from the engine.
 
+const SLOT_SIZE := Vector2(128, 96)
+const PAD := 8  ## the panel style's content margin
+
 var battle_ui: Control
 var side: Character.Side
 var line: int
@@ -32,7 +35,7 @@ static func create(p_ui: Control, p_side: Character.Side, p_line: int, p_col: in
 
 
 func _build() -> void:
-	custom_minimum_size = Vector2(128, 96)
+	custom_minimum_size = SLOT_SIZE
 	var lit := droppable or not pick_option.is_empty()
 	if lit:
 		add_theme_stylebox_override("panel",
@@ -43,10 +46,21 @@ func _build() -> void:
 				UIPalette.panel(Color(0, 0, 0, 0.12), UIPalette.SEA_LIGHT.darkened(0.3), 1))
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	# A fixed box, lit or not. The label a lit slot gains names a man, and
+	# letting that name set the slot's size moved the whole formation row
+	# sideways the instant a card was picked up — so the drop landed in the
+	# gap beside the slot it was aimed at. Plain Controls do not take their
+	# size from their children, so nothing written here can move the board.
+	var holder := Control.new()
+	holder.custom_minimum_size = SLOT_SIZE - Vector2(2 * PAD, 2 * PAD)
+	holder.clip_contents = true
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(holder)
 	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(box)
+	holder.add_child(box)
 	var tag := UIPalette.label("%s%d" % ["F" if line == Formation.FRONT else "B", col + 1],
 			UIPalette.FONT_SMALL, UIPalette.GOLD if lit else UIPalette.SEA_LIGHT)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -56,6 +70,7 @@ func _build() -> void:
 		var here := UIPalette.label(pick_option.get("label", "here"),
 				UIPalette.FONT_SMALL, UIPalette.PARCHMENT)
 		here.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		here.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		here.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(here)
 
