@@ -275,7 +275,7 @@ func _effect_preconditions_met(card: CardData, target: Character,
 					if not state.player_reserve.has(second_target) \
 							and not state.player_formation.has(second_target):
 						return false
-				elif not _pair_member(target) and _default_crosser() == null:
+				elif _default_swap_partner(target) == null:
 					return false
 			CardData.EffectType.SHOVE:
 				if shove_directions(target).is_empty():
@@ -477,13 +477,8 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 			state.player_formation.place_at_index(crosser, index)
 			state.log_event("%s comes over the rail." % crosser.display_name)
 		CardData.EffectType.SWAP:
-			var partner := second_target
-			if partner == null:
-				if _pair_member(target):
-					partner = state.player_captain if target == state.player_prowman \
-							else state.player_prowman
-				else:
-					partner = _default_crosser()
+			var partner := second_target if second_target != null \
+					else _default_swap_partner(target)
 			if state.player_formation.has(partner):
 				state.player_formation.swap_positions(target, partner)
 				state.log_event("%s and %s trade places." %
@@ -605,6 +600,25 @@ func _pair_member(c: Character) -> bool:
 func _default_crosser() -> Character:
 	var candidates := crossing_candidates()
 	return candidates[0] if not candidates.is_empty() else null
+
+
+## Who a Swap trades with when the controller names only the target. A pair
+## member gets his counterpart and nobody else; ordinary crew take the first
+## man off the ship, since the card grew out of field↔reserve rotation — but
+## an empty ship falls back to a fellow on deck rather than refusing a trade
+## the rules allow. Null means there is genuinely no one, and the card is
+## refused before it is paid for.
+func _default_swap_partner(target: Character) -> Character:
+	if _pair_member(target):
+		return state.player_captain if target == state.player_prowman \
+				else state.player_prowman
+	var crosser := _default_crosser()
+	if crosser != null:
+		return crosser
+	for c in state.player_formation.fielded():
+		if c != target and _pair_swap_legal(target, c):
+			return c
+	return null
 
 
 ## Swap legality around the pair: a pair member trades only with his

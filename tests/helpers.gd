@@ -34,6 +34,16 @@ static func engine_for(scenario: Dictionary, bot = null, seed_value := 7) -> Com
 
 ## Re-station a fielded character on an exact slot (tests build precise
 ## formations; setup() itself auto-places scenario lists in reading order).
+## Refuses loudly instead of dropping the man: a slot already taken used to
+## leave him nowhere, and every assertion after a fixture like that is
+## measuring a formation the test never meant to build. Trade two men with
+## Formation.swap_positions; this only fills a free slot.
 static func station(formation: Formation, c: Character, line: int, col: int) -> void:
+	assert(c != null, "station(): nobody to station")
+	var occupant := formation.at(line, col)
+	assert(occupant == null or occupant == c,
+			"station(): line %d col %d already holds %s" %
+			[line, col, occupant.id if occupant != null else "<null>"])
 	formation.remove(c)
-	formation.place(c, line, col)
+	var placed := formation.place(c, line, col)
+	assert(placed, "station(): could not place %s on line %d col %d" % [c.id, line, col])

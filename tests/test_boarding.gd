@@ -279,6 +279,41 @@ func test_swap_refused_without_a_reserve() -> void:
 	assert_true(eng.state.hand.has(card), "no one to trade with: refused")
 
 
+## The named partner is a reserve man whenever one is waiting — the card grew
+## out of field↔reserve rotation and keeps that as its unnamed default.
+func test_swap_takes_the_ship_first_when_a_man_waits_there() -> void:
+	var front := TestHelpers.grunt(P, "front")
+	var back := TestHelpers.grunt(P, "back")
+	var waiting := TestHelpers.grunt(P, "waiting")
+	var eng := TestHelpers.engine_for({
+		"player_field": [front, back], "player_reserve": [waiting]})
+	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
+	var card := CardLibrary.swap()
+	eng.state.hand.append(card)
+	eng.state.momentum = 1
+	await eng._play_card(card, front)
+	assert_true(eng.state.player_formation.has(waiting), "the man on the ship comes over")
+	assert_true(eng.state.player_reserve.has(front), "the named man falls back")
+	assert_eq(eng.state.player_formation.at(Formation.BACK, 0), back, "his fellow stays put")
+
+
+## An empty ship must not refuse a trade the rules allow: with no one left to
+## cross, the unnamed partner is a fellow already on deck.
+func test_swap_falls_back_to_the_deck_when_the_ship_is_empty() -> void:
+	var front := TestHelpers.grunt(P, "front")
+	var back := TestHelpers.grunt(P, "back")
+	var eng := TestHelpers.engine_for({"player_field": [front, back]})
+	TestHelpers.station(eng.state.player_formation, back, Formation.BACK, 0)
+	var card := CardLibrary.swap()
+	eng.state.hand.append(card)
+	eng.state.momentum = 1
+	await eng._play_card(card, front)
+	assert_false(eng.state.hand.has(card), "a fielded trade is legal with an empty reserve")
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), back, "they trade slots")
+	assert_eq(eng.state.player_formation.at(Formation.BACK, 0), front)
+	assert_eq(eng.state.momentum, 0)
+
+
 func test_commit_refused_when_every_slot_is_taken() -> void:
 	var field: Array[Character] = []
 	for i in Formation.SLOT_COUNT:

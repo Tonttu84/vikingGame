@@ -116,6 +116,26 @@ func test_can_play_reads_the_shove_precondition() -> void:
 	assert_false(eng.can_play(card, foe), "edge on one side, a man on the other")
 
 
+## can_play must agree with swap_partners: if the query lists a partner, the
+## card plays. An empty ship leaves the fellows on deck, so Swap stands.
+func test_can_play_swap_with_an_empty_ship_trades_on_deck() -> void:
+	var eng := _engine()
+	eng.state.player_reserve.clear()
+	var card := _in_hand(eng, CardLibrary.swap())
+	var target := eng.state.player_formation.fielded()[0]
+	assert_eq(eng.swap_partners(target).size(), 1, "his fellow is still a legal partner")
+	assert_true(eng.can_play(card, target), "so the card is playable without naming him")
+
+
+func test_can_play_swap_refused_when_the_man_stands_alone() -> void:
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "solo")]})
+	eng.state.momentum = 5
+	var card := _in_hand(eng, CardLibrary.swap())
+	var solo := eng.state.player_formation.fielded()[0]
+	assert_eq(eng.swap_partners(solo).size(), 0)
+	assert_false(eng.can_play(card, solo), "nobody to trade with at all")
+
+
 func test_can_play_reads_the_prow_pair_law() -> void:
 	var eng := _pair_engine()
 	var card := _in_hand(eng, CardLibrary.swap())
