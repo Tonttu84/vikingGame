@@ -60,7 +60,7 @@ static func push_them_back() -> CardData:
 static func battle_fury() -> CardData:
 	return CardData.new("battle_fury", "Battle Fury", 1, CardData.TargetType.ALLY,
 			[{"type": CardData.EffectType.EXTRA_ATTACK, "amount": 1},
-			{"type": CardData.EffectType.RIDER_ADVANCE, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_FORWARD, "amount": 1}])
 
 
 static func feint() -> CardData:

@@ -27,13 +27,21 @@ enum EffectType {
 	                           ## arrow volley, amount true damage to the lowest-HP defender
 	PLAYER_ARMOR_BONUS,        ## battle-long: your side takes -amount per hit
 	ENEMY_MORALE_BONUS,        ## +amount morale (and cap) for the whole enemy crew
-	# --- Movement riders (docs/lines-redesign.md, "Cards: movement rides on
-	# effects"). A rider is listed LAST in a card's effects: the punch lands,
-	# then the men move. Riders are mandatory — if any legal move exists the
-	# engine makes one, the controller only picks which.
+	# --- Movement riders (docs/card-design-proposal.md §1). A rider is listed
+	# LAST in a card's effects: the punch lands, then the men move. Riders are
+	# mandatory and their DIRECTION IS FIXED BY THE CARD — the player never
+	# picks which way, only (on a card that does not already name an ally)
+	# which man. A card whose rider has no legal move is refused before payment.
+	RIDER_LARBOARD,            ## one column toward column 0, along his own line
+	RIDER_STARBOARD,           ## one column toward column 3, along his own line
+	RIDER_FORWARD,             ## "Press": second line into the empty front slot of his column
+	RIDER_BACKWARD,            ## "Give Ground": front into the empty second-line slot
+	RIDER_CLOSE,               ## one column toward the nearest occupied enemy column
+	# --- Retired rider vocabulary, still carried by the pre-rework cards until
+	# the card set is re-riddden (they let the player pick the direction, which
+	# is the fake cost the rework exists to remove).
 	RIDER_SLIDE,               ## one of your fielded men slides one column sideways
 	RIDER_STEP,                ## the ally target steps to the other line of his column
-	RIDER_ADVANCE,             ## the ally target advances from the second line to the front
 	RIDER_SWAP_FIELDED,        ## any two of your fielded men trade slots
 }
 
