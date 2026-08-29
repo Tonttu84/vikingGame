@@ -11,6 +11,19 @@ var battle_seed := 1
 var roster_source := ""
 var _awaiting_action := false
 var _log_lines_shown := 0
+## The banner line the top bar shows when the board is not asking for a pick.
+var _turn_text := "Turn 1"
+## The one pick the board is waiting on, or {} — see _begin_pick. Card picks
+## (who crosses, who trades places, which way a man is shoved) and the engine's
+## mandatory movement riders share this single mechanism and its gold rim.
+##   {"prompt": String, "options": Array[Dictionary], "cancellable": bool,
+##    "on_choice": Callable}
+## and each option is {"value": Variant} plus either "character" (light up his
+## token) or "side"/"line"/"col" (light up that empty slot), with an optional
+## "label" the slot prints.
+var _pick := {}
+## The card currently in the air, so every place it may land lights up.
+var _drag_card: CardData = null
 
 var _turn_label: Label
 var _intent_title: Label
@@ -39,6 +52,7 @@ var _outcome_body: Label
 var _outcome_again: Button
 var _maneuver_layer: Control
 var _maneuver_options: HBoxContainer
+var _pick_cancel_button: Button
 var _debug_panel: DebugPanel
 
 
@@ -62,6 +76,8 @@ func start_battle() -> void:
 	_log_lines_shown = 0
 	_log_text.clear()
 	_awaiting_action = false
+	_pick = {}
+	_drag_card = null
 	engine = CombatEngine.new()
 	controller = HumanController.new(self)
 	engine.setup(parsed["scenario"], controller, battle_seed)
@@ -88,7 +104,7 @@ func _exit_tree() -> void:
 # --- Controller callbacks (engine is parked awaiting our signals) ------------
 
 func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
-	_turn_label.text = "The boarding — how do you come over the rail?"
+	_turn_text = "The boarding — how do you come over the rail?"
 	refresh(state)
 	for child in _maneuver_options.get_children():
 		child.queue_free()
@@ -99,13 +115,84 @@ func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
 
 func on_player_decision_start(state: BattleState) -> void:
 	_awaiting_action = true
-	_turn_label.text = "Turn %d — your move" % state.turn
+	_turn_text = "Turn %d — your move" % state.turn
 	refresh(state)
 
 
 func on_pace(state: BattleState) -> void:
-	_turn_label.text = "Turn %d — steel rings" % state.turn
+	_turn_text = "Turn %d — steel rings" % state.turn
 	refresh(state)
+
+
+## A played card's rider has come due. The engine has already worked out
+## every legal move and one of them must be taken, so this is a pick, not a
+## question: the men who can move light up, then their destinations. Nothing
+## here judges legality — every option carries one of the engine's own moves.
+func on_rider_prompt(state: BattleState, card: CardData, moves: Array[Dictionary]) -> void:
+	refresh(state)
+	var kind := CardText.rider_kind(card)
+	var movers: Array[Character] = []
+	for move in moves:
+		for c in _rider_men(move):
+			if not movers.has(c):
+				movers.append(c)
+	var options: Array[Dictionary] = []
+	for c in movers:
+		options.append(_token_option(c, c))
+	_begin_pick("%s — the %s rides on it: which man moves?" % [card.display_name, kind],
+			options, false,
+			func(mover: Character) -> void: _rider_destination_pick(card, moves, mover))
+
+
+## Step two of a rider: where the chosen man goes. A slide names the empty
+## slot he steps into, a step or advance the slot in the other line, a swap
+## the man he trades places with.
+func _rider_destination_pick(card: CardData, moves: Array[Dictionary],
+		mover: Character) -> void:
+	var kind := CardText.rider_kind(card)
+	var options: Array[Dictionary] = []
+	for move in moves:
+		if not _rider_men(move).has(mover):
+			continue
+		options.append(_rider_move_option(move, mover))
+	var prompt := "%s — %s must %s: where to?" % [card.display_name, mover.display_name, kind]
+	if kind == "swap":
+		prompt = "%s — who does %s trade places with?" % [card.display_name, mover.display_name]
+	_begin_pick(prompt, options, false, func(move: Dictionary) -> void: _submit_rider(move))
+
+
+## The men a rider move touches: the one who steps, or both halves of a trade.
+func _rider_men(move: Dictionary) -> Array[Character]:
+	var men: Array[Character] = []
+	if move.has("character"):
+		men.append(move["character"])
+	if move.has("a"):
+		men.append(move["a"])
+	if move.has("b"):
+		men.append(move["b"])
+	return men
+
+
+func _rider_move_option(move: Dictionary, mover: Character) -> Dictionary:
+	var f := engine.state.player_formation
+	if move.has("direction"):
+		var dir: int = move["direction"]
+		return _slot_option(Character.Side.PLAYER, f.line_of(mover),
+				f.column_of(mover) + dir, move, "larboard" if dir < 0 else "starboard")
+	if move.has("line"):
+		return _slot_option(Character.Side.PLAYER, move["line"], f.column_of(mover), move,
+				"step up" if move["line"] == Formation.FRONT else "fall back")
+	var partner: Character = move["b"] if move["a"] == mover else move["a"]
+	return _token_option(partner, move)
+
+
+func _submit_rider(move: Dictionary) -> void:
+	# Deferred so the engine resumes outside the click callback.
+	_emit_rider.call_deferred(move)
+
+
+func _emit_rider(move: Dictionary) -> void:
+	controller.rider_submitted.emit(move)
 
 
 func submit(action: Dictionary) -> void:
@@ -132,79 +219,257 @@ func _emit_maneuver(card: CardData) -> void:
 	controller.maneuver_submitted.emit(card)
 
 
+# --- Picks: one gold rim for everything the board asks of you ----------------
+# Card picks (who comes over, who trades places, which way a man is shoved)
+# and the engine's mandatory movement riders share this one mechanism. The
+# options always come from the engine; this only lights them up.
+
+## Ask for one choice off the board. A single option answers itself — there
+## is nothing to choose — and an empty list means the caller had nothing to
+## ask (an impossible rider never gets here; the engine skips it in silence).
+func _begin_pick(prompt: String, options: Array[Dictionary], cancellable: bool,
+		on_choice: Callable) -> void:
+	if options.is_empty():
+		return
+	if options.size() == 1:
+		on_choice.call(options[0]["value"])
+		_render()
+		return
+	_pick = {"prompt": prompt, "options": options, "cancellable": cancellable,
+			"on_choice": on_choice}
+	_render()
+
+
+## The player picked. The choice may open the next step of the same chain
+## (the man, then where he goes); either way the board is redrawn.
+func choose_pick(option: Dictionary) -> void:
+	if _pick.is_empty():
+		return
+	var on_choice: Callable = _pick["on_choice"]
+	_pick = {}
+	on_choice.call(option["value"])
+	_render()
+
+
+## Backing out of a card that has not been played yet. Movement riders are
+## mandatory (docs/lines-redesign.md) and never offer this.
+func cancel_pick() -> void:
+	if _pick.is_empty() or not _pick.get("cancellable", false):
+		return
+	_pick = {}
+	_render()
+
+
+func _render() -> void:
+	if engine != null:
+		refresh(engine.state)
+
+
+func _token_option(c: Character, value: Variant) -> Dictionary:
+	return {"character": c, "value": value}
+
+
+func _slot_option(side: Character.Side, line: int, col: int, value: Variant,
+		label := "here") -> Dictionary:
+	return {"character": null, "side": side, "line": line, "col": col,
+			"value": value, "label": label}
+
+
+func _slot_option_at(side: Character.Side, index: int, value: Variant,
+		label := "here") -> Dictionary:
+	@warning_ignore("integer_division")
+	var line := index / Formation.COLUMNS
+	return _slot_option(side, line, index % Formation.COLUMNS, value, label)
+
+
+func _pick_option_for_character(c: Character) -> Dictionary:
+	for option: Dictionary in _pick.get("options", []):
+		if option.get("character") == c:
+			return option
+	return {}
+
+
+func _pick_option_for_slot(side: Character.Side, line: int, col: int) -> Dictionary:
+	for option: Dictionary in _pick.get("options", []):
+		if option.get("character") == null and option.get("side") == side \
+				and option.get("line") == line and option.get("col") == col:
+			return option
+	return {}
+
+
+## Is this man lit right now — one of the pending pick's options, or a legal
+## landing place for the card in the air?
+func _highlighted(c: Character) -> bool:
+	if not _pick.is_empty():
+		return not _pick_option_for_character(c).is_empty()
+	return _drag_card != null and can_drop_card_on(_drag_card, c)
+
+
 # --- Card drops --------------------------------------------------------------
 
+## Every legality question here goes to the engine; the UI only asks about
+## the card's own data (which gesture it wants) and renders the answer.
 func can_drop_card_on(card: CardData, target: Character) -> bool:
-	if not _awaiting_action or not _can_pay(card):
+	if not _ready_for_a_card(card):
 		return false
-	match card.target_type:
-		CardData.TargetType.NONE:
-			return true  # a token is as good a place as any to drop it
-		CardData.TargetType.ENEMY:
-			return _valid_enemy_target(card, target)
-		CardData.TargetType.ALLY:
-			return _valid_ally_target(card, target)
+	if card.target_type == CardData.TargetType.NONE:
+		# The untargeted cards land on anyone — except those that name a slot.
+		return not _card_has(card, CardData.EffectType.REINFORCE) and engine.can_play(card)
+	if _card_has(card, CardData.EffectType.SWAP):
+		# Swap always leaves here with a partner named, so ask about the play
+		# that will actually be submitted rather than the engine's default.
+		for partner in engine.swap_partners(target):
+			if engine.can_play(card, target, partner):
+				return true
+		return false
+	return engine.can_play(card, target)
+
+
+## Reinforce names the slot its man lands in, so it drops on empty ground.
+func can_drop_card_on_slot(card: CardData, side: Character.Side, line: int, col: int) -> bool:
+	if not _ready_for_a_card(card):
+		return false
+	if side != Character.Side.PLAYER or not _card_has(card, CardData.EffectType.REINFORCE):
+		return false
+	if engine.state.player_formation.at(line, col) != null:
+		return false
+	return engine.can_play(card)
+
+
+func _ready_for_a_card(card: CardData) -> bool:
+	return card != null and _awaiting_action and _pick.is_empty() and engine != null
+
+
+## Does the card carry this effect at all? A question about its own data —
+## whether the play is legal is still the engine's to answer.
+func _card_has(card: CardData, effect_type: CardData.EffectType) -> bool:
+	for effect in card.effects:
+		if effect.get("type") == effect_type:
+			return true
 	return false
 
 
 func play_card(card: CardData, target: Character) -> void:
 	if card.target_type == CardData.TargetType.NONE:
 		target = null
-	submit({"op": "play", "card": card, "target": target})
+	_begin_card_play(card, target, -1)
 
 
-func _can_pay(card: CardData) -> bool:
-	return card.playable and card.cost <= engine.state.momentum
+func play_card_on_slot(card: CardData, slot: int) -> void:
+	_begin_card_play(card, null, slot)
 
 
-func _valid_enemy_target(card: CardData, c: Character) -> bool:
-	if c.side != Character.Side.ENEMY or not c.is_alive():
-		return false
-	if not engine.state.enemy_formation.has(c):
-		return false
-	for effect in card.effects:
-		if effect.get("type") == CardData.EffectType.SHOVE:
-			var f := engine.state.enemy_formation
-			if f.line_of(c) != Formation.FRONT:
-				return false
-			var col := f.column_of(c)
-			var left_free := col > 0 and f.at(Formation.FRONT, col - 1) == null
-			var right_free := col < Formation.COLUMNS - 1 \
-					and f.at(Formation.FRONT, col + 1) == null
-			if not left_free and not right_free:
-				return false
-	return true
-
-
-func _valid_ally_target(card: CardData, c: Character) -> bool:
-	if c.side != Character.Side.PLAYER or not c.is_alive():
-		return false
-	for effect in card.effects:
-		match effect.get("type"):
-			CardData.EffectType.PULL_TO_RESERVE, CardData.EffectType.EXTRA_ATTACK, \
-			CardData.EffectType.SWAP:
-				if not engine.state.player_formation.has(c):
-					return false
-	return true
+## Some cards want one more thing off the board before they are played: who
+## comes over the rail, who trades places, which way a man is shoved. Each
+## step lights up the engine's own list, and the action is submitted only
+## once every pick is in — so cancelling costs nothing.
+func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
+	var action := {"op": "play", "card": card, "target": target, "slot": slot}
+	if _card_has(card, CardData.EffectType.REINFORCE):
+		var options: Array[Dictionary] = []
+		for c in engine.crossing_candidates():
+			options.append(_token_option(c, c))
+		_begin_pick("%s — who comes over the rail?" % card.display_name, options, true,
+				func(crosser: Character) -> void:
+					action["target"] = crosser
+					submit(action))
+		return
+	if _card_has(card, CardData.EffectType.SWAP):
+		var options: Array[Dictionary] = []
+		for c in engine.swap_partners(target):
+			options.append(_token_option(c, c))
+		_begin_pick("%s — who trades places with %s?" % [card.display_name, target.display_name],
+				options, true,
+				func(partner: Character) -> void:
+					action["second_target"] = partner
+					submit(action))
+		return
+	if _card_has(card, CardData.EffectType.SHOVE):
+		var options: Array[Dictionary] = []
+		var col := engine.state.enemy_formation.column_of(target)
+		for dir: int in engine.shove_directions(target):
+			options.append(_slot_option(Character.Side.ENEMY, Formation.FRONT, col + dir,
+					dir, "larboard" if dir < 0 else "starboard"))
+		_begin_pick("%s — which way is %s shoved?" % [card.display_name, target.display_name],
+				options, true,
+				func(dir: int) -> void:
+					action["direction"] = dir
+					submit(action))
+		return
+	submit(action)
 
 
 ## Cards with no target can be dropped anywhere on the table.
 func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-	return data is Dictionary and data.has("card") \
-			and data["card"].target_type == CardData.TargetType.NONE \
-			and _awaiting_action and _can_pay(data["card"])
+	if not (data is Dictionary and data.has("card")):
+		return false
+	var card: CardData = data["card"]
+	return card.target_type == CardData.TargetType.NONE \
+			and not _card_has(card, CardData.EffectType.REINFORCE) \
+			and _ready_for_a_card(card) and engine.can_play(card)
 
 
 func _drop_data(_at: Vector2, data: Variant) -> void:
 	play_card(data["card"], null)
 
 
+## The whole board answers a card leaving the hand: every man and every slot
+## that could take it lights up until the drag ends.
+func on_card_drag_started(card: CardData) -> void:
+	_drag_card = card
+	_render()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_END and _drag_card != null:
+		_drag_card = null
+		_render()
+
+
 func _on_token_clicked(character: Character) -> void:
+	if not _pick.is_empty():
+		var option := _pick_option_for_character(character)
+		if not option.is_empty():
+			choose_pick(option)
+		return
 	if not _awaiting_action:
 		return
-	if engine.state.player_reserve.has(character) \
-			and engine.state.momentum >= BattleState.RESERVE_COMMIT_COST:
-		submit({"op": "commit", "character": character})
+	# The waiting half of the prow pair has exactly one way onto the deck:
+	# clicking him plays the Swap that trades him for his counterpart.
+	var swap_card := _pair_swap_card(character)
+	if swap_card != null:
+		submit({"op": "play", "card": swap_card,
+				"target": engine.pair_swap_counterpart(character),
+				"second_target": character})
+		return
+	if engine.can_commit(character):
+		_begin_commit(character)
+
+
+## Where a committed man takes his place: every free slot lights up.
+func _begin_commit(character: Character) -> void:
+	var options: Array[Dictionary] = []
+	for index in engine.state.player_formation.free_indices():
+		options.append(_slot_option_at(Character.Side.PLAYER, index, index))
+	_begin_pick("%s comes over for %d momentum — into which slot?" %
+			[character.display_name, BattleState.RESERVE_COMMIT_COST], options, true,
+			func(index: int) -> void:
+				submit({"op": "commit", "character": character, "slot": index}))
+
+
+## The Swap in hand that would bring this waiting pair member across right
+## now — the engine rules on the play, we only find the card.
+func _pair_swap_card(waiting: Character) -> CardData:
+	if engine == null:
+		return null
+	var counterpart := engine.pair_swap_counterpart(waiting)
+	if counterpart == null:
+		return null
+	for card in engine.state.hand:
+		if _card_has(card, CardData.EffectType.SWAP) \
+				and engine.can_play(card, counterpart, waiting):
+			return card
+	return null
 
 
 # --- Rendering ---------------------------------------------------------------
@@ -213,56 +478,72 @@ func refresh(state: BattleState) -> void:
 	# One forecast per refresh: every token shows what it stands to take.
 	var forecast := engine.forecast()
 	_fill_enemy_reserve(state)
-	_fill_line(_enemy_back_row, state.enemy_formation, Formation.BACK, forecast)
-	_fill_line(_enemy_front_row, state.enemy_formation, Formation.FRONT, forecast)
-	_fill_line(_player_front_row, state.player_formation, Formation.FRONT, forecast)
-	_fill_line(_player_back_row, state.player_formation, Formation.BACK, forecast)
-	_fill_row(_player_reserve_row, state.player_reserve, true)
+	_fill_line(_enemy_back_row, state.enemy_formation, Character.Side.ENEMY,
+			Formation.BACK, forecast)
+	_fill_line(_enemy_front_row, state.enemy_formation, Character.Side.ENEMY,
+			Formation.FRONT, forecast)
+	_fill_line(_player_front_row, state.player_formation, Character.Side.PLAYER,
+			Formation.FRONT, forecast)
+	_fill_line(_player_back_row, state.player_formation, Character.Side.PLAYER,
+			Formation.BACK, forecast)
+	_fill_player_reserve(state)
 	_refresh_enemy_captain(state)
-	_refresh_hand(state)
+	# Never rebuild the hand while a card is in the air: freeing the view
+	# being dragged would cancel the gesture under the player's hand.
+	if _drag_card == null:
+		_refresh_hand(state)
 	_refresh_hud(state)
 	_refresh_log(state)
 
 
 ## One line of a formation as 4 fixed columns: a token where a man stands,
-## a dim placeholder where the slot is empty (so misses read spatially).
-func _fill_line(row: HBoxContainer, formation: Formation, line: int,
-		forecast: Dictionary) -> void:
+## a placeholder where the slot is empty (so misses read spatially) — and
+## that placeholder lights up when the board wants a pick there.
+func _fill_line(row: HBoxContainer, formation: Formation, side: Character.Side,
+		line: int, forecast: Dictionary) -> void:
 	for child in row.get_children():
 		child.queue_free()
 	for col in Formation.COLUMNS:
 		var c := formation.at(line, col)
 		if c != null:
+			var display := {"highlight": _highlighted(c)}
 			var token := CharacterToken.create(c, self, false, forecast.get(c, {}),
-					engine.state.archer_marks.values().has(c))
+					engine.state.archer_marks.values().has(c), display)
 			token.clicked.connect(_on_token_clicked)
 			row.add_child(token)
 		else:
-			row.add_child(_empty_slot(line, col))
+			row.add_child(_empty_slot(side, line, col))
 
 
-func _empty_slot(line: int, col: int) -> Control:
-	var slot := PanelContainer.new()
-	slot.custom_minimum_size = Vector2(128, 96)
-	slot.add_theme_stylebox_override("panel",
-			UIPalette.panel(Color(0, 0, 0, 0.12), UIPalette.SEA_LIGHT.darkened(0.3), 1))
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tag := UIPalette.label("%s%d" % ["F" if line == Formation.FRONT else "B", col + 1],
-			UIPalette.FONT_SMALL, UIPalette.SEA_LIGHT)
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(tag)
-	return slot
+func _empty_slot(side: Character.Side, line: int, col: int) -> Control:
+	var droppable := _drag_card != null and can_drop_card_on_slot(_drag_card, side, line, col)
+	return SlotPanel.create(self, side, line, col, _pick_option_for_slot(side, line, col),
+			droppable)
 
 
-func _fill_row(row: HBoxContainer, characters: Array[Character], compact: bool) -> void:
-	for child in row.get_children():
+## Your own ship's rail. A man who can be sent over is bright and clickable;
+## the prow pair's waiting half never can be (docs/combat-design.md — captain
+## and prowman are alternates), so he is dimmed instead of eating a dead
+## click, and carries the one move he does have: the trade with the
+## counterpart holding the field.
+func _fill_player_reserve(state: BattleState) -> void:
+	for child in _player_reserve_row.get_children():
 		child.queue_free()
-	for c in characters:
-		var token := CharacterToken.create(c, self, compact)
+	for c in state.player_reserve:
+		var display := {"highlight": _highlighted(c)}
+		var counterpart := engine.pair_swap_counterpart(c)
+		if counterpart != null:
+			var ready := _pair_swap_card(c) != null
+			display["dim"] = true
+			display["hint_lit"] = ready
+			display["hint"] = "click: swap" if ready else "swap only"
+			display["note"] = "Never crosses by himself: Swap trades him with %s." \
+					% counterpart.display_name
+		elif not engine.can_commit(c):
+			display["dim"] = true
+		var token := CharacterToken.create(c, self, true, {}, false, display)
 		token.clicked.connect(_on_token_clicked)
-		row.add_child(token)
+		_player_reserve_row.add_child(token)
 
 
 func _fill_enemy_reserve(state: BattleState) -> void:
@@ -312,19 +593,33 @@ func _refresh_hand(state: BattleState) -> void:
 	for child in _hand_row.get_children():
 		child.queue_free()
 	for card in state.hand:
-		var affordable := _can_pay(card)
-		var view := CardView.create(card, self, _awaiting_action and affordable, affordable)
+		var affordable := _affordable(card)
+		var draggable := _awaiting_action and _pick.is_empty() and affordable
+		var view := CardView.create(card, self, draggable, affordable)
 		_hand_row.add_child(view)
 
 
+## Enough momentum in the bank for this card — what dims a card face. Whether
+## it can actually be played (and on whom) is engine.can_play's answer.
+func _affordable(card: CardData) -> bool:
+	return card.playable and card.cost <= engine.state.momentum
+
+
 func _refresh_hud(state: BattleState) -> void:
+	var picking := not _pick.is_empty()
+	# The banner doubles as the prompt line: while the board is asking for a
+	# pick it says which card asked and what it wants.
+	_turn_label.text = _pick["prompt"] if picking else _turn_text
+	_turn_label.add_theme_color_override("font_color",
+			UIPalette.GOLD if picking else UIPalette.PARCHMENT)
+	_pick_cancel_button.visible = picking and _pick.get("cancellable", false)
 	_momentum_label.text = "Momentum %d/%d" % [state.momentum, BattleState.MOMENTUM_CAP]
 	for i in _momentum_pips.get_child_count():
 		var pip: ColorRect = _momentum_pips.get_child(i)
 		pip.color = UIPalette.GOLD if i < state.momentum else UIPalette.SEA_LIGHT
 	_piles_label.text = "Deck %d · Discard %d" % [state.deck.size(), state.discard.size()]
-	_end_turn_button.disabled = not _awaiting_action
-	_retreat_button.disabled = not _awaiting_action
+	_end_turn_button.disabled = not _awaiting_action or picking
+	_retreat_button.disabled = not _awaiting_action or picking
 	_status_label.text = " · ".join(_active_effects(state))
 
 
@@ -447,6 +742,12 @@ func _build_top_bar() -> Control:
 	bar.add_child(_turn_label)
 	_status_label = UIPalette.label("", UIPalette.FONT_BODY, UIPalette.GOLD)
 	bar.add_child(_status_label)
+	# Only card picks may be backed out of; a movement rider never shows this.
+	_pick_cancel_button = Button.new()
+	_pick_cancel_button.text = "Cancel"
+	_pick_cancel_button.visible = false
+	_pick_cancel_button.pressed.connect(cancel_pick)
+	bar.add_child(_pick_cancel_button)
 	var rules := Button.new()
 	rules.text = "How it works"
 	rules.pressed.connect(func() -> void: _rules_dialog.popup_centered())
@@ -524,7 +825,8 @@ func _build_player_zone() -> Control:
 	var reserve_bar := HBoxContainer.new()
 	reserve_bar.add_theme_constant_override("separation", 12)
 	reserve_bar.mouse_filter = Control.MOUSE_FILTER_PASS
-	var hint := UIPalette.label("Your ship — click a man to commit him (%d momentum). The reserve never fights, is never hit."
+	var hint := UIPalette.label(
+			"Your ship — click a man to commit him (%d momentum), then pick his slot. A dimmed man cannot cross. The reserve never fights, is never hit."
 			% BattleState.RESERVE_COMMIT_COST, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 	# Wrapped, not one long line: an unwrapped label here forces the whole
 	# table wider than the reference canvas and shoves the sidebar off it.

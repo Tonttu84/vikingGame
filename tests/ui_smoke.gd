@@ -5,9 +5,14 @@ extends SceneTree
 ## routing — run via scripts/ui_smoke.sh (xvfb), not --headless.
 
 var failures: Array[String] = []
+var checks := 0
+## Blocks a finished (or unlucky) battle made impossible to reach — printed
+## with the summary so a silently shrinking smoke run is visible.
+var skipped: Array[String] = []
 
 
 func check(cond: bool, msg: String) -> void:
+	checks += 1
 	if not cond:
 		failures.append(msg)
 
@@ -34,6 +39,23 @@ func _drag(from: Vector2, to: Vector2) -> void:
 	up.pressed = false
 	up.position = to
 	up.global_position = to
+	root.push_input(up)
+	await process_frame
+
+
+func _click(pos: Vector2) -> void:
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = pos
+	down.global_position = pos
+	root.push_input(down)
+	await process_frame
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = pos
+	up.global_position = pos
 	root.push_input(up)
 	await process_frame
 
@@ -68,6 +90,35 @@ func _await_until(predicate: Callable, what: String, max_frames := 300) -> void:
 			return
 		await process_frame
 	failures.append("timed out waiting for: " + what)
+
+
+## Let the board settle back to waiting for the player, answering anything it
+## asks on the way. A pick always takes the first lit option — the same move
+## the engine falls back to for a controller that cannot choose — so a
+## mandatory movement rider never parks the battle here.
+func _settle(ui, max_frames := 600) -> void:
+	for i in max_frames:
+		if not ui._pick.is_empty():
+			ui.choose_pick(ui._pick["options"][0])
+			continue
+		if ui._awaiting_action or ui.engine.outcome != CombatEngine.Outcome.NONE:
+			return
+		await process_frame
+	failures.append("timed out settling the board")
+
+
+func _reserve_token(ui, character: Character):
+	for t in _tokens_in(ui._player_reserve_row):
+		if t.character == character:
+			return t
+	return null
+
+
+func _card_view(ui, card: CardData):
+	for v in ui._hand_row.get_children():
+		if v.card == card:
+			return v
+	return null
 
 
 func _run() -> void:
@@ -115,18 +166,107 @@ func _run() -> void:
 			badge_found = true
 	check(badge_found, "a front-liner in a contested column shows incoming damage")
 
-	# Play a no-target card if one is affordable, exercising the drop path.
-	var played := false
-	for card: CardData in ui.engine.state.hand.duplicate():
-		if card.playable and card.target_type == CardData.TargetType.NONE \
-				and card.cost <= ui.engine.state.momentum:
-			ui.play_card(card, null)
-			played = true
-			break
-	if played:
-		for i in 10:
-			await process_frame
-		check(ui._awaiting_action, "back to waiting after a card resolves")
+	# A card with a movement rider: the punch lands, then the board asks
+	# which man moves. Shield Wall's rider trades two men on deck, so with a
+	# three-man first wave the engine hands over a real choice — and being
+	# mandatory, it offers no way out.
+	var wall := CardLibrary.shield_wall()
+	ui.engine.state.hand.append(wall)
+	ui.engine.state.momentum = maxi(ui.engine.state.momentum, wall.cost)
+	ui.refresh(ui.engine.state)
+	var slots_before: Array = ui.engine.state.player_formation.slots.duplicate()
+	ui.play_card(wall, null)
+	await _await_until(func() -> bool: return not ui._pick.is_empty(),
+			"the rider asks which man moves")
+	check(ui._pick["prompt"].contains("Shield Wall") and ui._pick["prompt"].contains("swap"),
+			"the prompt names the card and the rider, saw: %s" % ui._pick.get("prompt", ""))
+	check(not ui._pick_cancel_button.visible, "a mandatory rider offers no cancel")
+	check(ui._end_turn_button.disabled, "the turn cannot be ended out from under a pick")
+	var lit := 0
+	for t in _tokens_in(ui._player_front_row) + _tokens_in(ui._player_back_row):
+		if t.highlighted():
+			lit += 1
+	check(lit == ui._pick["options"].size(),
+			"every man the engine offered is lit (%d lit, %d offered)" % [lit, ui._pick["options"].size()])
+	ui.choose_pick(ui._pick["options"][0])
+	check(not ui._pick.is_empty(), "and then where he goes")
+	ui.choose_pick(ui._pick["options"][0])
+	await _settle(ui)
+	check(ui.engine.state.player_formation.slots != slots_before,
+			"the mandatory rider actually moved men")
+	check(ui._awaiting_action, "back to waiting after the rider resolves")
+
+	# Reinforce names the slot its man lands in: drag the card onto a lit
+	# empty slot, then pick who comes over the rail.
+	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
+		var reinforce: CardData = null
+		for c: CardData in ui.engine.state.hand:
+			if c.id == "reinforce":
+				reinforce = c
+		if reinforce == null:
+			reinforce = CardLibrary.reinforce()
+			ui.engine.state.hand.append(reinforce)
+		ui.engine.state.momentum = maxi(ui.engine.state.momentum, reinforce.cost)
+		ui.refresh(ui.engine.state)
+		var target_slot = null
+		for child in ui._player_back_row.get_children():
+			if child is SlotPanel and target_slot == null:
+				target_slot = child
+		check(target_slot != null, "an empty second-line slot to reinforce into")
+		if target_slot != null:
+			check(ui.can_drop_card_on_slot(reinforce, Character.Side.PLAYER,
+					target_slot.line, target_slot.col), "the empty slot takes Reinforce")
+			check(not ui.can_drop_card_on(reinforce, ui.engine.state.player_formation.fielded()[0]),
+					"a card that names a slot is not dropped on a man")
+			var index := Formation.slot_index(target_slot.line, target_slot.col)
+			var view = _card_view(ui, reinforce)
+			check(view != null and view.draggable, "the Reinforce card can be picked up")
+			await _drag(view.get_global_rect().get_center(),
+					target_slot.get_global_rect().get_center())
+			check(not ui._pick.is_empty(), "dropping Reinforce asks who comes over")
+			var crosser: Character = ui._pick["options"][0]["value"]
+			check(ui._pick_cancel_button.visible, "a card pick can still be backed out of")
+			ui.choose_pick(ui._pick["options"][0])
+			await _settle(ui)
+			check(ui.engine.state.player_formation.slots[index] == crosser,
+					"the man crossed into the slot the card was dropped on")
+	else:
+		skipped.append("the Reinforce slot drag (battle already decided)")
+
+	# Clicking a man on your own ship asks which slot he takes, and a lit slot
+	# answers a real mouse click — not just the driver's shortcut.
+	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
+		ui.engine.state.momentum = maxi(ui.engine.state.momentum,
+				BattleState.RESERVE_COMMIT_COST)
+		ui.refresh(ui.engine.state)
+		var crew: Character = null
+		for c: Character in ui.engine.state.player_reserve:
+			if crew == null and ui.engine.can_commit(c):
+				crew = c
+		check(crew != null, "someone on the ship can still be sent over")
+		if crew != null:
+			var crew_token = _reserve_token(ui, crew)
+			check(crew_token != null and not crew_token.display.get("dim", false),
+					"a man who can be sent over is not dimmed")
+			crew_token.clicked.emit(crew)
+			check(not ui._pick.is_empty(), "committing a man asks which slot he takes")
+			for i in 3:
+				await process_frame
+			var lit_slot = null
+			for row in [ui._player_front_row, ui._player_back_row]:
+				for child in row.get_children():
+					if child is SlotPanel and lit_slot == null \
+							and not child.pick_option.is_empty():
+						lit_slot = child
+			check(lit_slot != null, "the free slots are lit for that pick")
+			if lit_slot != null:
+				var index := Formation.slot_index(lit_slot.line, lit_slot.col)
+				await _click(lit_slot.get_global_rect().get_center())
+				await _settle(ui)
+				check(ui.engine.state.player_formation.slots[index] == crew,
+						"clicking the lit slot is where he took his place")
+	else:
+		skipped.append("the commit slot pick (battle already decided)")
 
 	# End several turns; pace timers run on real frames headlessly.
 	var turns_seen: Array[int] = [ui.engine.state.turn]
@@ -208,16 +348,56 @@ func _run() -> void:
 				if t.character == wounded:
 					token = t
 			await _drag(rally_view.get_global_rect().get_center(), token.get_global_rect().get_center())
-			for i in 10:
-				await process_frame
+			await _settle(ui)
 			check(wounded.hp > hp_before, "rally drag-dropped on a token healed it")
+
+	# The reserve row grew a swap hint; the table must still fit the canvas
+	# the stretch mode scales (project.godot: 1280x800).
+	check(ui.get_combined_minimum_size().y <= 800,
+			"the table still fits the 800px canvas (needs %d)" % ui.get_combined_minimum_size().y)
+	check(ui.get_combined_minimum_size().x <= 1280,
+			"the table still fits the 1280px canvas (needs %d)" % ui.get_combined_minimum_size().x)
+
+	# The prow pair in the reserve row: the captain can never be committed,
+	# so he is dimmed rather than eating a dead click — and the Swap that
+	# brings him over is one click on the hint. Last, because it puts the
+	# captain in the fight.
+	await _settle(ui)
+	var captain: Character = ui.engine.state.player_captain
+	var prowman: Character = ui.engine.state.player_prowman
+	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action \
+			and prowman != null and ui.engine.state.player_formation.has(prowman) \
+			and ui.engine.state.player_reserve.has(captain):
+		var captain_token = _reserve_token(ui, captain)
+		check(captain_token != null, "the waiting captain has a token in the reserve row")
+		if captain_token != null:
+			check(captain_token.display.get("dim", false),
+					"the un-committable captain reads as dimmed")
+			check(captain_token.display.get("hint", "") != "",
+					"and carries his swap hint")
+			var swap_card := CardLibrary.swap()
+			ui.engine.state.hand.append(swap_card)
+			ui.engine.state.momentum = maxi(ui.engine.state.momentum, swap_card.cost)
+			ui.refresh(ui.engine.state)
+			captain_token = _reserve_token(ui, captain)
+			check(captain_token.display.get("hint_lit", false),
+					"the hint lights up while a Swap is playable")
+			captain_token.clicked.emit(captain)
+			await _settle(ui)
+			check(ui.engine.state.player_formation.has(captain),
+					"clicking the lit hint traded the pair over the rail")
+			check(ui.engine.state.player_reserve.has(prowman),
+					"and the prowman came back aboard")
+	else:
+		skipped.append("the prow-pair reserve row (battle already decided)")
 
 	ui.queue_free()
 	for i in 3:
 		await process_frame
 
 	if failures.is_empty():
-		print("UI SMOKE OK")
+		print("UI SMOKE OK — %d checks%s" % [checks,
+				"" if skipped.is_empty() else " (skipped: %s)" % ", ".join(skipped)])
 		quit(0)
 	else:
 		for f in failures:

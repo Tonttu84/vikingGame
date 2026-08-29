@@ -278,14 +278,7 @@ func _effect_preconditions_met(card: CardData, target: Character,
 				elif not _pair_member(target) and _default_crosser() == null:
 					return false
 			CardData.EffectType.SHOVE:
-				if target == null or state.enemy_formation.line_of(target) != Formation.FRONT:
-					return false
-				var col := state.enemy_formation.column_of(target)
-				var left_free := col > 0 \
-						and state.enemy_formation.at(Formation.FRONT, col - 1) == null
-				var right_free := col < Formation.COLUMNS - 1 \
-						and state.enemy_formation.at(Formation.FRONT, col + 1) == null
-				if not left_free and not right_free:
+				if shove_directions(target).is_empty():
 					return false
 			CardData.EffectType.CHALLENGE:
 				if state.player_captain == null \
@@ -295,6 +288,107 @@ func _effect_preconditions_met(card: CardData, target: Character,
 						or not state.enemy_formation.has(state.enemy_captain):
 					return false
 	return true
+
+
+# --- Legality queries: what the table may offer the player --------------------
+# The UI never works legality out for itself. It asks here, lights up what
+# comes back and submits nothing else; these are pure queries, no state moves.
+
+## Would this play be accepted right now? The guards _play_card applies, plus
+## the target sanity a click can get wrong — the wrong side, a dead man, a man
+## the effect cannot reach where he stands.
+func can_play(card: CardData, target: Character = null,
+		second_target: Character = null) -> bool:
+	if card == null or not state.hand.has(card) or not card.playable:
+		return false
+	if card.cost > state.momentum:
+		return false
+	if not _target_valid(card, target):
+		return false
+	return _effect_preconditions_met(card, target, second_target)
+
+
+func _target_valid(card: CardData, target: Character) -> bool:
+	match card.target_type:
+		CardData.TargetType.NONE:
+			return target == null
+		CardData.TargetType.ENEMY:
+			if target == null or target.side != Character.Side.ENEMY or not target.is_alive():
+				return false
+			return state.enemy_formation.has(target)
+		CardData.TargetType.ALLY:
+			if target == null or target.side != Character.Side.PLAYER or not target.is_alive():
+				return false
+			# Some effects only mean anything to a man in the fight itself.
+			for effect in card.effects:
+				match effect.get("type"):
+					CardData.EffectType.PULL_TO_RESERVE, CardData.EffectType.EXTRA_ATTACK, \
+					CardData.EffectType.SWAP:
+						if not state.player_formation.has(target):
+							return false
+			return true
+	return false
+
+
+## Reserve men an ordinary crossing may take (Reinforce, the momentum commit),
+## in queue order. The prow pair is not among them: they cross only by trading
+## with each other (docs/combat-design.md, the prow pair).
+func crossing_candidates() -> Array[Character]:
+	var out: Array[Character] = []
+	for c in state.player_reserve:
+		if not _pair_member(c):
+			out.append(c)
+	return out
+
+
+## Could this man be sent over by the momentum commit right now? Same guards
+## _commit_reserve enforces, asked before the click instead of after.
+func can_commit(c: Character) -> bool:
+	return c != null and state.player_reserve.has(c) and not _pair_member(c) \
+			and not state.player_formation.is_full() \
+			and state.momentum >= BattleState.RESERVE_COMMIT_COST
+
+
+## Everyone the fielded `target` may trade places with by Swap: his fellows on
+## deck in reading order, then the men waiting on the ship. The prow pair's
+## law narrows a pair member's list to his counterpart alone.
+func swap_partners(target: Character) -> Array[Character]:
+	var out: Array[Character] = []
+	if target == null or not state.player_formation.has(target):
+		return out
+	for c in state.player_formation.fielded() + state.player_reserve:
+		if c != target and _pair_swap_legal(target, c):
+			out.append(c)
+	return out
+
+
+## Which way Break the Line may shove this defender: larboard (-1) before
+## starboard (+1), and only from the rank at the rail into an empty slot.
+func shove_directions(target: Character) -> Array[int]:
+	var out: Array[int] = []
+	var f := state.enemy_formation
+	if target == null or not f.has(target) or f.line_of(target) != Formation.FRONT:
+		return out
+	var col := f.column_of(target)
+	for dir: int in [-1, 1]:
+		if Formation.in_bounds(Formation.FRONT, col + dir) \
+				and f.at(Formation.FRONT, col + dir) == null:
+			out.append(dir)
+	return out
+
+
+## The man a waiting pair member would trade places with — his counterpart,
+## and only while that counterpart is the one holding the field. Null for
+## everyone else: ordinary crew have no counterpart, and the fielded half is
+## not the one asking.
+func pair_swap_counterpart(c: Character) -> Character:
+	if c == null or not _pair_member(c) or not state.player_reserve.has(c):
+		return null
+	var counterpart := state.player_captain if c == state.player_prowman \
+			else state.player_prowman
+	if counterpart == null or not state.player_formation.has(counterpart):
+		return null
+	return counterpart
 
 
 func _apply_effect(effect: Dictionary, target: Character, second_target: Character = null,
@@ -509,10 +603,8 @@ func _pair_member(c: Character) -> bool:
 
 ## First reserve man an ordinary crossing may take — pair members are not it.
 func _default_crosser() -> Character:
-	for c in state.player_reserve:
-		if not _pair_member(c):
-			return c
-	return null
+	var candidates := crossing_candidates()
+	return candidates[0] if not candidates.is_empty() else null
 
 
 ## Swap legality around the pair: a pair member trades only with his
@@ -532,13 +624,7 @@ func _pair_swap_legal(target: Character, second_target: Character) -> bool:
 
 
 func _commit_reserve(character: Character, slot := -1) -> void:
-	if character == null or not state.player_reserve.has(character):
-		return
-	if _pair_member(character):
-		return
-	if state.player_formation.is_full():
-		return
-	if state.momentum < BattleState.RESERVE_COMMIT_COST:
+	if not can_commit(character):
 		return
 	state.momentum -= BattleState.RESERVE_COMMIT_COST
 	state.player_reserve.erase(character)

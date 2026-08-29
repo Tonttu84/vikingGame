@@ -64,7 +64,35 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the prow pair (officer system, first slice)** — rulings in
+Done: **phase D chunks 1–2 — movement riders and the picking UI** (rulings
+in docs/lines-redesign.md): most cards carry a mandatory movement rider
+resolved after the effect (Spear Volley/Concentrated Attack/War Cry/Feint/
+Terrifying Bellow slide a man one column, Shield Wall trades two fielded
+men, Rally steps its target a line, Battle Fury advances its target into an
+empty front slot; the crossing pair, Break the Line, Challenge and Push
+Them Back stay rider-less). The engine lists every legal move in reading
+order and the controller picks WHICH via the awaited `choose_rider` hook —
+never whether; no hook or an illegal answer gets the first legal move, only
+an impossible move is skipped; riders never cross the rail, so the prow
+pair's law holds. Suite `test_riders` (50 checks). Chunk 2 gave the UI its
+hands: engine legality queries (`can_play`, `crossing_candidates`,
+`can_commit`, `swap_partners`, `shove_directions`, `pair_swap_counterpart`
+— suite `test_play_queries`, 43 checks; the UI never judges legality) feed
+one board-pick mechanism (gold-lit tokens/slots, banner prompt, cancel
+only for card-initiated picks) used by rider picks, Reinforce slot drops,
+Swap partners, the shove direction and the momentum commit; cards light
+their legal targets while dragged; a pick with exactly one legal option
+resolves itself. Prow-pair polish shipped: un-committable reserve men dim,
+the waiting pair half shows a swap hint that lights gold and plays Swap on
+click. 717 unit + 56 smoke checks. Sims (n=300, random bot): skirmish
+44.0% win / ~22 turns, veteran 61.0% — identical before/after chunk 2's
+refactor; the retune to ~6–10 turn fights is phase D's open remainder.
+Engine wrinkle parked for the retune chunk: SWAP with a null
+second_target demands a non-pair reserve man, so an empty reserve refuses
+a legal fielded↔fielded trade (UI unaffected — it always names the
+partner); `TestHelpers.station()` silently drops a man onto an occupied
+slot and deserves hardening.
+Earlier: **the prow pair (officer system, first slice)** — rulings in
 docs/combat-design.md: captain and prowman are alternates (one must hold
 the field, never both; `Swap` trades them into each other's slot and
 neither moves any other way); the prowman's death or rout forces the
@@ -75,9 +103,8 @@ captain across at once for 1 momentum, and an unpayable crossing is panic
 58.7% win / avg 22 turns (the forced crossing fields the captain where
 the bot left him ashore), veteran 64.0%; no-card floor now dies with the
 captain (64.7% defeat) instead of being repulsed. Numbers are the
-mechanic speaking; phase D owns the retune. UI knows the role only via
-tooltip/log so far — dimming the pair in the reserve row and a pair-swap
-affordance are open polish.
+mechanic speaking; phase D owns the retune. (The pair's reserve-row
+dimming and swap affordance shipped with phase D chunk 2.)
 Earlier: **scenario anchors & the cost of victory**: a scenario registry
 (`Scenarios.scenario_ids()`/`by_id`; sim `--scenario=skirmish|veteran`) with
 a second balance anchor, the veteran raid (10-man blooded crew, 39-card
@@ -128,11 +155,12 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Lines redesign phase D — card rework & retune (docs/lines-redesign.md):
-   movement riders on the card table (effect first, rider last), prices
-   from sims, UI drag targets for slots, ~6–10 turn fights. Also carries
-   the prow-pair UI polish: dim the un-committable pair in the reserve
-   row (dead click today) and a visible pair-swap affordance.
+1. Lines redesign phase D, final chunk — the retune (docs/lines-redesign.md):
+   card prices from sims, ~6–10 turn fights (riders, drag targets and the
+   prow-pair polish shipped in chunks 1–2). Balance is a design
+   conversation, not a subagent task; bring before/after sim numbers to
+   the user. Also settle the parked SWAP default-partner wrinkle and
+   harden `TestHelpers.station()` along the way.
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds

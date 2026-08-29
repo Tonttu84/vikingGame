@@ -13,18 +13,30 @@ var compact := false   ## reserve rows use a smaller face
 var forecast := {}
 ## An enemy archer's aimed arrows are locked on this man (rescue him!).
 var marked := false
+## Presentation flags the table sets per refresh, all of them answers the
+## engine already gave BattleUI — never judgements made here:
+##   highlight: the board is asking for a pick and this man is one of them
+##   dim:       he cannot be sent over at all (the prow pair's other half)
+##   hint:      a line of small text under his bars (the pair's swap hint)
+##   hint_lit:  that hint is available right now, not just true in principle
+var display := {}
 
 
 static func create(p_character: Character, p_ui: Control, p_compact := false,
-		p_forecast := {}, p_marked := false) -> CharacterToken:
+		p_forecast := {}, p_marked := false, p_display := {}) -> CharacterToken:
 	var token := CharacterToken.new()
 	token.character = p_character
 	token.battle_ui = p_ui
 	token.compact = p_compact
 	token.forecast = p_forecast
 	token.marked = p_marked
+	token.display = p_display
 	token._build()
 	return token
+
+
+func highlighted() -> bool:
+	return display.get("highlight", false)
 
 
 func _build() -> void:
@@ -35,6 +47,13 @@ func _build() -> void:
 		trim = UIPalette.GOLD if is_player else UIPalette.BLOOD
 	var bg := UIPalette.SEA if is_player else UIPalette.IRON_DARK
 	var style := UIPalette.panel(bg, trim, 2 if character.is_captain else 1)
+	# One visual language for "the board wants a pick from you": a gold rim
+	# here, the same gold rim on an empty slot that would take the pick.
+	if highlighted():
+		style = UIPalette.panel(bg.lightened(0.08), UIPalette.GOLD, 3)
+	if display.get("dim", false):
+		# Greyed out, but not invisible when his one legal play is available.
+		modulate = Color(1, 1, 1, 0.9 if display.get("hint_lit", false) else 0.5)
 	# Tokens are the layout's unit cell: a slim margin keeps a fully lit
 	# token (stats + telegraph + forecast) inside its 100px formation row.
 	style.set_content_margin_all(4)
@@ -84,6 +103,12 @@ func _build() -> void:
 	if marked:
 		status_row.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
+	var hint: String = display.get("hint", "")
+	if hint != "":
+		var hint_label := UIPalette.label(hint, UIPalette.FONT_SMALL,
+				UIPalette.GOLD if display.get("hint_lit", false) else UIPalette.PARCHMENT_DIM)
+		hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		status_row.add_child(hint_label)
 	_add_forecast_badge(status_row)
 	if status_row.get_child_count() > 0:
 		box.add_child(status_row)
@@ -153,6 +178,9 @@ func _tooltip() -> String:
 			character.strength, character.speed, character.armor],
 		"%s: %s" % [character.weapon.display_name, _weapon_note()],
 	]
+	var note: String = display.get("note", "")
+	if note != "":
+		lines.append(note)
 	return "\n".join(lines)
 
 

@@ -17,6 +17,38 @@ static func describe(card: CardData) -> String:
 	return "\n".join(lines)
 
 
+## How this card is played, for the card's own footnote. Reinforce names a
+## slot, the targeted cards name a man, the rest land anywhere.
+static func drop_hint(card: CardData) -> String:
+	for effect in card.effects:
+		if effect.get("type") == CardData.EffectType.REINFORCE:
+			return "drag onto an empty slot"
+	match card.target_type:
+		CardData.TargetType.ENEMY:
+			return "drag onto an enemy"
+		CardData.TargetType.ALLY:
+			return "drag onto an ally"
+	return ""
+
+
+## The name of the movement this card's rider forces, for the prompt line
+## that explains why the board is suddenly asking for a pick.
+static func rider_kind(card: CardData) -> String:
+	if card == null:
+		return "move"
+	for effect in card.effects:
+		match effect.get("type"):
+			CardData.EffectType.RIDER_SLIDE:
+				return "slide"
+			CardData.EffectType.RIDER_STEP:
+				return "step"
+			CardData.EffectType.RIDER_ADVANCE:
+				return "advance"
+			CardData.EffectType.RIDER_SWAP_FIELDED:
+				return "swap"
+	return "move"
+
+
 static func _effect_line(effect: Dictionary) -> String:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):
@@ -107,7 +139,7 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Momentum[/b] powers cards: +1 each turn, more for each enemy slain. Routs pay nothing — breaking men is free but earns no tempo.
 
-[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards — most also move your men — then both formations fight, fastest first. Axes ignore 2 armor.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Swap, Drag Him Back!), which wait in hand for their moment. Play cards — most also move your men, and that move is mandatory: the board lights up every man who can take it and you pick which, never whether. Then both formations fight, fastest first. Axes ignore 2 armor.
 
 [b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
 
@@ -115,4 +147,4 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Morale[/b]: every death shakes the fallen side (-2 morale on deck, captains and berserkers excepted). At 0 a fighter routs, shaking the line further. Routs win battles as surely as blood.
 
-[b]The rail[/b]: enemies reinforce 2 per turn into their front gaps. Commit your own reserve for 1 momentum each; the reserve itself never fights and is never hit. Retreat is always on the table — a live crew beats a dead legend."""
+[b]The rail[/b]: enemies reinforce 2 per turn into their front gaps. Commit your own reserve for 1 momentum each — click the man, then the slot; the reserve itself never fights and is never hit. Your captain and his prowman are alternates: one of them always holds the field, and only Swap trades them, so the waiting one shows dimmed on your rail. Retreat is always on the table — a live crew beats a dead legend."""

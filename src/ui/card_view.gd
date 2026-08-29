@@ -55,10 +55,9 @@ func _build() -> void:
 	box.add_child(body)
 
 	var foot_text := "retained" if card.retained else "discards at turn end"
-	if card.target_type == CardData.TargetType.ENEMY:
-		foot_text = "drag onto an enemy · " + foot_text
-	elif card.target_type == CardData.TargetType.ALLY:
-		foot_text = "drag onto an ally · " + foot_text
+	var gesture := CardText.drop_hint(card)
+	if gesture != "":
+		foot_text = gesture + " · " + foot_text
 	var foot := UIPalette.label(foot_text, 9, UIPalette.SEA_LIGHT)
 	# The footnote must never set the card's width — ellipsize past the edge.
 	foot.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -73,4 +72,6 @@ func _get_drag_data(_at: Vector2) -> Variant:
 	preview.modulate.a = 0.85
 	preview.rotation_degrees = 3.0
 	set_drag_preview(preview)
+	# The table lights every legal target for this card while it is in the air.
+	battle_ui.on_card_drag_started(card)
 	return {"card": card}

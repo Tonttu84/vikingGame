@@ -78,6 +78,15 @@ func first_free_index() -> int:
 	return -1
 
 
+## Every empty slot in reading order — the destinations a crossing may pick.
+func free_indices() -> Array[int]:
+	var out: Array[int] = []
+	for i in SLOT_COUNT:
+		if slots[i] == null:
+			out.append(i)
+	return out
+
+
 # --- Movement verbs (bool = the move was legal and happened) ------------------
 
 func place(c: Character, line: int, col: int) -> bool:
