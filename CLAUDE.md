@@ -215,16 +215,35 @@ Agreed next slices, in rough priority:
    until then. Balance stays a design conversation; bring before/after sims.
 
    **Deferred design decisions the owner has already made** (do not
-   re-litigate, do not build yet):
+   re-litigate, do not build yet; rulings refined 2026-08-29):
    - The enemy captain gets an order granting **+1 attack damage to every
-     enemy on the board** — intended as the eventual guarantee that combats
-     cannot lock up.
+     enemy on the board** — the eventual guarantee that combats cannot lock
+     up. RULED: it fires by **replacing the tactic rotation every Nth
+     turn** (so it escalates even while the captain waits ashore); whether
+     the rotation is deterministic or random is still open.
    - Later captains get **different commands**, not just the one.
    - **Every unit gets a pattern**: e.g. block then attack; the berserker
      basic/basic/heavy; archers aim, then hit + debuff. (The enemy wind-up
-     system in phase C is the seed of this.)
+     system in phase C is the seed of this.) RULED: patterns apply to
+     **BOTH sides** — your own crew follows its beats too; this supersedes
+     phase C's enemy-only wind-up ruling.
    - **Armour becomes Slay-the-Spire block**: shields that prevent damage
      for that turn only, replacing armour that permanently reduces it.
+     RULED: the **shieldman loses his half-damage rule** — he becomes the
+     block kit (block-then-attack with a high guard value; his aura becomes
+     shared block on his blocking beats, and true-damage volleys still go
+     around block as his counter-play). The **axe does NOT pierce block**
+     (piercing is wrong with multiple attackers: the ignored block would
+     still stop everyone else) — instead **axes deal extra damage TO
+     block**, and **axes strike first** in the fight order so the
+     block-chewing lands while block is up. The fate of the `armor N`
+     sheet stat (repurpose as guard value vs delete) is still open.
+   - **Closing punishes the dodger**: when a man steps because his column
+     is empty (the shipped closing rule), the character he is closing
+     toward is **immobilized with a growing number** — a stacking
+     movement-denial so repeated dodging is a delaying tactic, never a
+     permanent escape. Details open: exactly which moves immobilize
+     blocks, and how the stacks decay.
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds
