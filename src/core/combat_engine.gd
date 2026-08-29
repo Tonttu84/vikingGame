@@ -288,6 +288,16 @@ func _effect_preconditions_met(card: CardData, target: Character,
 				if state.enemy_captain == null \
 						or not state.enemy_formation.has(state.enemy_captain):
 					return false
+			# The rider gate (docs/card-design-proposal.md §5 Q3): the movement
+			# is part of the price, so a card whose rider cannot move is refused
+			# before payment rather than fizzling. It makes the penalty riders
+			# honest — you cannot engineer them away by packing your grid — and
+			# turns a crowded deck into a real constraint on your hand.
+			CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
+			CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
+			CardData.EffectType.RIDER_CLOSE:
+				if _rider_moves(effect.get("type"), card, target).is_empty():
+					return false
 	return true
 
 
@@ -321,10 +331,13 @@ func _target_valid(card: CardData, target: Character) -> bool:
 			if target == null or target.side != Character.Side.PLAYER or not target.is_alive():
 				return false
 			# Some effects only mean anything to a man in the fight itself.
+			# HEAL is among them: a breather taken safe on the ship is not the
+			# decision Rally asks for, and its rider would have nothing to ride
+			# on — the card would silently lose half of itself.
 			for effect in card.effects:
 				match effect.get("type"):
 					CardData.EffectType.PULL_TO_RESERVE, CardData.EffectType.EXTRA_ATTACK, \
-					CardData.EffectType.SWAP:
+					CardData.EffectType.SWAP, CardData.EffectType.HEAL:
 						if not state.player_formation.has(target):
 							return false
 			return true

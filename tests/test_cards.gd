@@ -80,14 +80,18 @@ func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	assert_eq(e1.hp, 30, "the shielding front-liner is bypassed")
 
 
+## Battle Fury's Press rider is part of its price: it is playable only on a
+## second-liner with room in front of him, and the fury arrives with him.
 func test_battle_fury_grants_extra_attack() -> void:
 	var p1 := TestHelpers.grunt(P, "p1", 12, 6, 3, 3, Weapon.sword(), 0)
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, p1, Formation.BACK, 0)
 	var card := CardLibrary.battle_fury()
 	eng.state.hand.append(card)
 	eng.state.momentum = 1
 	await eng._play_card(card, p1)
+	assert_eq(eng.state.player_formation.at(Formation.FRONT, 0), p1, "he presses forward with it")
 	await eng._fight_phase(P)
 	assert_eq(e1.hp, 30 - 5 - 5, "two sword swings")
 
