@@ -31,9 +31,10 @@ func choose_maneuver(state: BattleState, options: Array[CardData]) -> CardData:
 
 
 ## A played card's movement rider: the engine has already worked out every
-## legal move and one of them MUST be taken (docs/lines-redesign.md, riders
-## are mandatory), so this asks which — there is no skip and no cancel. The
-## board lights up the engine's list; an empty answer (an aborted battle)
+## legal move and one of them MUST be taken (docs/card-design-proposal.md —
+## riders are mandatory and their direction is fixed by the card), so this
+## asks only which MAN takes it. No skip, no cancel, no choice of direction.
+## The board lights up the engine's list; an empty answer (an aborted battle)
 ## falls back to the engine's own first move.
 func choose_rider(state: BattleState, card: CardData,
 		moves: Array[Dictionary]) -> Dictionary:

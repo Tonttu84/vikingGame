@@ -14,8 +14,9 @@ var _log_lines_shown := 0
 ## The banner line the top bar shows when the board is not asking for a pick.
 var _turn_text := "Turn 1"
 ## The one pick the board is waiting on, or {} — see _begin_pick. Card picks
-## (who crosses, who trades places, which way a man is shoved) and the engine's
-## mandatory movement riders share this single mechanism and its gold rim.
+## (who crosses, who trades places, which way a man is shoved, who a taunted
+## defender answers to) and the engine's mandatory movement riders share this
+## single mechanism and its gold rim.
 ##   {"prompt": String, "options": Array[Dictionary], "cancellable": bool,
 ##    "on_choice": Callable}
 ## and each option is {"value": Variant} plus either "character" (light up his
@@ -130,66 +131,20 @@ func on_pace(state: BattleState) -> void:
 	refresh(state)
 
 
-## A played card's rider has come due. The engine has already worked out
-## every legal move and one of them must be taken, so this is a pick, not a
-## question: the men who can move light up, then their destinations. Nothing
-## here judges legality — every option carries one of the engine's own moves.
+## A played card's rider has come due. The direction is the card's and is
+## printed on its face, so there is exactly one thing left to settle and one
+## step to settle it in: WHICH man takes it. Every man who can light up; the
+## engine already worked out that they can, and a card whose step nobody could
+## take never reached here — it was refused before it was paid for. A card
+## that names an ally offers one move, which the pick mechanism resolves by
+## itself without a click.
 func on_rider_prompt(state: BattleState, card: CardData, moves: Array[Dictionary]) -> void:
 	refresh(state)
-	var kind := CardText.rider_kind(card)
-	var movers: Array[Character] = []
-	for move in moves:
-		for c in _rider_men(move):
-			if not movers.has(c):
-				movers.append(c)
-	var options: Array[Dictionary] = []
-	for c in movers:
-		options.append(_token_option(c, c))
-	_begin_pick("%s — the %s rides on it: which man moves?" % [card.display_name, kind],
-			options, false,
-			func(mover: Character) -> void: _rider_destination_pick(card, moves, mover))
-
-
-## Step two of a rider: where the chosen man goes. A slide names the empty
-## slot he steps into, a step or advance the slot in the other line, a swap
-## the man he trades places with.
-func _rider_destination_pick(card: CardData, moves: Array[Dictionary],
-		mover: Character) -> void:
-	var kind := CardText.rider_kind(card)
 	var options: Array[Dictionary] = []
 	for move in moves:
-		if not _rider_men(move).has(mover):
-			continue
-		options.append(_rider_move_option(move, mover))
-	var prompt := "%s — %s must %s: where to?" % [card.display_name, mover.display_name, kind]
-	if kind == "swap":
-		prompt = "%s — who does %s trade places with?" % [card.display_name, mover.display_name]
-	_begin_pick(prompt, options, false, func(move: Dictionary) -> void: _submit_rider(move))
-
-
-## The men a rider move touches: the one who steps, or both halves of a trade.
-func _rider_men(move: Dictionary) -> Array[Character]:
-	var men: Array[Character] = []
-	if move.has("character"):
-		men.append(move["character"])
-	if move.has("a"):
-		men.append(move["a"])
-	if move.has("b"):
-		men.append(move["b"])
-	return men
-
-
-func _rider_move_option(move: Dictionary, mover: Character) -> Dictionary:
-	var f := engine.state.player_formation
-	if move.has("direction"):
-		var dir: int = move["direction"]
-		return _slot_option(Character.Side.PLAYER, f.line_of(mover),
-				f.column_of(mover) + dir, move, "larboard" if dir < 0 else "starboard")
-	if move.has("line"):
-		return _slot_option(Character.Side.PLAYER, move["line"], f.column_of(mover), move,
-				"step up" if move["line"] == Formation.FRONT else "fall back")
-	var partner: Character = move["b"] if move["a"] == mover else move["a"]
-	return _token_option(partner, move)
+		options.append(_token_option(move["character"], move))
+	_begin_pick("%s — %s: which man?" % [card.display_name, CardText.rider_kind(card)],
+			options, false, func(move: Dictionary) -> void: _submit_rider(move))
 
 
 func _submit_rider(move: Dictionary) -> void:
@@ -388,6 +343,20 @@ func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 				options, true,
 				func(partner: Character) -> void:
 					action["second_target"] = partner
+					submit(action))
+		return
+	if _card_has(card, CardData.EffectType.TAUNT):
+		# The shout names two men: the defender it is aimed at (already the
+		# drop target) and the man of yours he is dragged across to. The engine
+		# says which of your men that could be — never this scene.
+		var options: Array[Dictionary] = []
+		for c in engine.state.player_formation.fielded():
+			if engine.taunt_targets(c).has(target):
+				options.append(_token_option(c, c))
+		_begin_pick("%s — who does %s answer to?" % [card.display_name, target.display_name],
+				options, true,
+				func(anchor: Character) -> void:
+					action["second_target"] = anchor
 					submit(action))
 		return
 	if _card_has(card, CardData.EffectType.SHOVE):
