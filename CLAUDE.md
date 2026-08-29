@@ -64,7 +64,27 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **phase D chunk 3 — the closing rule** (ruling in
+Done: **UI robustness — nothing a card says can move the board.** The web
+build was cut off: card faces sized themselves to their rules text, so phase
+D's rider wording grew the card, the hand row, and pushed End Turn/Retreat
+off the 800px canvas (they sat at y=806/852). Sizing a box from its own text
+was the bug, so card faces, slots, tokens and the sidebar are all fixed boxes
+now with content fitted or clipped into them (a wordier card renders in a
+smaller font, full text on the tooltip; faces narrow so a 7-card hand still
+fits). The sidebar mattered most: its width set the table's width, so
+lighting the board for a drag re-centred every formation row — slot B1 jumped
+x=224 → x=296 the instant a card left the hand and a drop landed in the gap
+beside its target. `MAX_HAND_SIZE = 7` is now a real engine rule (the turn
+refill deals 5, Feint pushes past it; an overflowing draw leaves the card in
+the deck). **`scripts/ui_smoke.sh` is now the rendering guard: 90 checks**,
+asserting at the picker / turn 1 / a full hand / mid-drag / late battle that
+no visible control escapes the canvas (clipping-aware), both turn buttons are
+on screen, every card keeps the fixed box, and the board does not move when a
+card is picked up. Layout regressions from new card text are now caught by a
+test instead of by playing. 747 unit + 90 smoke.
+NOT verified: nobody has looked at the rebuilt web build in a browser — the
+fixes are proven by measurement and tests only. `make serve` to check.
+Earlier: **phase D chunk 3 — the closing rule** (ruling in
 docs/lines-redesign.md): a man whose column is empty forfeits his swing and
 steps one column toward the nearest column with someone in it (larboard on
 a tie; he stays and swings at air only when his own line walls him in, and
@@ -176,13 +196,35 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Card design — the real cards, replacing the placeholder set (the
-   sketch table in docs/lines-redesign.md). Only once these are real does
-   the numeric retune mean anything: card prices and roster HP are the
-   last mile to ~6–10 turn fights (the closing rule got skirmish to 14.1),
-   and the user has explicitly deferred them until then. Balance stays a
-   design conversation, not a subagent task; bring before/after sim
-   numbers.
+1. Card design — the real cards, replacing the placeholder set. There is now
+   a written proposal at **docs/card-design-proposal.md** against the owner's
+   brief: every card carries BOTH an effect and a movement, and the movement
+   is FIXED (move left/right/forward/back), never player-chosen, because a
+   free direction is always good and so never a cost. Read its two findings
+   first: fixing the direction alone does NOT fix the cost (the mandatory
+   slide is answered by moving the archer, for whom position means nothing —
+   the free *mover* is half the problem), and it recommends cutting
+   two-column jumps (a fixed jump is illegal from half a 4-column board, and
+   jumping out of contact can re-open the stall the closing rule just
+   closed). It also rules Taunt in full and flags a REAL BUG: Rally can
+   currently be played on a man in reserve (HEAL is missing from the
+   fielded-only list in `_target_valid`) — fix starts with a regression test.
+   Only once the cards are real does the numeric retune mean anything: card
+   prices and roster HP are the last mile to ~6–10 turn fights (the closing
+   rule got skirmish to 14.1), and the user has explicitly deferred them
+   until then. Balance stays a design conversation; bring before/after sims.
+
+   **Deferred design decisions the owner has already made** (do not
+   re-litigate, do not build yet):
+   - The enemy captain gets an order granting **+1 attack damage to every
+     enemy on the board** — intended as the eventual guarantee that combats
+     cannot lock up.
+   - Later captains get **different commands**, not just the one.
+   - **Every unit gets a pattern**: e.g. block then attack; the berserker
+     basic/basic/heavy; archers aim, then hit + debuff. (The enemy wind-up
+     system in phase C is the seed of this.)
+   - **Armour becomes Slay-the-Spire block**: shields that prevent damage
+     for that turn only, replacing armour that permanently reduces it.
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds
