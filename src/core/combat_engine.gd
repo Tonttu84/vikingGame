@@ -682,9 +682,16 @@ func _fight_phase(side: Character.Side) -> void:
 			var target := _pick_target(attacker)
 			if target == null:
 				# The miss is spatial and deterministic: an empty column eats
-				# the swing. Dodging is placement, never dice.
-				state.log_event("%s swings at air — the column across is empty." %
-						attacker.display_name)
+				# the swing. Dodging is placement, never dice — but it buys a
+				# turn, not the fight, so he closes if he has anywhere to go.
+				var step := _close_direction(attacker)
+				if step != 0:
+					state.formation_of(side).slide(attacker, step)
+					state.log_event("%s presses toward the fighting." %
+							attacker.display_name)
+				else:
+					state.log_event("%s swings at air — the column across is empty." %
+							attacker.display_name)
 				await _pace()
 				break
 			await _attack(attacker, target)
@@ -749,6 +756,37 @@ func _pick_target(attacker: Character) -> Character:
 	if _focus_valid(attacker) and opposing.column_of(state.focus_target) == col:
 		return state.focus_target
 	return opposing.column_melee_target(col)
+
+
+## Which way a man whose column is empty steps instead of flailing at air.
+## He forfeits the swing either way: dodging still costs the attacker his
+## turn, so placement is still defence — but the fight now converges, and
+## two survivors in different columns can no longer stand and stare until
+## the turn limit. Deterministic, as every miss here is: the nearest column
+## with someone to hit in it, larboard on a tie. Zero when his own line
+## walls him in, or there is nobody left to close on.
+func _close_direction(attacker: Character) -> int:
+	var own := state.formation_of(attacker.side)
+	var opposing := state.opposing_formation(attacker.side)
+	var col := own.column_of(attacker)
+	if col == -1:
+		return 0
+	var step := 0
+	var nearest := Formation.COLUMNS
+	for c in Formation.COLUMNS:
+		if opposing.column_melee_target(c) == null:
+			continue
+		var distance := absi(c - col)
+		if distance == 0 or distance >= nearest:
+			continue
+		nearest = distance
+		step = -1 if c < col else 1
+	if step == 0:
+		return 0
+	var line := own.line_of(attacker)
+	if not Formation.in_bounds(line, col + step) or own.at(line, col + step) != null:
+		return 0
+	return step
 
 
 ## An archer earning his keep: in the second line with a bow.

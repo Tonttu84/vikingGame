@@ -29,8 +29,16 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
   slot in his own column — their front first, then their second line. A
   whole empty enemy column means his swing **misses**: he hits air. Misses
   are spatial and deterministic, never dice.
+- **A man who misses closes.** Rather than flail at the same empty column
+  every turn, he forfeits the swing and **steps one column toward the
+  nearest column with someone in it** (larboard on a tie; he stays put if
+  his own line walls him in, and then he does swing at air). Second-liners
+  who cannot reach never step — closing would buy them nothing.
 - **Placement is also defense.** Vacate a column and their berserker there
-  hits nothing — at the price of your own attack lane in that column.
+  hits nothing — at the price of your own attack lane in that column. But
+  the dodge buys a **turn**, not the fight: he walks the deck down and
+  arrives. Two survivors in different columns can no longer stand and
+  stare at each other until the turn limit.
 - **Front-liners** fight their column. **Spears** also fight it from the
   second line (reach). **Archers** in the second line auto-snipe the
   lowest-HP fielded enemy *anywhere* for a flat 2 (spawn-order tiebreak,
@@ -365,6 +373,21 @@ The no-card floor changes character: 64.7% defeat / 24% stalemate — with
 no Swap card the captain, once forced across, fights until he falls, so
 repulsed boardings become captain-deaths. Both shifts are the mechanic
 speaking, not tuning targets; phase D owns the retune.
+
+Post-closing (phase D chunk 3, n=300, random bot): skirmish 46.3% win /
+53.7% defeat / **0% stalemate**, avg 14.1 turns (from 44.0% / 6.0% / 21.8);
+veteran 58.7% win / 0% stalemate, avg 16.7 turns (from 61.0% / 5.0% /
+20.7). The cost of victory improved with it — skirmish 1.24 → 1.12 dead in
+a win, veteran 0.98 → 0.81 — because fights that used to be decided by
+attrition over twenty turns now end while men are still standing. No
+roster number and no card price moved: this is the closing rule alone,
+and stalemates are gone because the board can no longer deadlock. The
+no-card floor changes character again: 29.0% win / 71.0% defeat, avg 15.9
+turns, since a passive crew's men now walk into contact instead of being
+stranded in empty columns — still a clear loss, and the ~17-point gap to
+the random bot is what card play is worth. The remaining distance to
+6–10 turns is deliberately left to card prices and roster numbers once
+the cards are real rather than placeholders.
 
 ### Two balance anchors & the cost of victory
 

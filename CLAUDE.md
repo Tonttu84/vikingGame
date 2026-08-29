@@ -64,7 +64,28 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **phase D chunks 1–2 — movement riders and the picking UI** (rulings
+Done: **phase D chunk 3 — the closing rule** (ruling in
+docs/lines-redesign.md): a man whose column is empty forfeits his swing and
+steps one column toward the nearest column with someone in it (larboard on
+a tie; he stays and swings at air only when his own line walls him in, and
+second-liners without reach never step). Diagnosis first: 44% of all melee
+swings were hitting an empty column, and sampled stalemates were twenty
+straight turns of the jarl swinging at air — a termination defect, not a
+balance problem, since no number lets two men in different columns reach
+each other. A numeric sweep confirmed it (morale pressure and a shieldman
+aura fix moved length not at all; HP ×0.65 only reached 14.6 turns). The
+rule alone: skirmish 21.8 → 14.1 turns and stalemates 6.0% → 0%, veteran
+20.7 → 16.7 and 5.0% → 0%, with the cost of victory improving too (1.24 →
+1.12 dead in a win). Dodging keeps its meaning — the attacker still loses
+the turn — but it is a tempo cost now, not a permanent nullification.
+740 unit + 56 smoke checks. **Card prices and roster HP are deliberately
+NOT tuned**: the user's call is to leave them until the battle mechanism
+is settled and the cards are real designs rather than placeholders.
+Also settled the two parked engine wrinkles: Swap's precondition and
+effect now share `_default_swap_partner()`, so an empty reserve no longer
+refuses a legal fielded↔fielded trade, and `TestHelpers.station()` asserts
+instead of silently dropping a man onto an occupied slot.
+Earlier: **phase D chunks 1–2 — movement riders and the picking UI** (rulings
 in docs/lines-redesign.md): most cards carry a mandatory movement rider
 resolved after the effect (Spear Volley/Concentrated Attack/War Cry/Feint/
 Terrifying Bellow slide a man one column, Shield Wall trades two fielded
@@ -155,12 +176,13 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-1. Lines redesign phase D, final chunk — the retune (docs/lines-redesign.md):
-   card prices from sims, ~6–10 turn fights (riders, drag targets and the
-   prow-pair polish shipped in chunks 1–2). Balance is a design
-   conversation, not a subagent task; bring before/after sim numbers to
-   the user. Also settle the parked SWAP default-partner wrinkle and
-   harden `TestHelpers.station()` along the way.
+1. Card design — the real cards, replacing the placeholder set (the
+   sketch table in docs/lines-redesign.md). Only once these are real does
+   the numeric retune mean anything: card prices and roster HP are the
+   last mile to ~6–10 turn fights (the closing rule got skirmish to 14.1),
+   and the user has explicitly deferred them until then. Balance stays a
+   design conversation, not a subagent task; bring before/after sim
+   numbers.
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds

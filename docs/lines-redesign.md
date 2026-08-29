@@ -54,10 +54,15 @@ your reserve   (your ship — can NEVER act; ship archers feed covering fire)
 
 - A fighter attacks **the nearest occupied enemy slot in his own column**
   (their front first, then their second line). Whole enemy column empty →
-  **the attack misses** — he swings at air.
+  **the attack misses** — he swings at air, and then **closes** (below).
+- **Closing (ruled in D, see the retune below).** A man who misses steps
+  one column toward the nearest column with someone in it — larboard on a
+  tie, and not at all if his own line walls him in or he is a second-liner
+  without reach. He forfeits the swing either way.
 - Dodging is real: vacate a column and their berserker there hits nothing
-  (at the price of your own attack lane in that column). Their telegraphed
-  shifts re-aim at you; yours re-aim at them.
+  (at the price of your own attack lane in that column). It buys a turn,
+  not the fight — he closes and arrives. Their telegraphed shifts re-aim
+  at you; yours re-aim at them.
 - **Front-liners** attack their column. **Spearmen** also attack their
   column from the second line (reach). Other second-liners cannot melee.
 - **Archers** (second line only) auto-snipe: they shoot the **lowest-HP
@@ -262,7 +267,43 @@ grids) · the duel-bypasses-the-line rule.
   11.6% stalemate, ~27 turns — the calls break the wall's grind; D owns
   the numbers.
 - **D. Card rework & polish** — the table above, prices from sims, UI drag
-  targets for slots, retune to ~6–10 turn fights.
+  targets for slots, retune to ~6–10 turn fights. Chunks 1–2 (movement
+  riders, the picking UI) and the closing rule have shipped; card prices
+  and roster numbers are the remainder, deliberately deferred until the
+  cards themselves are designed rather than placeholders.
+
+### The closing rule (ruled 2026-08-29, chunk 3)
+
+Measured before touching a number: **44% of all melee swings hit an empty
+column**, and the enemy captain alone was 37% of those. In a sampled
+stalemate, turns 50–60 contained nothing but the jarl swinging at air —
+the last survivors stood in different columns and could not reach each
+other at all. That is a **termination defect, not a balance problem**: no
+HP or price number lets two men in different columns resolve a fight.
+
+Sweeping the numeric levers confirmed it. Against an unchanged ~20.6-turn
+baseline (n=200, random bot): morale pressure (death −3 / rout −2) left
+length untouched at 20.2 and only moved the cost of victory; denying a
+shieldman his neighbour's aura was **entirely inert** at 20.7, so the
+1-damage shieldman standoff is a local annoyance and not what makes
+fights long; only cutting every roster's HP to ×0.65 moved length at all,
+and only to 14.6 — still outside the target, at the price of a much
+harsher campaign layer.
+
+So the dead air is the gate, and it is closed by a rule rather than a
+number: **a man who misses steps toward the fighting.** Dodging keeps its
+whole meaning — the attacker still loses the turn, which is what the
+empty column bought — but it is now a tempo cost instead of a permanent
+nullification. Rejected alternatives: letting him strike an adjacent
+column at reduced damage (an empty column would stop protecting anyone,
+merely taxing the attacker), and making him wait a turn before closing
+(pure one-turn dodging preserved, at the cost of slower convergence and a
+fiddlier rule).
+
+The remaining distance to 6–10 turns is left to card prices and roster
+numbers **once the cards are real** — tuning placeholder cards teaches
+nothing, and the closing rule alone took skirmish from 21.8 to 14.1 turns
+and killed stalemates outright.
 
 Bot note: RandomBot learns legal placement moves only (random but valid);
 tuning targets stay honest but expect noisier numbers until D.
