@@ -299,8 +299,13 @@ Agreed next slices, in rough priority:
    sims: does the command's escalation make the bot's late game hopeless
    (18.0%/34.3% win rates say slow play now loses — a human should be
    faster, but verify), and does the guarding wall stall the early game?
-   Still-open rulings for the owner, none blocking: deterministic vs
-   seeded-random tactic rotation; content for later captains' commands.
+   Still-open rulings, PARKED until the owner has PLAYTESTED the new
+   mechanism (owner's call 2026-08-30: do not decide these for him, ask
+   after he has played): (a) deterministic vs seeded-random tactic
+   rotation — the command already fires on a fixed beat either way;
+   (b) content for later captains' commands. Playtest entry point:
+   `make serve` (also still unverified in a real browser since the
+   fixed-box UI rework).
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds
