@@ -181,7 +181,7 @@ func test_other_weapons_cannot_melee_from_the_second_line() -> void:
 	assert_false(_log_has(eng, "swings at air"), "he is not swinging — he simply cannot reach")
 
 
-func test_archer_snipes_the_weakest_fielded_enemy_anywhere() -> void:
+func test_archer_marks_the_weakest_fielded_enemy_anywhere() -> void:
 	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
 	var e1 := TestHelpers.grunt(E, "e1")
 	var e2 := TestHelpers.grunt(E, "e2", 5, 6, 3, 3, null, 0)
@@ -189,19 +189,20 @@ func test_archer_snipes_the_weakest_fielded_enemy_anywhere() -> void:
 	TestHelpers.station(eng.state.player_formation, bow, B, 0)
 	TestHelpers.station(eng.state.enemy_formation, e2, F, 3)
 	await eng._fight_phase(P)
-	assert_eq(e2.hp, 3, "lowest HP, any column: flat 2 (an unraised guard stops nothing)")
+	assert_eq(eng.state.archer_marks.get(bow), e2, "the aim beat locks the lowest HP, any column")
+	await eng._fight_phase(P)
+	assert_eq(e2.hp, 5 - 4, "the next beat: both flat-2 arrows land")
 	assert_eq(e1.hp, 12, "the healthy man is not worth an arrow")
 
 
-func test_archer_snipe_tiebreak_is_spawn_order() -> void:
+func test_archer_mark_tiebreak_is_spawn_order() -> void:
 	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
 	var e1 := TestHelpers.grunt(E, "e1")
 	var e2 := TestHelpers.grunt(E, "e2")
 	var eng := TestHelpers.engine_for({"player_field": [bow], "enemy_field": [e1, e2]})
 	TestHelpers.station(eng.state.player_formation, bow, B, 0)
 	await eng._fight_phase(P)
-	assert_eq(e1.hp, 10, "equal HP: the earlier spawn is hit")
-	assert_eq(e2.hp, 12)
+	assert_eq(eng.state.archer_marks.get(bow), e1, "equal HP: the earlier spawn is marked")
 
 
 func test_reserve_never_acts() -> void:
@@ -242,7 +243,9 @@ func test_focus_fire_strikes_through_the_column() -> void:
 	TestHelpers.station(eng.state.enemy_formation, e_front, F, 1)
 	eng.state.focus_target = e_weak
 	await eng._fight_phase(P)
-	assert_eq(e_weak.hp, 30 - 3 - 2, "his column's attacker strikes past the front man; the archer joins")
+	assert_eq(e_weak.hp, 30 - 3, "his column's attacker strikes past the front man")
+	assert_eq(eng.state.archer_marks.get(bow), e_weak,
+			"the archer joins by aiming at the focus, not the weakest")
 	assert_eq(e_front.hp, 30, "the front man is bypassed, not hit")
 	assert_true(_log_has(eng, "swings at air"), "focus does not grant reach across columns: pC still misses")
 

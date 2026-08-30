@@ -44,8 +44,10 @@ func test_reach_snipe_and_rail_arrows_are_counted() -> void:
 	TestHelpers.station(eng.state.enemy_formation, e_spear, B, 0)
 	TestHelpers.station(eng.state.enemy_formation, e_bow, B, 3)
 	p1.hp = 11  # wounded: their archer's mark, and still the column's target
+	e_bow.beat = 1
+	eng.state.archer_marks[e_bow] = p1
 	var fc := eng.forecast()
-	assert_eq(fc[p1]["hp"], 4 + 4 + 2, "front man + spear reach + archer snipe all add up")
+	assert_eq(fc[p1]["hp"], 4 + 4 + 4, "front man + spear reach + both aimed arrows add up")
 
 
 func test_telegraphed_arrow_volley_and_shield_wall() -> void:

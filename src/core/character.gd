@@ -26,12 +26,16 @@ var block := 0
 var is_captain := false    ## leader aura: line-neighbors strike +1 (CombatEngine)
 var is_prowman := false    ## the captain's alternate: one of the pair must hold the field
 var is_berserker := false  ## immune to morale damage; his attacks cleave (CombatEngine)
-var is_shieldman := false  ## the block kit (docs/block-and-patterns.md; lands with patterns)
+var is_shieldman := false  ## the block kit: guards, and shares block when he does
 var shaken := false        ## routed earlier in the raid; reduced morale
-## Enemy wind-up rhythm (docs/lines-redesign.md phase C): fight phases left
-## until the heavy cleave / double shot fires — 0 fires this turn, -1 = no
-## rhythm (all player characters, plain fighters, the unfielded).
-var windup := -1
+## The man's rhythm (docs/block-and-patterns.md): a cycle of beats performed
+## one per own fight phase, BOTH sides. Roles map to patterns at registration
+## (default_pattern); `beat` indexes the cycle and restarts on fielding.
+var pattern: Array[String] = []
+var beat := 0
+## SUPPRESSED (the aimed double shot's debuff): while > 0, every damage
+## packet he deals loses a third, rounded up against him. Own-turn-ends left.
+var suppressed := 0
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
 ## Setup-only hint (RosterText slot syntax): the grid slot this character is
@@ -57,6 +61,28 @@ func _init(p_id: String, p_name: String, p_side: Character.Side, p_hp: int, p_mo
 
 func is_alive() -> bool:
 	return hp > 0
+
+
+## The role's rhythm. The berserker builds to the heavy blow, the bow aims
+## before it kills, the shieldman plants before he swings, everyone else
+## just fights. One beat per own fight phase, on both sides of the deck.
+func default_pattern() -> Array[String]:
+	if is_berserker:
+		return ["attack", "attack", "heavy"]
+	if weapon.kind == Weapon.Kind.BOW:
+		return ["aim", "shoot"]
+	if is_shieldman:
+		return ["guard", "attack"]
+	return ["attack"]
+
+
+func current_beat() -> String:
+	return "attack" if pattern.is_empty() else pattern[beat % pattern.size()]
+
+
+func advance_beat() -> void:
+	if not pattern.is_empty():
+		beat = (beat + 1) % pattern.size()
 
 
 func morale_immune() -> bool:

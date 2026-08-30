@@ -355,13 +355,16 @@ func _run() -> void:
 			"both fielded defenders drawn in the grid")
 	check(ui._momentum_pips.get_child_count() == 10, "momentum pips")
 
-	# The forecast badges: whoever stands in a contested column shows the
-	# damage he is about to take, without the player doing the sums.
+	# The forecast badges: whoever is about to bleed shows the bill, without
+	# the player doing the sums. (Since the patterns slice, turn 1 can open
+	# with the whole surviving watch on a guard beat — so the guaranteed
+	# badge is on THEIR side, where your own men are about to land blows.)
 	var badge_found := false
-	for t in _tokens_in(ui._player_front_row):
-		if t.get_meta("forecast_hp", 0) > 0:
-			badge_found = true
-	check(badge_found, "a front-liner in a contested column shows incoming damage")
+	for row in [ui._player_front_row, ui._enemy_front_row, ui._enemy_back_row]:
+		for t in _tokens_in(row):
+			if t.get_meta("forecast_hp", 0) > 0:
+				badge_found = true
+	check(badge_found, "a man in a contested column shows incoming damage")
 
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield

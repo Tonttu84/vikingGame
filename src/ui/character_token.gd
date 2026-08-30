@@ -114,13 +114,9 @@ func _build() -> void:
 	var status_row := HBoxContainer.new()
 	status_row.add_theme_constant_override("separation", 6)
 	status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if character.windup >= 0:
-		var windup_text: String
-		if character.windup > 0:
-			windup_text = "winds up: %d" % character.windup
-		else:
-			windup_text = "HEAVY BLOW NEXT" if character.is_berserker else "ARROWS AIMED"
-		status_row.add_child(UIPalette.label(windup_text, UIPalette.FONT_SMALL,
+	var beat_text := _beat_text(character)
+	if beat_text != "":
+		status_row.add_child(UIPalette.label(beat_text, UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
 	if marked:
 		status_row.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
@@ -228,3 +224,20 @@ func _can_drop_data(_at: Vector2, data: Variant) -> bool:
 
 func _drop_data(_at: Vector2, data: Variant) -> void:
 	battle_ui.play_card(data["card"], character)
+
+
+## The telegraph line for a man's next beat. Plain single-beat fighters show
+## nothing; a rhythm worth reading is spelled out.
+static func _beat_text(character: Character) -> String:
+	if character.pattern.size() <= 1:
+		return ""
+	match character.current_beat():
+		"heavy":
+			return "HEAVY BLOW NEXT"
+		"aim":
+			return "taking aim"
+		"shoot":
+			return "ARROWS AIMED"
+		"guard":
+			return "shield up next"
+	return "strikes next"

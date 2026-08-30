@@ -44,7 +44,7 @@ func test_shieldman_flag_grants_no_passive_protection() -> void:
 	shieldman.is_shieldman = true
 	var eng := TestHelpers.engine_for({"player_field": [archer], "enemy_field": [shieldman]})
 	TestHelpers.station(eng.state.player_formation, archer, B, 0)
-	await eng._fight_phase(P)
+	await eng._snipe(archer, shieldman)
 	assert_eq(shieldman.hp, 12 - 2, "the flat 2 arrow lands whole on an unraised guard")
 
 
@@ -198,7 +198,7 @@ func test_captain_aura_does_not_boost_snipes() -> void:
 	})
 	TestHelpers.station(eng.state.player_formation, captain, B, 0)
 	TestHelpers.station(eng.state.player_formation, archer, B, 1)
-	await eng._fight_phase(P)
+	await eng._snipe(archer, mark)
 	assert_eq(mark.hp, 12 - 2, "the arrow stays flat 2 even at the captain's shoulder")
 
 
