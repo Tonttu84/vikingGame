@@ -82,7 +82,8 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 	state.deck = deck
 	_shuffle(state.deck)
 	enemy_tactics.assign(scenario.get("enemy_tactics", ["press_the_attack"]))
-	state.next_tactic = _pick_tactic()
+	state.captain_command = scenario.get("captain_command", {})
+	state.next_tactic = _pick_tactic_for(1)
 	state.maneuvers.assign(scenario.get("maneuvers", []))
 	state.artifacts.assign(scenario.get("artifacts", []))
 	_apply_battle_start_artifacts()
@@ -213,7 +214,7 @@ func _enemy_turn() -> void:
 	await _pace()
 	_tick_statuses(Character.Side.ENEMY)
 	state.surge_active = false
-	state.next_tactic = _pick_tactic()
+	state.next_tactic = _pick_tactic_for(state.turn + 1)
 
 
 # --- Player actions ----------------------------------------------------------
@@ -1205,11 +1206,20 @@ func forecast() -> Dictionary:
 	for attacker in _attack_order(Character.Side.PLAYER):
 		_forecast_attacker(attacker, out, guard)
 	# Their side strikes AFTER the call: preview it on the real grid, then
-	# put every man back where he stands.
+	# put every man back where he stands. A telegraphed captain's order fires
+	# before they swing, so the preview rages them for the pass and un-rages
+	# them after — the real men are never touched.
 	var held: Array[Character] = state.enemy_formation.slots.duplicate()
+	var preview_rage: int = state.captain_command.get("amount", 1) \
+			if state.next_tactic == "captains_order" \
+			and state.captain_command.get("effect", "") == "blood_rage" else 0
 	_apply_call(state.next_tactic)
+	for c in state.fielded(Character.Side.ENEMY):
+		c.rage += preview_rage
 	for attacker in _attack_order(Character.Side.ENEMY):
 		_forecast_attacker(attacker, out, guard)
+	for c in state.fielded(Character.Side.ENEMY):
+		c.rage -= preview_rage
 	state.enemy_formation.slots = held
 	# The telegraphed tactic's direct damage is part of the bill.
 	match state.next_tactic:
@@ -1410,6 +1420,19 @@ func _pair_exit(line: int, col: int) -> void:
 
 # --- Enemy tactics and reinforcements ----------------------------------------
 
+## The telegraph for a given turn: every period-th enemy turn the captain's
+## command replaces whatever the rotation would have picked — from the
+## sterncastle or the line alike, so a full locked board cannot silence the
+## escalation. Off the beat, the rotation runs (seeded-random for now; a
+## fixed cycle is an open ruling).
+func _pick_tactic_for(turn: int) -> String:
+	var period: int = state.captain_command.get("period", 0)
+	if period > 0 and turn % period == 0 \
+			and state.enemy_captain != null and state.enemy_captain.is_alive():
+		return "captains_order"
+	return _pick_tactic()
+
+
 func _pick_tactic() -> String:
 	if enemy_tactics.is_empty():
 		return "press_the_attack"
@@ -1418,6 +1441,8 @@ func _pick_tactic() -> String:
 
 func _resolve_tactic(tactic: String) -> void:
 	match tactic:
+		"captains_order":
+			_resolve_command()
 		"arrow_volley":
 			if state.shield_wall_active:
 				state.log_event("Enemy arrows rattle off the shield wall.")
@@ -1449,6 +1474,21 @@ func _resolve_tactic(tactic: String) -> void:
 							if moved else "The defenders hold — no gaps to fill.")
 		_:
 			state.log_event("The enemy presses the attack.")
+
+
+## The captain's command (docs/block-and-patterns.md): dispatched on the
+## scenario's effect id, so later captains carry different words. blood_rage:
+## every fielded defender gains a permanent, stacking +amount attack damage —
+## men below decks miss the speech, and what a man has heard he keeps.
+func _resolve_command() -> void:
+	var command := state.captain_command
+	match command.get("effect", ""):
+		"blood_rage":
+			var amount: int = command.get("amount", 1)
+			for c in state.fielded(Character.Side.ENEMY):
+				c.rage += amount
+			state.log_event("%s roars from the stern — %s! Every defender strikes +%d, and the rage does not fade." %
+					[state.enemy_captain.display_name, command.get("name", "the command"), amount])
 
 
 ## The captain's calls are formation moves (docs/lines-redesign.md phase C):

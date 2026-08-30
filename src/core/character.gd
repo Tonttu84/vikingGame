@@ -36,6 +36,9 @@ var beat := 0
 ## SUPPRESSED (the aimed double shot's debuff): while > 0, every damage
 ## packet he deals loses a third, rounded up against him. Own-turn-ends left.
 var suppressed := 0
+## The captain's command in his blood (docs/block-and-patterns.md): permanent
+## bonus attack damage from every blood_rage order he stood on deck for.
+var rage := 0
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
 ## Setup-only hint (RosterText slot syntax): the grid slot this character is
@@ -94,4 +97,4 @@ func morale_immune() -> bool:
 ## weapon + bonuses, minimum 1. Nothing on the defender's sheet reduces it —
 ## his defense is his block, and CombatEngine spends that where the blow lands.
 func damage_against(_defender: Character, bonus_damage := 0) -> int:
-	return maxi(1, strength + weapon.damage_bonus + bonus_damage)
+	return maxi(1, strength + weapon.damage_bonus + rage + bonus_damage)

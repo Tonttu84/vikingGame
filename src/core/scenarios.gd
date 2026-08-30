@@ -89,6 +89,8 @@ static func default_skirmish() -> Dictionary:
 		"enemy_field": enemy_field,
 		"enemy_reserve": enemy_reserve,
 		"enemy_captain": enemy_captain,
+		"captain_command": {"name": "Blood for blood", "effect": "blood_rage",
+				"amount": 1, "period": 4},
 		"deck": CardLibrary.starter_deck(),
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [
@@ -164,6 +166,8 @@ static func veteran_raid() -> Dictionary:
 		"enemy_field": enemy_field,
 		"enemy_reserve": enemy_reserve,
 		"enemy_captain": enemy_captain,
+		"captain_command": {"name": "Iron and hunger", "effect": "blood_rage",
+				"amount": 1, "period": 4},
 		"deck": CardLibrary.veteran_deck(),
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [

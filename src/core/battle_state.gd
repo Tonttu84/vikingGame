@@ -53,6 +53,12 @@ var enemy_dead: Array[Character] = []
 ## final reinforcement, after the hold has emptied.
 var enemy_captain: Character = null
 
+## The enemy captain's command (docs/block-and-patterns.md): scenario data,
+## e.g. {"name": ..., "effect": "blood_rage", "amount": 1, "period": 4}.
+## Every period-th enemy turn the telegraphed tactic IS the command; an empty
+## dict (bare test scenarios) means the rotation is never replaced.
+var captain_command := {}
+
 var momentum := 0
 var deck: Array[CardData] = []
 var hand: Array[CardData] = []
