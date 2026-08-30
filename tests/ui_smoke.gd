@@ -65,6 +65,15 @@ func _init() -> void:
 
 
 ## Only the real fighter tokens in a formation row (empty slots render too).
+func _has_label_containing(node: Node, needle: String) -> bool:
+	if node is Label and (node as Label).text.contains(needle):
+		return true
+	for child in node.get_children():
+		if _has_label_containing(child, needle):
+			return true
+	return false
+
+
 func _tokens_in(row: Node) -> Array:
 	var tokens := []
 	for child in row.get_children():
@@ -365,6 +374,15 @@ func _run() -> void:
 			if t.get_meta("forecast_hp", 0) > 0:
 				badge_found = true
 	check(badge_found, "a man in a contested column shows incoming damage")
+
+	# The block layer renders: the guard is up from the first turn, so at
+	# least one token on the table carries a BLK figure in its stats line.
+	var block_shown := false
+	for row in [ui._player_front_row, ui._enemy_front_row, ui._enemy_back_row]:
+		for token in _tokens_in(row):
+			if _has_label_containing(token, "BLK "):
+				block_shown = true
+	check(block_shown, "a raised guard shows as BLK on the token")
 
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield

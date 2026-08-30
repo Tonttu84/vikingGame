@@ -64,7 +64,45 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the real card set** (docs/card-design-proposal.md, now marked
+Done: **the mechanics overhaul — block, patterns, the captain's word, the
+pin** (docs/block-and-patterns.md is the ruling record; combat-design.md
+carries the shipped tables). Four chunks, one commit each. (1) **Armor is
+guard now**: block = armor at battle start and at each side's turn start,
+physical damage chews block before flesh (zero blood is legal), true
+damage goes around it; the axe chews 2 block per point AND swings first
+(piercing was wrong with multiple attackers); the shieldman's halving and
++1-armor aura are deleted. `block_math()` is one shared static so the
+forecast bills exactly what resolution draws. (2) **Patterns on BOTH
+sides** (supersedes phase C's enemy-only wind-ups): berserker
+attack/attack/HEAVY, bow AIM (public mark, no arrow) then SHOOT (both
+arrows + SUPPRESSED: the mark deals a third less, rounded up against him,
+for 2 of his turns), shieldman GUARD (armor in block again + 2 to
+line-neighbors) then attack; beats advance landed or wasted alike, reset
+on fielding; the plain every-turn snipe is GONE. (3) **The captain's
+command** replaces the telegraphed tactic every 4th enemy turn from
+anywhere, even ashore: every fielded defender gains permanent stacking +1
+damage (Character.rage) — the termination guarantee; commands are
+scenario data ({name, effect, amount, period}) so later captains differ.
+(4) **The closing pin**: the man a closing step walks toward is pinned —
+pin_count += 1, pinned += pin_count (1, then 2, then 3...), decay 1/own
+turn — and while pinned NOTHING moves him: Formation's movement verbs
+refuse him (the one combat fact geometry knows; calls flow through them,
+a pinned column skips fresh-men-forward), riders/Trade Places/Taunt/
+shoves/pulls are gated off him, and the reaction save cannot reach him —
+he dies where he stands. Death/rout/arrival stay unguarded (not moves).
+New suites test_block/test_commands/test_pins + test_patterns rewritten;
+tokens show BLK, beat telegraphs, PINNED n, suppressed; tooltip and
+rules-text copy swept of armor-era rules. 921 unit + 92 smoke checks.
+Sims (n=300, random bot) across the slice, skirmish 31.0% -> 18.0% win /
+14.1 -> 13.1 turns / 1.09 -> 1.28 dead-in-win; veteran 51.3% -> 34.3% /
+17.3 -> 15.8 / 1.14 -> 1.07; stalemates 0%. The fall is the command
+punishing a bot that cannot race the escalation plus the raiders losing
+halving/piercing — intended pressure, NUMBERS STILL DELIBERATELY
+UNTUNED: guard values, aura block 2, SUPPRESS_TURNS 2, period 4 and all
+prices belong to the retune, which now tunes the final mechanism.
+Still open from the rulings: deterministic vs seeded-random tactic
+rotation; second+ captain commands are architecture-ready but have no content yet.
+Earlier: **the real card set** (docs/card-design-proposal.md, now marked
 IMPLEMENTED with the owner's answers to its §5; the shipped rules are
 tabulated in docs/combat-design.md). **Every card carries an effect AND a
 movement, and the movement's direction is printed on the card.** 15 tactics
@@ -249,36 +287,20 @@ Agreed next slices, in rough priority:
    assassination** — the combo to check first if the player kills too fast.
    Balance stays a design conversation; bring before/after sims.
 
-   **Deferred design decisions the owner has already made** (do not
-   re-litigate, do not build yet; rulings refined 2026-08-29):
-   - The enemy captain gets an order granting **+1 attack damage to every
-     enemy on the board** — the eventual guarantee that combats cannot lock
-     up. RULED: it fires by **replacing the tactic rotation every Nth
-     turn** (so it escalates even while the captain waits ashore); whether
-     the rotation is deterministic or random is still open.
-   - Later captains get **different commands**, not just the one.
-   - **Every unit gets a pattern**: e.g. block then attack; the berserker
-     basic/basic/heavy; archers aim, then hit + debuff. (The enemy wind-up
-     system in phase C is the seed of this.) RULED: patterns apply to
-     **BOTH sides** — your own crew follows its beats too; this supersedes
-     phase C's enemy-only wind-up ruling.
-   - **Armour becomes Slay-the-Spire block**: shields that prevent damage
-     for that turn only, replacing armour that permanently reduces it.
-     RULED: the **shieldman loses his half-damage rule** — he becomes the
-     block kit (block-then-attack with a high guard value; his aura becomes
-     shared block on his blocking beats, and true-damage volleys still go
-     around block as his counter-play). The **axe does NOT pierce block**
-     (piercing is wrong with multiple attackers: the ignored block would
-     still stop everyone else) — instead **axes deal extra damage TO
-     block**, and **axes strike first** in the fight order so the
-     block-chewing lands while block is up. The fate of the `armor N`
-     sheet stat (repurpose as guard value vs delete) is still open.
-   - **Closing punishes the dodger**: when a man steps because his column
-     is empty (the shipped closing rule), the character he is closing
-     toward is **immobilized with a growing number** — a stacking
-     movement-denial so repeated dodging is a delaying tactic, never a
-     permanent escape. Details open: exactly which moves immobilize
-     blocks, and how the stacks decay.
+   **The 2026-08-29/30 mechanics rulings are BUILT** (block, both-sides
+   patterns, the captain's command, the closing pin — see the Done block
+   above and docs/block-and-patterns.md; further rulings taken at build
+   time: armor = guard value gained each turn, the pin denies ALL
+   movement friend or foe, the archer's debuff is the one-third
+   suppression). The retune therefore now prices the FINAL mechanism.
+   New numbers in its scope beyond prices and HP: guard values (shieldmen
+   4/5, everyone else 0-3), SHIELD_AURA_BLOCK 2, SUPPRESS_TURNS 2, the
+   command's period 4 and amount 1. New questions it should read from the
+   sims: does the command's escalation make the bot's late game hopeless
+   (18.0%/34.3% win rates say slow play now loses — a human should be
+   faster, but verify), and does the guarding wall stall the early game?
+   Still-open rulings for the owner, none blocking: deterministic vs
+   seeded-random tactic rotation; content for later captains' commands.
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).
 3. Raid loop (node route between fights, loot into the deck, wounds

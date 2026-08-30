@@ -53,10 +53,13 @@ Owner rulings this document implements (recorded 2026-08-29/30):
 
 ### Block
 
-- `Character.block` is turn-scoped guard. At the start of a side's turn,
-  every FIELDED man on that side has his block set to his `armor` value
-  (not added — leftover block does not bank). Reserve men carry none;
-  a man fielded mid-turn raises his guard at his side's next turn start.
+- `Character.block` is turn-scoped guard. The battle opens with every
+  man's guard up (block = armor at setup), and at the start of a side's
+  turn every FIELDED man on that side has his block set back to his
+  `armor` value (not added — leftover block does not bank). A man
+  crossing mid-battle carries the guard he boarded with, dents included,
+  until his side's next turn start; the reserve is outside the refresh —
+  nobody swings at the ship.
 - Physical damage — melee blows, heavy blows, cleave grazes, arrows (the
   snipe, the aimed double shot, the rail volley's arrows are a card effect
   and stay true) — is absorbed by block first, point for point; only the
@@ -138,6 +141,10 @@ Owner rulings this document implements (recorded 2026-08-29/30):
   toward the fighting), the man he is walking toward — the melee target
   of the column he is closing on — is pinned: `pin_count += 1`,
   `pinned += pin_count`. First pin 1 turn, second +2 more, third +3.
+  A pinned man takes no closing steps of his own (he swings at air),
+  and a step never taken pins nobody. Card-driven Close (the Feint
+  rider) pins nobody either: the pin is the CLOSING RULE's teeth, not
+  a property of walking.
 - While `pinned > 0` the man CANNOT MOVE, by any hand: formation movement
   verbs refuse him (slides, advances, retirements, swaps, the group
   calls — a pinned man stands while his line shifts around him, and his

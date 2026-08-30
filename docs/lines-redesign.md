@@ -122,6 +122,10 @@ include cleave grazes and the scaled volley.
 
 ## Enemy dynamics: shifts + wind-ups (all telegraphed, never dice)
 
+> SUPERSEDED in part: the enemy-only wind-ups below generalized into
+> beat patterns on both sides — see docs/block-and-patterns.md. The
+> captain's calls stand as written.
+
 Two layers keep the solved order dissolving:
 
 1. **Captain's calls** — formation moves telegraphed one turn ahead like

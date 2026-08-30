@@ -37,15 +37,21 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
 - **Placement is also defense.** Vacate a column and their berserker there
   hits nothing — at the price of your own attack lane in that column. But
   the dodge buys a **turn**, not the fight: he walks the deck down and
-  arrives. Two survivors in different columns can no longer stand and
-  stare at each other until the turn limit.
+  arrives — and **the man he walks toward is PINNED** where he stands
+  (docs/block-and-patterns.md): no movement at all, by any hand, on a
+  counter that grows with every repeat dodge and works loose 1 per own
+  turn. Two survivors in different columns can no longer stand and
+  stare at each other until the turn limit, and a runner cannot run
+  forever.
 - **Front-liners** fight their column. **Spears** also fight it from the
-  second line (reach). **Archers** in the second line auto-snipe the
-  lowest-HP fielded enemy *anywhere* for a flat 2 (spawn-order tiebreak,
-  armor ignored) — the one attack placement cannot dodge; the weak number
-  is deliberate, archers finish and harass, they do not carry. Any other
-  second-liner simply holds his place. The **reserve never acts and can
-  never be hit.**
+  second line (reach). **Archers** in the second line work on their two
+  beats (docs/block-and-patterns.md): AIM locks the lowest-HP fielded
+  enemy *anywhere* (spawn-order tiebreak; the focus target while one
+  stands) with a full turn of warning, then SHOOT looses both flat-2
+  arrows at the mark and leaves him suppressed — the attack placement
+  cannot dodge, though a raised guard blocks it and a rescued mark
+  wastes it. Any other second-liner simply holds his place. The
+  **reserve never acts and can never be hit.**
 - **Your first wave** (e.g. 3 men, placed before the fight) boards a
   larger, surprised watch (e.g. 5); the rest of both crews feed in over
   the fight. Their reinforcements enter at a fixed rate (2/turn, never a
@@ -68,15 +74,15 @@ The sheet stays small; a kit is one or two positional hooks riding the
 existing idioms — boolean flags and weapon kinds, no class enum. Kits are
 what make "kill him FIRST" a puzzle; the same kits stand on both sides.
 
-| Kit | Hooks (v0 numbers) |
+| Kit | Hooks (docs/block-and-patterns.md rework) |
 | --- | --- |
-| Shieldman (`is_shieldman`) | Takes **half physical damage, rounded up**, applied last — after armor and side-wide softening — to melee, snipes and cleave grazes, never to card/tactic true damage (volleys are his counter-play). **Aura: +1 armor to line-neighbors** (same line, adjacent column; two adjacent shieldmen do not stack), never himself. Low Strength: he anchors, he does not carry. |
-| Berserker (`is_berserker`) | Morale-immune (as before). **Cleave:** his attack also grazes the target's line-neighbors for a flat 2 — never armored, but softened and shield-halved; graze kills pay the normal bounty. The arc is set before the blow lands. Their berserker is your #1 kill bounty. |
+| Shieldman (`is_shieldman`) | **The block kit**, pattern `guard, attack`: on the guard beat he swings nothing, raises his armor in block AGAIN on top of the turn-start guard, and his line-neighbors gain 2 each (same line, adjacent column, never himself). High guard value on the sheet (4–5 in the anchors). True damage still goes around block — volleys stay his counter-play. The old half-damage rule and +1-armor aura are gone. |
+| Berserker (`is_berserker`) | Morale-immune (as before). Pattern `attack, attack, heavy`: the HEAVY beat doubles the blow and the graze. **Cleave:** his attack also grazes the target's line-neighbors for a flat 2 — softened and blocked like any physical hit; graze kills pay the normal bounty. The arc is set before the blow lands. Their berserker is your #1 kill bounty. |
 | Spearman (spear) | Reach: fights his column from the second line. |
-| Archer (bow) | Second line only in practice: auto-snipes the weakest fielded enemy anywhere for a flat 2. Halved by a shieldman's shield like any physical hit. |
-| Breaker (axe) | Ignores 2 worn armor **and denies the target all aura armor** — the shieldman counter. |
+| Archer (bow) | Pattern `aim, shoot` — see character control above. Second line only in practice; at the rail he is just a fighter, though his beats keep marching. |
+| Breaker (axe) | **Chews 2 block per point of damage, and axes swing first** in the fight order — the block-chewing lands while there is block to chew, opening a guarded man for the swords behind. (Piercing was wrong with multiple attackers: block the axe ignored would still stop everyone else.) |
 | Karl | No kit. Cheap, low morale (4): rout fodder — do not waste swings. |
-| Captain (`is_captain`) | **Leader aura: line-neighbors strike +1 in melee** (never himself, never snipes). Big stats, no other rules. |
+| Captain (`is_captain`) | **Leader aura: line-neighbors strike +1 in melee** (never himself, never snipes). Big stats. The ENEMY captain also carries his command — see enemy dynamics. |
 
 The default rosters give the sides distinct silhouettes: your raiders are
 breakers (axes, a spearman, one shieldman, an archer feeding the rail),
@@ -97,15 +103,18 @@ timers and formation verbs, never dice:
   front slots). The forecast previews enemy attacks from the positions the
   call will put them in; your own attacks resolve before the call, on
   current geometry.
-- **Wind-ups** are visible 3-turn rhythms on enemy berserkers and archers
-  (counter on the token: 2, 1, 0 — fires at 0, restarts on arrival and
-  after firing, spent whether it lands or not). At 0 the **berserker's
-  heavy cleave** doubles his melee damage and the graze (2 → 4): dodge his
-  column or eat it. The **archer locks his mark** on the weakest boarder
-  one turn ahead; next turn both aimed arrows hit that man — if he is
-  dead, routed or rescued to the ship, the double shot is wasted. This is
-  the counter-play snipes otherwise lack. Wind-ups are enemy-only: your
-  own rhythm lives in cards.
+- **Patterns** (docs/block-and-patterns.md, superseding the enemy-only
+  wind-ups): every unit on BOTH sides follows its role's beat cycle, one
+  beat per own fight phase, telegraphed on the token — the berserker's
+  heavy blow, the archer's aim-then-shoot, the shieldman's guard. Beats
+  advance landed or wasted alike; a man arriving on deck starts his
+  rhythm over. Your own crew's rhythms are yours to plan around too.
+- **The captain's command** replaces the telegraphed tactic every 4th
+  enemy turn, from the sterncastle or the line alike: every fielded
+  defender gains a permanent, stacking +1 attack damage. Unbounded
+  escalation is the guarantee no fight locks up — and the reason slow
+  play bleeds. Commands are scenario data; later captains carry
+  different words.
 
 ## The boarding maneuver
 
@@ -170,13 +179,16 @@ PLAYER TURN
   1. Gain +1 momentum. Discard the hand (Retained cards stay), draw to 5.
   2. Play any number of cards (pay momentum).
   3. Commit a reserve to the field (costs 1 momentum), optional fallback.
-  4. Fight: all characters resolve attacks (see character control).
+  4. Fight: every fielded man performs his beat — axes first, then by
+     speed (see character control); guard resets to armor at turn start.
 ENEMY TURN
   5. Enemy tactic resolves (was telegraphed as an intent last turn) —
-     a damage tactic or a captain's call re-arranging their line.
-  6. Enemy characters attack (wind-ups at 0 fire their heavy blows).
-  7. Reinforce from below decks (the captain last); tick wind-up
-     counters (the archer marks at 0); reveal next tactic.
+     a damage tactic, a captain's call re-arranging their line, or the
+     captain's command itself every 4th turn; their guard resets first.
+  6. Enemy characters perform their beats (heavy blows, aimed arrows,
+     planted shields).
+  7. Reinforce from below decks (the captain last); statuses tick
+     (suppression and pins work loose); reveal next tactic.
 ```
 
 ## Momentum (the resource)
@@ -382,19 +394,23 @@ Deliberately small sheet — the mechanics budget is spent elsewhere:
 - **Strength** — base damage.
 - **Speed** — attack resolution order (fast units can kill before being hit).
 - **Weapon** (1 slot): damage + one trait. Spear: reach — fights his column
-  from the second line. Axe: ignores 2 armor. Sword: +2 damage, no gimmick.
-  Bow: second line only in practice — snipes the weakest fielded enemy
-  anywhere for a flat 2. Looted weapons are equippable *or* sellable.
-- **Armor** (1 slot): flat damage reduction 1–3; heaviest armor −1 speed.
+  from the second line. Axe: chews 2 block per point and swings first.
+  Sword: +2 damage, no gimmick. Bow: second line only in practice — aims,
+  then both flat-2 arrows suppress the mark. Looted weapons are
+  equippable *or* sellable.
+- **Armor** (1 slot): the man's GUARD — the block he starts each of his
+  side's turns with (docs/block-and-patterns.md). Not a reduction.
 - **One personality trait** (later, for the dynasty layer): coward, fury,
   loyal — hooks for events and AI quirks. Not in v0.
 
-Damage = attacker Strength + weapon + leader aura − defender armor (worn +
-shieldman aura; the axe pierces 2 and denies the aura), minimum 1; then
-side-wide softening (shield wall, careful advance), minimum 1; then a
-shieldman defender halves what is left, rounded up. No misses, no crit RNG
-in v0 — deterministic combat makes permadeath feel fair and the engine
-testable; randomness lives in cards drawn and enemy tactics.
+Damage = attacker Strength + weapon + rage + leader aura, minimum 1;
+doubled on a heavy beat; cut by a third (rounded up against him) while
+suppressed; then side-wide softening (shield wall, careful advance),
+minimum 1; then the defender's BLOCK chews it — point for point, double
+rate against an axe — and only the remainder wounds; zero blood is a
+legal outcome. Card and tactic true damage goes around block. No misses,
+no crit RNG in v0 — deterministic combat makes permadeath feel fair and
+the engine testable; randomness lives in cards drawn and enemy tactics.
 
 ## Enemy design
 
