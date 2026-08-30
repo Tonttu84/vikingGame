@@ -184,12 +184,12 @@ func test_other_weapons_cannot_melee_from_the_second_line() -> void:
 func test_archer_snipes_the_weakest_fielded_enemy_anywhere() -> void:
 	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
 	var e1 := TestHelpers.grunt(E, "e1")
-	var e2 := TestHelpers.grunt(E, "e2", 5, 6, 3, 3, null, 3)
+	var e2 := TestHelpers.grunt(E, "e2", 5, 6, 3, 3, null, 0)
 	var eng := TestHelpers.engine_for({"player_field": [bow], "enemy_field": [e1, e2]})
 	TestHelpers.station(eng.state.player_formation, bow, B, 0)
 	TestHelpers.station(eng.state.enemy_formation, e2, F, 3)
 	await eng._fight_phase(P)
-	assert_eq(e2.hp, 3, "lowest HP, any column, armor ignored: flat 2")
+	assert_eq(e2.hp, 3, "lowest HP, any column: flat 2 (an unraised guard stops nothing)")
 	assert_eq(e1.hp, 12, "the healthy man is not worth an arrow")
 
 

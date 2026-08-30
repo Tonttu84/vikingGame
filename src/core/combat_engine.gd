@@ -76,7 +76,7 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 			state.player_prowman = c
 	state.enemy_captain = scenario.get("enemy_captain")
 	if state.enemy_captain != null:
-		state.enemy_captain.order_id = _next_order_id()
+		_register(state.enemy_captain)
 	var deck: Array[CardData] = []
 	deck.assign(scenario.get("deck", []))
 	state.deck = deck
@@ -179,6 +179,7 @@ func _player_turn() -> void:
 	else:
 		state.shield_wall_active = false
 	state.war_cry_active = false
+	_raise_guard(Character.Side.PLAYER)
 	_gain_momentum(1)
 	# A fresh hand every turn: everything not Retained is discarded, then the
 	# hand refills to size. Retained cards wait in hand and eat draw room.
@@ -202,6 +203,7 @@ func _player_turn() -> void:
 
 
 func _enemy_turn() -> void:
+	_raise_guard(Character.Side.ENEMY)
 	await _resolve_tactic(state.next_tactic)
 	await _pace()
 	if outcome != Outcome.NONE:
@@ -819,11 +821,17 @@ func _ship_archers() -> int:
 	return count
 
 
-## Deterministic resolution order: speed descending, spawn order as tiebreak.
-## Only fielded men act — the reserve can never fight, never be hit.
+## Deterministic resolution order: axes first (their block-chewing must land
+## while there is block to chew), then everyone else; within each group speed
+## descending, spawn order as tiebreak. Only fielded men act — the reserve
+## can never fight, never be hit.
 func _attack_order(side: Character.Side) -> Array[Character]:
 	var attackers := state.fielded(side)
 	attackers.sort_custom(func(a: Character, b: Character) -> bool:
+		var a_axe := a.weapon.kind == Weapon.Kind.AXE
+		var b_axe := b.weapon.kind == Weapon.Kind.AXE
+		if a_axe != b_axe:
+			return a_axe
 		if a.speed != b.speed:
 			return a.speed > b.speed
 		return a.order_id < b.order_id)
@@ -934,9 +942,15 @@ func _attack(attacker: Character, defender: Character) -> void:
 	var grazed := state.formation_of(defender.side).line_neighbors(defender) \
 			if attacker.is_berserker else ([] as Array[Character])
 	var dmg := _melee_damage(attacker, defender)
-	defender.hp -= dmg
-	state.log_event("%s hits %s for %d (%d HP left)." %
-			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
+	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	defender.hp -= wounded
+	if wounded < dmg:
+		state.log_event("%s hits %s for %d — %d dies on the guard (%d HP left)." %
+				[attacker.display_name, defender.display_name, dmg, dmg - wounded,
+				maxi(0, defender.hp)])
+	else:
+		state.log_event("%s hits %s for %d (%d HP left)." %
+				[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
 	for victim in grazed:
@@ -952,9 +966,10 @@ func _cleave_graze(attacker: Character, victim: Character) -> void:
 	if not victim.is_alive() or not state.formation_of(victim.side).has(victim):
 		return
 	var dmg := _graze_damage(attacker, victim)
-	victim.hp -= dmg
+	var wounded := _chew_block(attacker.weapon.kind, victim, dmg)
+	victim.hp -= wounded
 	state.log_event("%s's cleave grazes %s for %d (%d HP left)." %
-			[attacker.display_name, victim.display_name, dmg, maxi(0, victim.hp)])
+			[attacker.display_name, victim.display_name, wounded, maxi(0, victim.hp)])
 	if victim.hp <= 0:
 		await _handle_death(victim)
 
@@ -982,33 +997,39 @@ func _double_shot(archer: Character) -> void:
 ## attack placement cannot dodge. Side-wide protections still soften it.
 func _snipe(attacker: Character, defender: Character) -> void:
 	var dmg := _snipe_damage(defender)
-	defender.hp -= dmg
-	state.log_event("%s's arrow finds %s for %d (%d HP left)." %
-			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
+	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	defender.hp -= wounded
+	if wounded < dmg:
+		state.log_event("%s's arrow rattles off %s's guard%s." %
+				[attacker.display_name, defender.display_name,
+				"" if wounded == 0 else " but still bites for %d" % wounded])
+	else:
+		state.log_event("%s's arrow finds %s for %d (%d HP left)." %
+				[attacker.display_name, defender.display_name, wounded, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
 
 
 func _melee_damage(attacker: Character, defender: Character) -> int:
-	var raw := attacker.damage_against(defender, _leader_bonus(attacker), _aura_armor(defender))
+	var raw := attacker.damage_against(defender, _leader_bonus(attacker))
 	# The wound-up heavy blow: the berserker's melee damage doubles on the
 	# turn his counter reaches 0 (docs/lines-redesign.md phase C rulings).
 	if attacker.is_berserker and attacker.windup == 0:
 		raw *= 2
-	return _shield_halved(_soften(raw, defender), defender)
+	return _soften(raw, defender)
 
 
 func _snipe_damage(defender: Character) -> int:
-	return _shield_halved(_soften(BattleState.ARCHER_SNIPE_DAMAGE, defender), defender)
+	return _soften(BattleState.ARCHER_SNIPE_DAMAGE, defender)
 
 
 ## The cleave's spill on one neighbor — flat, doubled on the wind-up turn,
-## never armored, but softened and shield-halved like any physical hit.
+## softened and blocked like any physical hit.
 func _graze_damage(attacker: Character, victim: Character) -> int:
 	var base := BattleState.CLEAVE_GRAZE_DAMAGE
 	if attacker.windup == 0:
 		base *= 2
-	return _shield_halved(_soften(base, victim), victim)
+	return _soften(base, victim)
 
 
 ## The captain's leader aura: his line-neighbors strike +1 in melee.
@@ -1020,22 +1041,36 @@ func _leader_bonus(attacker: Character) -> int:
 	return bonus
 
 
-## The shieldman's aura: +1 armor with a shieldman standing beside the
-## defender — flat, never stacking with a second shield. Worn armor only
-## helps in melee, so the aura is melee-only by construction.
-func _aura_armor(defender: Character) -> int:
-	for neighbor in state.formation_of(defender.side).line_neighbors(defender):
-		if neighbor.is_shieldman:
-			return 1
-	return 0
+## Guard up (docs/block-and-patterns.md): at the start of a side's turn every
+## fielded man's block resets to his armor — leftover block does not bank,
+## and only the fielded raise it: nobody swings at the reserve.
+func _raise_guard(side: Character.Side) -> void:
+	for c in state.fielded(side):
+		c.block = c.armor
 
 
-## The shieldman's own hide: physical hits (melee, snipes, grazes) halve on
-## his shield, rounded up, after every other reduction. Card and tactic true
-## damage goes around the shield — volleys are the shieldman counter-play.
-func _shield_halved(dmg: int, defender: Character) -> int:
-	@warning_ignore("integer_division")
-	return (dmg + 1) / 2 if defender.is_shieldman else dmg
+## The one place block arithmetic lives, shared by resolution and the
+## forecast so the bill on a token is the same math the blow resolves with.
+## Physical damage is absorbed point for point — except the axe, whose every
+## point destroys TWO block (and the block swallows it at that rate), so the
+## axeman's job is opening a guarded man for the swords behind him.
+## Pure: returns {"destroyed": block lost, "wounded": damage reaching flesh}.
+static func block_math(kind: Weapon.Kind, block: int, dmg: int) -> Dictionary:
+	if block <= 0 or dmg <= 0:
+		return {"destroyed": 0, "wounded": maxi(0, dmg)}
+	if kind == Weapon.Kind.AXE:
+		var destroyed := mini(block, dmg * 2)
+		@warning_ignore("integer_division")
+		return {"destroyed": destroyed, "wounded": dmg - (destroyed + 1) / 2}
+	var absorbed := mini(block, dmg)
+	return {"destroyed": absorbed, "wounded": dmg - absorbed}
+
+
+## Spend the defender's block against one physical hit; returns what wounds.
+func _chew_block(kind: Weapon.Kind, defender: Character, dmg: int) -> int:
+	var bill := block_math(kind, defender.block, dmg)
+	defender.block -= bill["destroyed"]
+	return bill["wounded"]
 
 
 ## Side-wide protections (shield wall, careful advance) soften every hit
@@ -1082,9 +1117,11 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 ## preview of intent, not a simulation.
 func forecast() -> Dictionary:
 	var out := {}
+	var guard := {}
 	var everyone := state.fielded(Character.Side.PLAYER) + state.fielded(Character.Side.ENEMY)
 	for c in everyone:
 		out[c] = {"hp": 0, "morale": 0}
+		guard[c] = c.block
 	# The rail archers open your fight phase: one arrow per ship archer,
 	# re-aimed between arrows against the hp these predictions already cost.
 	if state.archer_support_damage > 0:
@@ -1094,15 +1131,16 @@ func forecast() -> Dictionary:
 				break
 			out[mark]["hp"] += state.archer_support_damage
 	# Your side strikes on current geometry: your fight phase resolves before
-	# the telegraphed call re-arranges their line.
-	for attacker in state.fielded(Character.Side.PLAYER):
-		_forecast_attacker(attacker, out)
+	# the telegraphed call re-arranges their line. Axes first, both sides, so
+	# the predicted block spend follows the resolution order.
+	for attacker in _attack_order(Character.Side.PLAYER):
+		_forecast_attacker(attacker, out, guard)
 	# Their side strikes AFTER the call: preview it on the real grid, then
 	# put every man back where he stands.
 	var held: Array[Character] = state.enemy_formation.slots.duplicate()
 	_apply_call(state.next_tactic)
-	for attacker in state.fielded(Character.Side.ENEMY):
-		_forecast_attacker(attacker, out)
+	for attacker in _attack_order(Character.Side.ENEMY):
+		_forecast_attacker(attacker, out, guard)
 	state.enemy_formation.slots = held
 	# The telegraphed tactic's direct damage is part of the bill.
 	match state.next_tactic:
@@ -1131,7 +1169,10 @@ func forecast() -> Dictionary:
 
 
 ## One attacker's contribution to the forecast bill, at his current target.
-func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
+## `guard` is the running block ledger: predicted hits chew it with the same
+## block_math resolution uses, so the bill on a token is blood, not
+## steel-on-shield.
+func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary) -> void:
 	if not attacker.is_alive():
 		return
 	if not _is_sniper(attacker) and not _can_melee(attacker):
@@ -1141,18 +1182,30 @@ func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
 		var mark: Character = state.archer_marks.get(attacker)
 		if mark != null and mark.is_alive() and out.has(mark) \
 				and state.opposing_formation(attacker.side).has(mark):
-			out[mark]["hp"] += _snipe_damage(mark) * 2
+			for i in 2:
+				_forecast_hit(attacker, mark, _snipe_damage(mark), out, guard)
 		return
 	var target := _pick_target(attacker)
 	if target == null or not out.has(target):
 		return
 	var swings := 1 + attacker.bonus_attacks
-	var dmg := _snipe_damage(target) if _is_sniper(attacker) \
-			else _melee_damage(attacker, target)
-	out[target]["hp"] += dmg * swings
-	if attacker.is_berserker and not _is_sniper(attacker):
-		for victim in state.formation_of(target.side).line_neighbors(target):
-			out[victim]["hp"] += _graze_damage(attacker, victim) * swings
+	for i in swings:
+		if _is_sniper(attacker):
+			_forecast_hit(attacker, target, _snipe_damage(target), out, guard)
+			continue
+		_forecast_hit(attacker, target, _melee_damage(attacker, target), out, guard)
+		if attacker.is_berserker:
+			for victim in state.formation_of(target.side).line_neighbors(target):
+				if out.has(victim):
+					_forecast_hit(attacker, victim, _graze_damage(attacker, victim), out, guard)
+
+
+## One predicted physical hit: spend the ledger's block, bill the blood.
+func _forecast_hit(attacker: Character, defender: Character, dmg: int,
+		out: Dictionary, guard: Dictionary) -> void:
+	var bill := block_math(attacker.weapon.kind, guard[defender], dmg)
+	guard[defender] -= bill["destroyed"]
+	out[defender]["hp"] += bill["wounded"]
 
 
 # --- Death, morale and routing ----------------------------------------------
@@ -1447,6 +1500,9 @@ func _slot_free(formation: Formation, index: int) -> bool:
 
 func _register(c: Character) -> void:
 	c.order_id = _next_order_id()
+	# The battle opens with every guard up; a man crossing later carries the
+	# guard he boarded with (dents included) until his side's next turn start.
+	c.block = c.armor
 
 
 ## Field a scenario character: his deploy_slot hint if it names a free slot,

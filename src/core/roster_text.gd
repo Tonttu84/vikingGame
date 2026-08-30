@@ -16,7 +16,9 @@ extends RefCounted
 ##   raven_banner
 ##
 ## Stat tokens may appear in any order and fall back to a standard grunt
-## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. Flags:
+## (hp 12, morale 6, str 3, speed 3, fists, armor 0) when omitted. `armor` is
+## the man's guard (docs/block-and-patterns.md): the block he raises each of
+## his side's turns, not a damage reduction. Flags:
 ## `captain` (player side; the enemy captain has its own section),
 ## `prowman` (player side, the captain's alternate at the prow),
 ## `berserker` and `shieldman`. Field sections also take a slot token —

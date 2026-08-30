@@ -1,7 +1,8 @@
 extends TestCase
-## Role kits (docs/lines-redesign.md phase B): hooks riding boolean flags and
-## weapon kinds. Shieldman halving + aura, berserker cleave, the axe as the
-## aura-breaker, the captain's leader aura, and covering-volley scaling.
+## Role kits: hooks riding boolean flags and weapon kinds. Berserker cleave,
+## the captain's leader aura, and covering-volley scaling. The shieldman's
+## old kit (halving + armor aura) died with armor itself
+## (docs/block-and-patterns.md); his block kit arrives with the patterns.
 
 const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
@@ -16,46 +17,38 @@ func _log_has(eng: CombatEngine, needle: String) -> bool:
 	return false
 
 
-# --- Shieldman: takes half, shields his neighbors ----------------------------
+# --- Shieldman: the old hide is gone (the block kit lands with patterns) -----
 
-func test_shieldman_takes_half_melee_damage_rounded_up() -> void:
+func test_shieldman_no_longer_halves() -> void:
 	var hitter := TestHelpers.grunt(P, "hitter", 12, 6, 5, 3, Weapon.sword())
 	var shieldman := TestHelpers.grunt(E, "shieldman")
 	shieldman.is_shieldman = true
 	var eng := TestHelpers.engine_for({"player_field": [hitter], "enemy_field": [shieldman]})
 	await eng._attack(hitter, shieldman)
-	assert_eq(shieldman.hp, 12 - 4, "7 raw (5 Str + 2 sword) halves to 4, rounded up")
+	assert_eq(shieldman.hp, 12 - 7, "the full 7 (5 Str + 2 sword): his defense is block now")
 
 
-func test_shieldman_halving_lands_after_side_wide_softening() -> void:
+func test_side_wide_softening_still_applies_to_a_shieldman() -> void:
 	var e_hitter := TestHelpers.grunt(E, "e_hitter", 12, 6, 5, 3, Weapon.sword())
 	var shieldman := TestHelpers.grunt(P, "shieldman")
 	shieldman.is_shieldman = true
 	var eng := TestHelpers.engine_for({"player_field": [shieldman], "enemy_field": [e_hitter]})
 	eng.state.shield_wall_active = true
 	await eng._attack(e_hitter, shieldman)
-	assert_eq(shieldman.hp, 12 - 3, "7 softens to 5 behind the wall, THEN halves to 3")
+	assert_eq(shieldman.hp, 12 - 5, "7 softens to 5 behind the wall; nothing halves after")
 
 
-func test_shieldman_halves_snipes_too() -> void:
+func test_shieldman_flag_grants_no_passive_protection() -> void:
 	var archer := TestHelpers.grunt(P, "archer", 10, 5, 2, 3, Weapon.bow())
 	var shieldman := TestHelpers.grunt(E, "shieldman")
 	shieldman.is_shieldman = true
 	var eng := TestHelpers.engine_for({"player_field": [archer], "enemy_field": [shieldman]})
 	TestHelpers.station(eng.state.player_formation, archer, B, 0)
 	await eng._fight_phase(P)
-	assert_eq(shieldman.hp, 12 - 1, "the flat 2 arrow halves to 1 on the shield")
+	assert_eq(shieldman.hp, 12 - 2, "the flat 2 arrow lands whole on an unraised guard")
 
 
-func test_shieldman_does_not_halve_true_damage() -> void:
-	var shieldman := TestHelpers.grunt(E, "shieldman")
-	shieldman.is_shieldman = true
-	var eng := TestHelpers.engine_for({"enemy_field": [shieldman]})
-	await eng._deal_true_damage(shieldman, 3)
-	assert_eq(shieldman.hp, 12 - 3, "volleys are the shieldman counter-play: full 3")
-
-
-func test_shieldman_aura_armors_line_neighbors() -> void:
+func test_the_old_armor_aura_is_gone() -> void:
 	var hitter := TestHelpers.grunt(P, "hitter")
 	var shieldman := TestHelpers.grunt(E, "shieldman")
 	shieldman.is_shieldman = true
@@ -65,59 +58,8 @@ func test_shieldman_aura_armors_line_neighbors() -> void:
 		"enemy_field": [neighbor, shieldman],
 	})
 	await eng._attack(hitter, neighbor)
-	assert_eq(neighbor.hp, 12 - 2, "3 Str against 0 armor + 1 aura from the man beside him")
-
-
-func test_shieldman_aura_never_covers_himself() -> void:
-	var hitter := TestHelpers.grunt(P, "hitter", 12, 6, 5, 3)
-	var shieldman := TestHelpers.grunt(E, "shieldman")
-	shieldman.is_shieldman = true
-	var eng := TestHelpers.engine_for({"player_field": [hitter], "enemy_field": [shieldman]})
-	await eng._attack(hitter, shieldman)
-	assert_eq(shieldman.hp, 12 - 3, "5 raw halves to 3 — no self-aura shaving it to 2")
-
-
-func test_shieldman_auras_do_not_stack() -> void:
-	var hitter := TestHelpers.grunt(P, "hitter", 12, 6, 4, 3)
-	var left_wall := TestHelpers.grunt(E, "left_wall")
-	left_wall.is_shieldman = true
-	var right_wall := TestHelpers.grunt(E, "right_wall")
-	right_wall.is_shieldman = true
-	var flanked := TestHelpers.grunt(E, "flanked")
-	var eng := TestHelpers.engine_for({
-		"player_field": [hitter],
-		"enemy_field": [left_wall, flanked, right_wall],
-	})
-	TestHelpers.station(eng.state.player_formation, hitter, F, 1)
-	await eng._attack(hitter, flanked)
-	assert_eq(flanked.hp, 12 - 3, "flanked by two shieldmen is still just +1 armor")
-
-
-func test_shieldman_aura_does_not_reach_across_lines() -> void:
-	var hitter := TestHelpers.grunt(P, "hitter")
-	var shieldman := TestHelpers.grunt(E, "shieldman")
-	shieldman.is_shieldman = true
-	var front_man := TestHelpers.grunt(E, "front_man")
-	var eng := TestHelpers.engine_for({
-		"player_field": [hitter],
-		"enemy_field": [front_man, shieldman],
-	})
-	TestHelpers.station(eng.state.enemy_formation, shieldman, B, 0)
-	await eng._attack(hitter, front_man)
-	assert_eq(front_man.hp, 12 - 3, "the man directly behind is not a line-neighbor")
-
-
-func test_axe_denies_aura_armor() -> void:
-	var breaker := TestHelpers.grunt(P, "breaker", 12, 6, 3, 3, Weapon.axe())
-	var shieldman := TestHelpers.grunt(E, "shieldman")
-	shieldman.is_shieldman = true
-	var neighbor := TestHelpers.grunt(E, "neighbor")
-	var eng := TestHelpers.engine_for({
-		"player_field": [breaker],
-		"enemy_field": [neighbor, shieldman],
-	})
-	await eng._attack(breaker, neighbor)
-	assert_eq(neighbor.hp, 12 - 4, "3 Str + 1 axe, the aura counts for nothing against it")
+	assert_eq(neighbor.hp, 12 - 3,
+			"full 3 Str: standing beside a shieldman is worth nothing between his guard beats")
 
 
 # --- Berserker: the cleave ----------------------------------------------------
@@ -154,21 +96,23 @@ func test_plain_fighters_do_not_cleave() -> void:
 	assert_eq(right.hp, 12, "only berserkers swing wide")
 
 
-func test_cleave_graze_ignores_armor_but_shields_halve_it() -> void:
+func test_cleave_graze_dies_on_a_raised_guard() -> void:
 	var berserk := TestHelpers.grunt(P, "berserk", 10, 1, 5, 4, Weapon.axe())
 	berserk.is_berserker = true
 	var mark := TestHelpers.grunt(E, "mark", 30)
-	var armored := TestHelpers.grunt(E, "armored", 12, 6, 3, 3, null, 3)
-	var shieldman := TestHelpers.grunt(E, "shieldman")
-	shieldman.is_shieldman = true
+	var guarded := TestHelpers.grunt(E, "guarded", 12, 6, 3, 3, null, 3)
+	var bare := TestHelpers.grunt(E, "bare")
 	var eng := TestHelpers.engine_for({
 		"player_field": [berserk],
-		"enemy_field": [armored, mark, shieldman],
+		"enemy_field": [guarded, mark, bare],
 	})
 	TestHelpers.station(eng.state.player_formation, berserk, F, 1)
 	await eng._attack(berserk, mark)
-	assert_eq(armored.hp, 12 - 2, "the graze is never armored: full 2 through 3 armor")
-	assert_eq(shieldman.hp, 12 - 1, "but the shieldman still halves it")
+	# The berserker swings an axe, so the graze chews double: guard 3 pays for
+	# both points of the graze and the guarded man keeps his skin.
+	assert_eq(guarded.hp, 12, "3 guard swallows the 2-point graze")
+	assert_eq(guarded.block, 0, "at the axe's double rate, 3 block dies to it")
+	assert_eq(bare.hp, 12 - 2, "his bare neighbor takes it whole")
 
 
 func test_cleave_kills_pay_the_normal_bounty() -> void:

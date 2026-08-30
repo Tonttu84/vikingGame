@@ -1,7 +1,7 @@
 class_name Character
 extends RefCounted
 ## A fighter on either side of a boarding action. Deliberately small sheet:
-## HP, Morale, Strength, Speed, one weapon, one armor value.
+## HP, Morale, Strength, Speed, one weapon, one guard value (`armor`).
 
 enum Side { PLAYER, ENEMY }
 
@@ -15,11 +15,18 @@ var morale: int
 var strength: int
 var speed: int
 var weapon: Weapon
+## The man's guard (docs/block-and-patterns.md): how much block he raises at
+## battle start and at each of his side's turn starts. No stat permanently
+## reduces damage any more.
 var armor: int
+## Turn-scoped block: absorbs physical damage point for point (the axe chews
+## it at double rate), reset to `armor` when his side's turn comes round.
+## True damage and morale damage go around it. CombatEngine owns the math.
+var block := 0
 var is_captain := false    ## leader aura: line-neighbors strike +1 (CombatEngine)
 var is_prowman := false    ## the captain's alternate: one of the pair must hold the field
 var is_berserker := false  ## immune to morale damage; his attacks cleave (CombatEngine)
-var is_shieldman := false  ## takes half damage (rounded up); aura: +1 armor to line-neighbors
+var is_shieldman := false  ## the block kit (docs/block-and-patterns.md; lands with patterns)
 var shaken := false        ## routed earlier in the raid; reduced morale
 ## Enemy wind-up rhythm (docs/lines-redesign.md phase C): fight phases left
 ## until the heavy cleave / double shot fires — 0 fires this turn, -1 = no
@@ -56,14 +63,9 @@ func morale_immune() -> bool:
 	return is_captain or is_berserker
 
 
-## Damage this character deals to `defender`, before side-wide modifiers.
-## Deterministic: Strength + weapon + aura bonus - armor, minimum 1. The axe
-## is the aura-breaker: it ignores 2 points of worn armor AND denies the
-## defender any aura armor. Aura amounts are positional; CombatEngine reads
-## them off the formations and passes them in.
-func damage_against(defender: Character, bonus_damage := 0, aura_armor := 0) -> int:
-	var dmg := strength + weapon.damage_bonus + bonus_damage
-	var effective_armor := defender.armor + aura_armor
-	if weapon.kind == Weapon.Kind.AXE:
-		effective_armor = maxi(0, defender.armor - 2)
-	return maxi(1, dmg - effective_armor)
+## Raw damage this character deals to `defender`, before side-wide modifiers
+## and before the defender's block chews at it. Deterministic: Strength +
+## weapon + bonuses, minimum 1. Nothing on the defender's sheet reduces it —
+## his defense is his block, and CombatEngine spends that where the blow lands.
+func damage_against(_defender: Character, bonus_damage := 0) -> int:
+	return maxi(1, strength + weapon.damage_bonus + bonus_damage)
