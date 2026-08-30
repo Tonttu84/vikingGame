@@ -39,6 +39,12 @@ var suppressed := 0
 ## The captain's command in his blood (docs/block-and-patterns.md): permanent
 ## bonus attack damage from every blood_rage order he stood on deck for.
 var rage := 0
+## PINNED (the closing rule's teeth): while > 0 this man cannot move, by any
+## hand — the formation verbs refuse him and every card is gated off him.
+## Decays 1 per own turn; each repeat pin lands pin_count MORE stacks, so
+## dodging buys turns at a rising price. pin_count never decays in-battle.
+var pinned := 0
+var pin_count := 0
 var bonus_attacks := 0     ## granted by cards, consumed in the next fight phase
 var order_id := 0          ## spawn serial; total ordering for deterministic resolution
 ## Setup-only hint (RosterText slot syntax): the grid slot this character is

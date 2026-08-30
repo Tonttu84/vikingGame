@@ -121,6 +121,9 @@ func _build() -> void:
 	if marked:
 		status_row.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
+	if character.pinned > 0:
+		status_row.add_child(UIPalette.label("PINNED %d" % character.pinned,
+				UIPalette.FONT_SMALL, UIPalette.BLOOD.lightened(0.45)))
 	var hint: String = display.get("hint", "")
 	if hint != "":
 		var hint_label := UIPalette.label(hint, UIPalette.FONT_SMALL,

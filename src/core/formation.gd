@@ -2,8 +2,11 @@ class_name Formation
 extends RefCounted
 ## One side's fighting formation: 4 columns x 2 lines of slots, any of which
 ## may be empty (docs/lines-redesign.md). Pure geometry — who stands where and
-## the legal ways to re-arrange them. Combat meaning (columns duel columns,
-## empty columns eat the swing) lives in CombatEngine.
+## the legal ways to re-arrange them — plus the ONE combat fact geometry must
+## know (docs/block-and-patterns.md): a PINNED man does not move. Every
+## movement verb refuses him here, so no card, call or step can miss the
+## rule; placement and removal stay unguarded — arriving, dying and routing
+## are not moves. All other combat meaning lives in CombatEngine.
 ##
 ## Slots hold the strong references to fielded characters, alongside the
 ## reserve/dead/routed arrays in BattleState.
@@ -133,11 +136,15 @@ func retire(c: Character) -> bool:
 
 
 ## Fresh men forward: front and second line trade places, column by column.
-## Empty slots trade too — a man without a partner still changes lines.
+## Empty slots trade too — a man without a partner still changes lines. A
+## column holding a pinned man does not trade: his partner would have
+## nowhere to land but the pinned man's slot.
 func swap_lines() -> void:
 	for col in COLUMNS:
 		var fi := slot_index(FRONT, col)
 		var bi := slot_index(BACK, col)
+		if _pinned_here(slots[fi]) or _pinned_here(slots[bi]):
+			continue
 		var tmp := slots[fi]
 		slots[fi] = slots[bi]
 		slots[bi] = tmp
@@ -174,7 +181,7 @@ func step_up() -> bool:
 func swap_positions(a: Character, b: Character) -> bool:
 	var ia := _index_of(a)
 	var ib := _index_of(b)
-	if ia == -1 or ib == -1 or a == b:
+	if ia == -1 or ib == -1 or a == b or _pinned_here(a) or _pinned_here(b):
 		return false
 	slots[ia] = b
 	slots[ib] = a
@@ -206,8 +213,12 @@ func _index_of(c: Character) -> int:
 	return slots.find(c) if c != null else -1
 
 
+static func _pinned_here(c: Character) -> bool:
+	return c != null and c.pinned > 0
+
+
 func _move_to(c: Character, line: int, col: int) -> bool:
-	if not has(c) or not in_bounds(line, col) or at(line, col) != null:
+	if _pinned_here(c) or not has(c) or not in_bounds(line, col) or at(line, col) != null:
 		return false
 	slots[_index_of(c)] = null
 	slots[slot_index(line, col)] = c

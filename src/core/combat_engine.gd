@@ -266,17 +266,22 @@ func _effect_preconditions_met(card: CardData, target: Character,
 				if target != null and (not state.player_reserve.has(target) or _pair_member(target)):
 					return false
 			CardData.EffectType.SWAP:
-				if target == null or not state.player_formation.has(target):
+				if target == null or target.pinned > 0 \
+						or not state.player_formation.has(target):
 					return false
 				if not _pair_swap_legal(target, second_target):
 					return false
 				if second_target != null:
-					if second_target == target:
+					if second_target == target or second_target.pinned > 0:
 						return false
 					if not state.player_reserve.has(second_target) \
 							and not state.player_formation.has(second_target):
 						return false
 				elif _default_swap_partner(target) == null:
+					return false
+			# Quitting the deck is movement too: no pull reaches a pinned man.
+			CardData.EffectType.PULL_TO_RESERVE:
+				if target != null and target.pinned > 0:
 					return false
 			CardData.EffectType.SHOVE:
 				if shove_directions(target).is_empty():
@@ -369,10 +374,10 @@ func can_commit(c: Character) -> bool:
 ## law narrows a pair member's list to his counterpart alone.
 func swap_partners(target: Character) -> Array[Character]:
 	var out: Array[Character] = []
-	if target == null or not state.player_formation.has(target):
+	if target == null or target.pinned > 0 or not state.player_formation.has(target):
 		return out
 	for c in state.player_formation.fielded() + state.player_reserve:
-		if c != target and _pair_swap_legal(target, c):
+		if c != target and c.pinned == 0 and _pair_swap_legal(target, c):
 			out.append(c)
 	return out
 
@@ -382,7 +387,8 @@ func swap_partners(target: Character) -> Array[Character]:
 func shove_directions(target: Character) -> Array[int]:
 	var out: Array[int] = []
 	var f := state.enemy_formation
-	if target == null or not f.has(target) or f.line_of(target) != Formation.FRONT:
+	if target == null or target.pinned > 0 \
+			or not f.has(target) or f.line_of(target) != Formation.FRONT:
 		return out
 	var col := f.column_of(target)
 	for dir: int in [-1, 1]:
@@ -397,7 +403,8 @@ func shove_directions(target: Character) -> Array[int]:
 ## taking his column's blows either way (Formation.column_melee_target) — the
 ## card disarms him, it does not hide him.
 func can_drive_back(target: Character) -> bool:
-	return target != null and state.enemy_formation.has(target) \
+	return target != null and target.pinned == 0 \
+			and state.enemy_formation.has(target) \
 			and state.enemy_formation.line_of(target) == Formation.FRONT
 
 
@@ -411,7 +418,7 @@ func taunt_targets(anchor: Character) -> Array[Character]:
 		return out
 	var col := state.player_formation.column_of(anchor)
 	for c in state.enemy_formation.fielded():
-		if c != state.enemy_formation.at(Formation.FRONT, col):
+		if c != state.enemy_formation.at(Formation.FRONT, col) and c.pinned == 0:
 			out.append(c)
 	return out
 
@@ -623,7 +630,7 @@ func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary
 	var formation := state.player_formation
 	var line := formation.line_of(mover)
 	var col := formation.column_of(mover)
-	if line == -1:
+	if line == -1 or mover.pinned > 0:
 		return {}
 	match rider:
 		CardData.EffectType.RIDER_LARBOARD:
@@ -715,7 +722,7 @@ func _default_swap_partner(target: Character) -> Character:
 	if crosser != null:
 		return crosser
 	for c in state.player_formation.fielded():
-		if c != target and _pair_swap_legal(target, c):
+		if c != target and c.pinned == 0 and _pair_swap_legal(target, c):
 			return c
 	return null
 
@@ -802,12 +809,17 @@ func _melee_beat(attacker: Character) -> void:
 		if target == null:
 			# The miss is spatial and deterministic: an empty column eats
 			# the swing. Dodging is placement, never dice — but it buys a
-			# turn, not the fight, so he closes if he has anywhere to go.
+			# turn, not the fight, so he closes if he has anywhere to go —
+			# and the man he closes toward is PINNED where he stands
+			# (docs/block-and-patterns.md): dodging has a rising price.
 			var step := _close_direction(attacker)
-			if step != 0:
-				state.formation_of(attacker.side).slide(attacker, step)
+			if step != 0 and state.formation_of(attacker.side).slide(attacker, step):
 				state.log_event("%s presses toward the fighting." %
 						attacker.display_name)
+				var dodger := state.opposing_formation(attacker.side) \
+						.column_melee_target(_nearest_manned_column(attacker))
+				if dodger != null:
+					_pin_down(dodger)
 			else:
 				state.log_event("%s swings at air — the column across is empty." %
 						attacker.display_name)
@@ -916,11 +928,26 @@ func _pick_target(attacker: Character) -> Character:
 ## walls him in, or there is nobody left to close on.
 func _close_direction(attacker: Character) -> int:
 	var own := state.formation_of(attacker.side)
-	var opposing := state.opposing_formation(attacker.side)
 	var col := own.column_of(attacker)
-	if col == -1:
+	var manned := _nearest_manned_column(attacker)
+	if col == -1 or manned == -1 or attacker.pinned > 0:
 		return 0
-	var step := 0
+	var step := -1 if manned < col else 1
+	var line := own.line_of(attacker)
+	if not Formation.in_bounds(line, col + step) or own.at(line, col + step) != null:
+		return 0
+	return step
+
+
+## The column the closing rule walks a man toward: the nearest opposing
+## column with someone to hit in it, larboard on a tie; -1 for his own
+## column or an empty opposing board.
+func _nearest_manned_column(attacker: Character) -> int:
+	var col := state.formation_of(attacker.side).column_of(attacker)
+	var opposing := state.opposing_formation(attacker.side)
+	if col == -1:
+		return -1
+	var manned := -1
 	var nearest := Formation.COLUMNS
 	for c in Formation.COLUMNS:
 		if opposing.column_melee_target(c) == null:
@@ -929,13 +956,18 @@ func _close_direction(attacker: Character) -> int:
 		if distance == 0 or distance >= nearest:
 			continue
 		nearest = distance
-		step = -1 if c < col else 1
-	if step == 0:
-		return 0
-	var line := own.line_of(attacker)
-	if not Formation.in_bounds(line, col + step) or own.at(line, col + step) != null:
-		return 0
-	return step
+		manned = c
+	return manned
+
+
+## The closing rule's teeth (docs/block-and-patterns.md): each pin lands
+## pin_count MORE stacks than nothing — 1, then 2, then 3 — and pin_count
+## never decays in-battle, so every further dodge costs more than the last.
+func _pin_down(dodger: Character) -> void:
+	dodger.pin_count += 1
+	dodger.pinned += dodger.pin_count
+	state.log_event("%s is pinned where he stands (%d)." %
+			[dodger.display_name, dodger.pinned])
 
 
 ## An archer earning his keep: in the second line with a bow.
@@ -1100,6 +1132,7 @@ func _suppression_cut(attacker: Character, dmg: int) -> int:
 func _tick_statuses(side: Character.Side) -> void:
 	for c in state.fielded(side) + state.reserve_of(side):
 		c.suppressed = maxi(0, c.suppressed - 1)
+		c.pinned = maxi(0, c.pinned - 1)
 
 
 ## The captain's leader aura: his line-neighbors strike +1 in melee.
@@ -1309,6 +1342,7 @@ func _handle_death(dead: Character) -> void:
 	# drags the prowman from the prow — his fall is the pair's hinge, and an
 	# automatic save would chain into a forced crossing the player never chose.
 	if dead.side == Character.Side.PLAYER and not dead.is_captain \
+			and dead.pinned == 0 \
 			and not _pair_member(dead) and state.player_formation.has(dead):
 		var save := _affordable_reaction_save()
 		if save != null:
