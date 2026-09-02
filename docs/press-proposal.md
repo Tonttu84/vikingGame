@@ -109,6 +109,18 @@ Constants — `PRESS_MORALE = 1`, `PRESS_MORALE_MARGIN = 2`, momentum
    tempo, which is the thing the idea fixes); (c) a +1 damage aura for
    the pressing side next round, like the captain's word (loud, but
    stacks with the word into an avalanche).
+   **Owner's addendum (2026-09-02): consider making *winning at all* the
+   thing that matters**, in one of two shapes — (d) *just win*: a flat
+   reward for having the press, margin ignored (say +2 momentum, and the
+   morale wave on every press), so a 2–1 line and a 4–0 sweep pay the
+   same and the whole contest is about tipping the count; or (e) *win
+   bonus*: a flat extra on top of the margin (say +1 momentum for the
+   press itself, then +1 per column of margin), so the first column of
+   advantage is worth more than any later one. Either makes getting the
+   press more important than running it up, which pulls play toward
+   contesting the marginal column rather than piling onto a column already
+   won. (e) keeps the margin readable and is the smaller change; (d) is
+   the cleaner rule if the sims show margin-chasing dominates.
 2. **Which damage counts.** (a) all physical damage into the column,
    arrows included — *recommended: it makes the second line part of the
    wall*; (b) melee only, so the press is strictly the front line's.

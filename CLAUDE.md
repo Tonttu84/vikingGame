@@ -284,8 +284,10 @@ Agreed next slices, in rough priority:
    tempo engine, not just survival. RULED so far: an uncontested column
    is a win for the side present (the man facing nobody already lost his
    swing to the miss; holding the column is his contribution). Three
-   forks remain open in the proposal (what the press pays, whether
-   arrows count, whether blocked damage counts), each with a
+   forks remain open in the proposal (what the press pays — including
+   the owner's addendum that *just winning* might be what matters, a
+   flat reward for the press instead of or on top of the margin —
+   whether arrows count, whether blocked damage counts), each with a
    recommendation; they need the owner's ruling before anything is
    built, and by the standing rule it lands before the retune moves any
    price.
