@@ -276,6 +276,15 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
+0. **The press** (TODO, owner's idea noted 2026-09-02, unruled —
+   docs/press-proposal.md): score every column as a duel (more damage
+   dealt into the column wins it); the side winning more columns has the
+   press, paying the player momentum by the margin and the losing line
+   morale damage at a wide enough margin. Makes holding a shieldwall a
+   tempo engine, not just survival. Four forks are listed in the proposal
+   with recommendations; it needs the owner's ruling before anything is
+   built, and by the standing rule it lands before the retune moves any
+   price.
 1. **The numeric retune** — the slice the owner has been deferring until the
    cards were real, which they now are. Card prices and roster HP against
    both scenario anchors, reading turn count and the cost of victory
