@@ -281,8 +281,12 @@ Agreed next slices, in rough priority:
    dealt into the column wins it); the side winning more columns has the
    press, paying the player momentum by the margin and the losing line
    morale damage at a wide enough margin. Makes holding a shieldwall a
-   tempo engine, not just survival. Four forks are listed in the proposal
-   with recommendations; it needs the owner's ruling before anything is
+   tempo engine, not just survival. RULED so far: an uncontested column
+   is a win for the side present (the man facing nobody already lost his
+   swing to the miss; holding the column is his contribution). Three
+   forks remain open in the proposal (what the press pays, whether
+   arrows count, whether blocked damage counts), each with a
+   recommendation; they need the owner's ruling before anything is
    built, and by the standing rule it lands before the retune moves any
    price.
 1. **The numeric retune** — the slice the owner has been deferring until the

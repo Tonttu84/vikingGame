@@ -40,10 +40,14 @@ before reinforcement.
    softening; a miss is 0; a graze counts in the column it landed in). The
    side with the higher total **wins the column**. Equal totals — including
    0–0 — is no result.
-2. **Uncontested columns are not wins.** A column with men on only one
-   side scores nothing: you win a column by beating someone, not by
-   standing in it. (The closing rule already drags the empty-column man
-   toward a fight, so uncontested columns are short-lived anyway.)
+2. **Uncontested columns are wins** (RULED 2026-09-02). A column with men
+   on only one side is won by that side: the man facing an empty column
+   has already forfeited his swing to a miss or a closing step, so
+   holding the column is what he contributes. Columns are scored **where
+   men stand after the beats**, closing steps included — a man who
+   stepped this round counts in the column he arrived in, where he dealt
+   0, so he can hand that column to the enemy if their man there landed
+   a blow. A column empty on both sides scores nothing.
 3. **The press.** The side with more column wins has the press this round;
    `margin` = its wins minus the other side's wins. Equal wins: no press.
 4. **The bonus.**
@@ -76,6 +80,13 @@ Constants — `PRESS_MORALE = 1`, `PRESS_MORALE_MARGIN = 2`, momentum
   (rule 1 says "into that column"), so an archer can swing a column her
   side has no front-liner in. That makes the second line matter to the
   press; fork 2 asks whether that is wanted.
+- **The first wave.** Three boarders against a watch of five leaves one
+  column with defenders only, so the watch wins it every round until a
+  reinforcement fills it: the press starts against the boarder, and
+  hurrying men over the rail (Reinforce, the commit action) is how it is
+  turned. On-fantasy, and it prices the boarding maneuver's opening
+  momentum against a standing morale leak — the sims should read how many
+  rounds the fourth column stays open.
 - **Kill vs break.** Unchanged in spirit, sharper in practice: routing a
   column's front man loses them that column next round *and* pushes the
   press, so fear tactics now feed the momentum engine indirectly.
@@ -107,9 +118,11 @@ Constants — `PRESS_MORALE = 1`, `PRESS_MORALE_MARGIN = 2`, momentum
    before guard, so a man who forced their shield up still "won" — more
    swings score, fewer 0–0 columns, but the shieldman's block turn stops
    being a full answer.
-4. **Uncontested columns.** (a) score nothing — *recommended*; (b) count
-   as a win for the side present, which makes spreading wide a press
-   strategy and punishes a thin first wave that has just boarded.
+4. ~~**Uncontested columns.**~~ RULED: they count as a win for the side
+   present (rule 2). The owner's reasoning: the man facing an empty
+   column has already lost his attack to the miss, so he should at least
+   contribute something. Spreading wide is therefore a press strategy,
+   and the consequence for the boarding is noted above.
 
 ## Something else, if the press disappoints
 
