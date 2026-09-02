@@ -1,0 +1,4 @@
+# The image never COPYs the repo (it is bind-mounted), so keep the build
+# context down to the Dockerfile.
+*
+!Dockerfile

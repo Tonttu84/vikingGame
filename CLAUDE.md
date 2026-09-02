@@ -13,14 +13,18 @@ scripts/sim.sh --n=500 --bot=none    # balance sim, no-card baseline
 scripts/sim.sh --n=1 --verbose       # one battle's full log
 scripts/ui_smoke.sh                  # boot + play the UI under xvfb (~20s)
 make serve                           # web build + playtest at localhost:8060
+make docker-test                     # any target inside the CI-like Linux container
 ```
 
 Makefile targets wrap the scripts: `make test / sim ARGS=... / smoke / web /
 serve PORT=...`.
 
-If `godot` is missing (fresh container): download 4.5-stable linux from
-GitHub releases, unzip to /usr/local/bin/godot. Run `godot --headless
---import` once after adding new files (the scripts do this).
+If `godot` is missing: `make godot` downloads the portable 4.5 build into
+`./bin` (Linux, Windows, macOS), or set `GODOT=/path/to/binary`. On Windows
+the `make` targets work from cmd/PowerShell too (they run through Git for
+Windows' bash), and `make docker-<target>` runs any target in a Linux
+container. Run `godot --headless --import` once after adding new files (the
+scripts do this).
 
 ## TDD — mandatory for all rules code
 

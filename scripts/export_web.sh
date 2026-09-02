@@ -4,9 +4,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/godot_bin.sh
 
-GODOT_VERSION="4.5.stable"
-TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}"
-TEMPLATE_URL="https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_export_templates.tpz"
+# Templates must match the exact Godot build doing the export, so derive the
+# version from the binary: "4.5.stable.official.876b29033" -> 4.5.stable.
+GODOT_VERSION="$("$GODOT" --version | tail -n1 | sed -E 's/^([0-9]+(\.[0-9]+)*\.[a-z0-9]+)\..*/\1/')"
+RELEASE_TAG="${GODOT_VERSION%.*}-${GODOT_VERSION##*.}"   # 4.5.stable -> 4.5-stable
+TEMPLATE_URL="https://github.com/godotengine/godot/releases/download/${RELEASE_TAG}/Godot_v${RELEASE_TAG}_export_templates.tpz"
+
+# Godot's per-user data dir differs by platform.
+case "$(uname -s)" in
+MINGW*|MSYS*|CYGWIN*) TEMPLATE_DIR="$(cygpath -u "$APPDATA")/Godot/export_templates/${GODOT_VERSION}" ;;
+Darwin) TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}" ;;
+*) TEMPLATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/${GODOT_VERSION}" ;;
+esac
 
 NEEDED_TEMPLATES=(
 	"web_nothreads_release.zip"
@@ -60,6 +69,13 @@ fi
 
 ZIP_PATH="build/sons-of-the-north-web.zip"
 rm -f "${ZIP_PATH}"
-( cd build/web && zip -qr "../../${ZIP_PATH}" . )
+if command -v zip >/dev/null 2>&1; then
+	( cd build/web && zip -qr "../../${ZIP_PATH}" . )
+else
+	# Git Bash on Windows ships unzip but not zip; python is there anyway
+	# for scripts/serve_web.sh.
+	"$(command -v python3 || command -v python)" -c \
+		"import shutil; shutil.make_archive('${ZIP_PATH%.zip}', 'zip', 'build/web')"
+fi
 
 echo "Web build zip: ${ZIP_PATH} ($(du -h "${ZIP_PATH}" | cut -f1))"

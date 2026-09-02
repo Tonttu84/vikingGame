@@ -1,0 +1,6 @@
+# Files that must keep LF even on Windows checkouts with autocrlf: Linux
+# bash (CI, the Docker dev container) rejects CRLF scripts, and make and
+# docker read these files verbatim.
+*.sh       text eol=lf
+Makefile   text eol=lf
+Dockerfile text eol=lf

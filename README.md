@@ -57,7 +57,13 @@ Requires [Godot 4.5](https://godotengine.org/download) — or no install at
 all: `make godot` downloads the portable binary into `./bin` (no admin
 rights needed), and every script finds it there automatically. A binary
 anywhere else works too via `GODOT=/path/to/godot make ...`. Everything
-except the game itself runs headless.
+except the game itself runs headless. On Windows, `make godot` fetches the
+win64 build and the `make` targets work from cmd, PowerShell or Git Bash
+(they run the scripts through Git for Windows' bash; GNU make itself comes
+from winget or chocolatey). Or skip the local toolchain
+entirely: with Docker running, `make docker-test`, `make docker-sim
+ARGS=...`, `make docker-smoke` and `make docker-serve` run the same
+commands in a Linux container that mirrors CI.
 
 ```sh
 godot                                 # play: a full boarding action, mouse only
