@@ -76,16 +76,14 @@ func setup(scenario: Dictionary, p_controller, seed_value: int) -> void:
 			state.player_prowman = c
 	state.enemy_captain = scenario.get("enemy_captain")
 	if state.enemy_captain != null:
-		state.enemy_captain.order_id = _next_order_id()
+		_register(state.enemy_captain)
 	var deck: Array[CardData] = []
 	deck.assign(scenario.get("deck", []))
 	state.deck = deck
 	_shuffle(state.deck)
-	for c in state.fielded(Character.Side.ENEMY):
-		if _windup_role(c):
-			c.windup = BattleState.WINDUP_PERIOD - 1
 	enemy_tactics.assign(scenario.get("enemy_tactics", ["press_the_attack"]))
-	state.next_tactic = _pick_tactic()
+	state.captain_command = scenario.get("captain_command", {})
+	state.next_tactic = _pick_tactic_for(1)
 	state.maneuvers.assign(scenario.get("maneuvers", []))
 	state.artifacts.assign(scenario.get("artifacts", []))
 	_apply_battle_start_artifacts()
@@ -179,6 +177,7 @@ func _player_turn() -> void:
 	else:
 		state.shield_wall_active = false
 	state.war_cry_active = false
+	_raise_guard(Character.Side.PLAYER)
 	_gain_momentum(1)
 	# A fresh hand every turn: everything not Retained is discarded, then the
 	# hand refills to size. Retained cards wait in hand and eat draw room.
@@ -199,9 +198,11 @@ func _player_turn() -> void:
 	state.focus_target = null
 	for c in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		c.bonus_attacks = 0
+	_tick_statuses(Character.Side.PLAYER)
 
 
 func _enemy_turn() -> void:
+	_raise_guard(Character.Side.ENEMY)
 	await _resolve_tactic(state.next_tactic)
 	await _pace()
 	if outcome != Outcome.NONE:
@@ -211,9 +212,9 @@ func _enemy_turn() -> void:
 		return
 	_reinforce()
 	await _pace()
-	_advance_windups()
+	_tick_statuses(Character.Side.ENEMY)
 	state.surge_active = false
-	state.next_tactic = _pick_tactic()
+	state.next_tactic = _pick_tactic_for(state.turn + 1)
 
 
 # --- Player actions ----------------------------------------------------------
@@ -265,17 +266,22 @@ func _effect_preconditions_met(card: CardData, target: Character,
 				if target != null and (not state.player_reserve.has(target) or _pair_member(target)):
 					return false
 			CardData.EffectType.SWAP:
-				if target == null or not state.player_formation.has(target):
+				if target == null or target.pinned > 0 \
+						or not state.player_formation.has(target):
 					return false
 				if not _pair_swap_legal(target, second_target):
 					return false
 				if second_target != null:
-					if second_target == target:
+					if second_target == target or second_target.pinned > 0:
 						return false
 					if not state.player_reserve.has(second_target) \
 							and not state.player_formation.has(second_target):
 						return false
 				elif _default_swap_partner(target) == null:
+					return false
+			# Quitting the deck is movement too: no pull reaches a pinned man.
+			CardData.EffectType.PULL_TO_RESERVE:
+				if target != null and target.pinned > 0:
 					return false
 			CardData.EffectType.SHOVE:
 				if shove_directions(target).is_empty():
@@ -368,10 +374,10 @@ func can_commit(c: Character) -> bool:
 ## law narrows a pair member's list to his counterpart alone.
 func swap_partners(target: Character) -> Array[Character]:
 	var out: Array[Character] = []
-	if target == null or not state.player_formation.has(target):
+	if target == null or target.pinned > 0 or not state.player_formation.has(target):
 		return out
 	for c in state.player_formation.fielded() + state.player_reserve:
-		if c != target and _pair_swap_legal(target, c):
+		if c != target and c.pinned == 0 and _pair_swap_legal(target, c):
 			out.append(c)
 	return out
 
@@ -381,7 +387,8 @@ func swap_partners(target: Character) -> Array[Character]:
 func shove_directions(target: Character) -> Array[int]:
 	var out: Array[int] = []
 	var f := state.enemy_formation
-	if target == null or not f.has(target) or f.line_of(target) != Formation.FRONT:
+	if target == null or target.pinned > 0 \
+			or not f.has(target) or f.line_of(target) != Formation.FRONT:
 		return out
 	var col := f.column_of(target)
 	for dir: int in [-1, 1]:
@@ -396,7 +403,8 @@ func shove_directions(target: Character) -> Array[int]:
 ## taking his column's blows either way (Formation.column_melee_target) — the
 ## card disarms him, it does not hide him.
 func can_drive_back(target: Character) -> bool:
-	return target != null and state.enemy_formation.has(target) \
+	return target != null and target.pinned == 0 \
+			and state.enemy_formation.has(target) \
 			and state.enemy_formation.line_of(target) == Formation.FRONT
 
 
@@ -410,7 +418,7 @@ func taunt_targets(anchor: Character) -> Array[Character]:
 		return out
 	var col := state.player_formation.column_of(anchor)
 	for c in state.enemy_formation.fielded():
-		if c != state.enemy_formation.at(Formation.FRONT, col):
+		if c != state.enemy_formation.at(Formation.FRONT, col) and c.pinned == 0:
 			out.append(c)
 	return out
 
@@ -528,6 +536,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 					break
 				var ready: Character = state.enemy_reserve.pop_front()
 				state.enemy_formation.place_at_index(ready, state.enemy_formation.first_free_index())
+				ready.beat = 0
 				state.log_event("%s has time to form up against the slow crossing." % ready.display_name)
 		CardData.EffectType.ARCHER_SUPPORT:
 			state.archer_support_damage = amount
@@ -545,6 +554,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 			var index := slot if _slot_free(state.player_formation, slot) \
 					else state.player_formation.first_free_index()
 			state.player_formation.place_at_index(crosser, index)
+			crosser.beat = 0
 			state.log_event("%s comes over the rail." % crosser.display_name)
 		CardData.EffectType.SWAP:
 			var partner := second_target if second_target != null \
@@ -560,6 +570,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				state.player_reserve.append(target)
 				state.player_reserve.erase(partner)
 				state.player_formation.place(partner, line, col)
+				partner.beat = 0
 				state.log_event("%s falls back; %s takes his place." %
 						[target.display_name, partner.display_name])
 		CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
@@ -619,7 +630,7 @@ func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary
 	var formation := state.player_formation
 	var line := formation.line_of(mover)
 	var col := formation.column_of(mover)
-	if line == -1:
+	if line == -1 or mover.pinned > 0:
 		return {}
 	match rider:
 		CardData.EffectType.RIDER_LARBOARD:
@@ -711,7 +722,7 @@ func _default_swap_partner(target: Character) -> Character:
 	if crosser != null:
 		return crosser
 	for c in state.player_formation.fielded():
-		if c != target and _pair_swap_legal(target, c):
+		if c != target and c.pinned == 0 and _pair_swap_legal(target, c):
 			return c
 	return null
 
@@ -740,6 +751,7 @@ func _commit_reserve(character: Character, slot := -1) -> void:
 	var index := slot if _slot_free(state.player_formation, slot) \
 			else state.player_formation.first_free_index()
 	state.player_formation.place_at_index(character, index)
+	character.beat = 0
 	state.log_event("%s joins the boarding party." % character.display_name)
 
 
@@ -756,41 +768,94 @@ func _fight_phase(side: Character.Side) -> void:
 			return
 		if not attacker.is_alive() or not state.formation_of(side).has(attacker):
 			continue
-		var swings := 1 + attacker.bonus_attacks
-		attacker.bonus_attacks = 0
-		for i in swings:
-			if outcome != Outcome.NONE or not attacker.is_alive():
-				return
-			if _is_sniper(attacker):
-				if attacker.windup == 0:
-					await _double_shot(attacker)
-					await _pace()
-					break
-				var mark := _pick_target(attacker)
-				if mark == null:
-					break
-				await _snipe(attacker, mark)
-				await _pace()
-				continue
-			if not _can_melee(attacker):
-				break  # a second-liner without reach holds his place, quietly
-			var target := _pick_target(attacker)
-			if target == null:
-				# The miss is spatial and deterministic: an empty column eats
-				# the swing. Dodging is placement, never dice — but it buys a
-				# turn, not the fight, so he closes if he has anywhere to go.
-				var step := _close_direction(attacker)
-				if step != 0:
-					state.formation_of(side).slide(attacker, step)
-					state.log_event("%s presses toward the fighting." %
-							attacker.display_name)
-				else:
-					state.log_event("%s swings at air — the column across is empty." %
-							attacker.display_name)
-				await _pace()
-				break
-			await _attack(attacker, target)
+		await _resolve_beat(attacker)
+		if outcome != Outcome.NONE:
+			return
+		# The rhythm marches — landed, blocked, wasted or walked alike.
+		attacker.advance_beat()
+
+
+## One man's fight-phase action, by his current beat (docs/block-and-patterns.md).
+## The sniper beats only mean anything in the second line with the bow — an
+## archer standing at the rail is just a fighter, whatever his rhythm says.
+func _resolve_beat(attacker: Character) -> void:
+	match attacker.current_beat():
+		"guard":
+			_guard_beat(attacker)
 			await _pace()
+			return
+		"aim":
+			if _is_sniper(attacker):
+				_aim_beat(attacker)
+				await _pace()
+				return
+		"shoot":
+			if _is_sniper(attacker):
+				await _double_shot(attacker)
+				await _pace()
+				return
+	await _melee_beat(attacker)
+
+
+func _melee_beat(attacker: Character) -> void:
+	var swings := 1 + attacker.bonus_attacks
+	attacker.bonus_attacks = 0
+	for i in swings:
+		if outcome != Outcome.NONE or not attacker.is_alive():
+			return
+		if not _can_melee(attacker):
+			return  # a second-liner without reach holds his place, quietly
+		var target := _pick_target(attacker)
+		if target == null:
+			# The miss is spatial and deterministic: an empty column eats
+			# the swing. Dodging is placement, never dice — but it buys a
+			# turn, not the fight, so he closes if he has anywhere to go —
+			# and the man he closes toward is PINNED where he stands
+			# (docs/block-and-patterns.md): dodging has a rising price.
+			var step := _close_direction(attacker)
+			if step != 0 and state.formation_of(attacker.side).slide(attacker, step):
+				state.log_event("%s presses toward the fighting." %
+						attacker.display_name)
+				var dodger := state.opposing_formation(attacker.side) \
+						.column_melee_target(_nearest_manned_column(attacker))
+				if dodger != null:
+					_pin_down(dodger)
+			else:
+				state.log_event("%s swings at air — the column across is empty." %
+						attacker.display_name)
+			await _pace()
+			return
+		await _attack(attacker, target)
+		await _pace()
+
+
+## The guard beat: no swing — he plants the shield and raises his armor in
+## block AGAIN, on top of whatever stands. Only the shieldman's planted
+## shield is a wall: his line-neighbors gain block with him.
+func _guard_beat(guard_man: Character) -> void:
+	guard_man.block += guard_man.armor
+	state.log_event("%s plants his shield (%d block)." %
+			[guard_man.display_name, guard_man.block])
+	if not guard_man.is_shieldman:
+		return
+	for neighbor in state.formation_of(guard_man.side).line_neighbors(guard_man):
+		neighbor.block += BattleState.SHIELD_AURA_BLOCK
+		state.log_event("The wall covers %s (%d block)." %
+				[neighbor.display_name, neighbor.block])
+
+
+## The aim beat: the mark locks — the weakest fielded opponent, or the
+## focus-fire target while one stands — and nothing is loosed. One full
+## turn of warning, and the mark is public.
+func _aim_beat(archer: Character) -> void:
+	var mark := state.focus_target if _focus_valid(archer) \
+			else _weakest_fielded(state.opposing_formation(archer.side))
+	if mark == null:
+		state.archer_marks.erase(archer)
+		return
+	state.archer_marks[archer] = mark
+	state.log_event("%s marks %s — the next arrows are his." %
+			[archer.display_name, mark.display_name])
 
 
 ## Covering Volley: the archers still on your ship open every player fight
@@ -819,31 +884,33 @@ func _ship_archers() -> int:
 	return count
 
 
-## Deterministic resolution order: speed descending, spawn order as tiebreak.
-## Only fielded men act — the reserve can never fight, never be hit.
+## Deterministic resolution order: axes first (their block-chewing must land
+## while there is block to chew), then everyone else; within each group speed
+## descending, spawn order as tiebreak. Only fielded men act — the reserve
+## can never fight, never be hit.
 func _attack_order(side: Character.Side) -> Array[Character]:
 	var attackers := state.fielded(side)
 	attackers.sort_custom(func(a: Character, b: Character) -> bool:
+		var a_axe := a.weapon.kind == Weapon.Kind.AXE
+		var b_axe := b.weapon.kind == Weapon.Kind.AXE
+		if a_axe != b_axe:
+			return a_axe
 		if a.speed != b.speed:
 			return a.speed > b.speed
 		return a.order_id < b.order_id)
 	return attackers
 
 
-## Deterministic targeting, published rules (docs/lines-redesign.md):
-## snipers pick the weakest fielded enemy anywhere; melee hits the nearest
-## occupied slot in its own column — front first, then their second line,
-## empty column = miss (null). Focus fire redirects everyone who can reach the
-## target (same column for melee, anywhere for snipers). Never random. There
-## is no targeting override left in the engine: a duel is arranged by moving
-## men (Taunt), not by suspending the column rule.
+## Deterministic melee targeting, published rules (docs/lines-redesign.md):
+## the nearest occupied slot in the attacker's own column — front first, then
+## their second line, empty column = miss (null). Focus fire redirects a man
+## whose column holds the target. Never random. There is no targeting
+## override left in the engine: a duel is arranged by moving men (Taunt),
+## not by suspending the column rule; the bow's targeting lives in its aim
+## beat, not here.
 func _pick_target(attacker: Character) -> Character:
 	var own := state.formation_of(attacker.side)
 	var opposing := state.opposing_formation(attacker.side)
-	if _is_sniper(attacker):
-		if _focus_valid(attacker):
-			return state.focus_target
-		return _weakest_fielded(opposing)
 	if not _can_melee(attacker):
 		return null
 	var col := own.column_of(attacker)
@@ -861,11 +928,26 @@ func _pick_target(attacker: Character) -> Character:
 ## walls him in, or there is nobody left to close on.
 func _close_direction(attacker: Character) -> int:
 	var own := state.formation_of(attacker.side)
-	var opposing := state.opposing_formation(attacker.side)
 	var col := own.column_of(attacker)
-	if col == -1:
+	var manned := _nearest_manned_column(attacker)
+	if col == -1 or manned == -1 or attacker.pinned > 0:
 		return 0
-	var step := 0
+	var step := -1 if manned < col else 1
+	var line := own.line_of(attacker)
+	if not Formation.in_bounds(line, col + step) or own.at(line, col + step) != null:
+		return 0
+	return step
+
+
+## The column the closing rule walks a man toward: the nearest opposing
+## column with someone to hit in it, larboard on a tie; -1 for his own
+## column or an empty opposing board.
+func _nearest_manned_column(attacker: Character) -> int:
+	var col := state.formation_of(attacker.side).column_of(attacker)
+	var opposing := state.opposing_formation(attacker.side)
+	if col == -1:
+		return -1
+	var manned := -1
 	var nearest := Formation.COLUMNS
 	for c in Formation.COLUMNS:
 		if opposing.column_melee_target(c) == null:
@@ -874,13 +956,18 @@ func _close_direction(attacker: Character) -> int:
 		if distance == 0 or distance >= nearest:
 			continue
 		nearest = distance
-		step = -1 if c < col else 1
-	if step == 0:
-		return 0
-	var line := own.line_of(attacker)
-	if not Formation.in_bounds(line, col + step) or own.at(line, col + step) != null:
-		return 0
-	return step
+		manned = c
+	return manned
+
+
+## The closing rule's teeth (docs/block-and-patterns.md): each pin lands
+## pin_count MORE stacks than nothing — 1, then 2, then 3 — and pin_count
+## never decays in-battle, so every further dodge costs more than the last.
+func _pin_down(dodger: Character) -> void:
+	dodger.pin_count += 1
+	dodger.pinned += dodger.pin_count
+	state.log_event("%s is pinned where he stands (%d)." %
+			[dodger.display_name, dodger.pinned])
 
 
 ## An archer earning his keep: in the second line with a bow.
@@ -934,9 +1021,15 @@ func _attack(attacker: Character, defender: Character) -> void:
 	var grazed := state.formation_of(defender.side).line_neighbors(defender) \
 			if attacker.is_berserker else ([] as Array[Character])
 	var dmg := _melee_damage(attacker, defender)
-	defender.hp -= dmg
-	state.log_event("%s hits %s for %d (%d HP left)." %
-			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
+	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	defender.hp -= wounded
+	if wounded < dmg:
+		state.log_event("%s hits %s for %d — %d dies on the guard (%d HP left)." %
+				[attacker.display_name, defender.display_name, dmg, dmg - wounded,
+				maxi(0, defender.hp)])
+	else:
+		state.log_event("%s hits %s for %d (%d HP left)." %
+				[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
 	for victim in grazed:
@@ -952,18 +1045,22 @@ func _cleave_graze(attacker: Character, victim: Character) -> void:
 	if not victim.is_alive() or not state.formation_of(victim.side).has(victim):
 		return
 	var dmg := _graze_damage(attacker, victim)
-	victim.hp -= dmg
+	var wounded := _chew_block(attacker.weapon.kind, victim, dmg)
+	victim.hp -= wounded
 	state.log_event("%s's cleave grazes %s for %d (%d HP left)." %
-			[attacker.display_name, victim.display_name, dmg, maxi(0, victim.hp)])
+			[attacker.display_name, victim.display_name, wounded, maxi(0, victim.hp)])
 	if victim.hp <= 0:
 		await _handle_death(victim)
 
 
-## The aimed double shot: both arrows bound to the mark placed a turn ago.
+## The shoot beat: both arrows bound to the mark placed a beat ago, and a
+## mark still standing after them is SUPPRESSED — his blows lose a third.
 ## A mark that died, routed or was pulled back to the ship wastes the shot
-## whole — rescuing the marked man is the counter-play snipes otherwise lack.
+## whole — rescuing the marked man is the counter-play arrows otherwise
+## lack. The mark is spent with the arrows either way.
 func _double_shot(archer: Character) -> void:
 	var mark: Character = state.archer_marks.get(archer)
+	state.archer_marks.erase(archer)
 	if mark == null or not mark.is_alive() \
 			or not state.opposing_formation(archer.side).has(mark):
 		state.log_event("%s's aimed arrows find nothing — the mark is gone." %
@@ -976,39 +1073,66 @@ func _double_shot(archer: Character) -> void:
 				or not state.opposing_formation(archer.side).has(mark):
 			return
 		await _snipe(archer, mark)
+	if outcome == Outcome.NONE and mark.is_alive() \
+			and state.opposing_formation(archer.side).has(mark):
+		mark.suppressed = BattleState.SUPPRESS_TURNS
+		state.log_event("%s is suppressed — his blows lose their weight." %
+				mark.display_name)
 
 
 ## The archer's arrow: flat LOW damage, armor and columns ignored — the one
 ## attack placement cannot dodge. Side-wide protections still soften it.
 func _snipe(attacker: Character, defender: Character) -> void:
-	var dmg := _snipe_damage(defender)
-	defender.hp -= dmg
-	state.log_event("%s's arrow finds %s for %d (%d HP left)." %
-			[attacker.display_name, defender.display_name, dmg, maxi(0, defender.hp)])
+	var dmg := _snipe_damage(attacker, defender)
+	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	defender.hp -= wounded
+	if wounded < dmg:
+		state.log_event("%s's arrow rattles off %s's guard%s." %
+				[attacker.display_name, defender.display_name,
+				"" if wounded == 0 else " but still bites for %d" % wounded])
+	else:
+		state.log_event("%s's arrow finds %s for %d (%d HP left)." %
+				[attacker.display_name, defender.display_name, wounded, maxi(0, defender.hp)])
 	if defender.hp <= 0:
 		await _handle_death(defender)
 
 
 func _melee_damage(attacker: Character, defender: Character) -> int:
-	var raw := attacker.damage_against(defender, _leader_bonus(attacker), _aura_armor(defender))
-	# The wound-up heavy blow: the berserker's melee damage doubles on the
-	# turn his counter reaches 0 (docs/lines-redesign.md phase C rulings).
-	if attacker.is_berserker and attacker.windup == 0:
+	var raw := attacker.damage_against(defender, _leader_bonus(attacker))
+	# The heavy beat: the berserker's blow doubles when his rhythm peaks.
+	if attacker.current_beat() == "heavy":
 		raw *= 2
-	return _shield_halved(_soften(raw, defender), defender)
+	return _soften(_suppression_cut(attacker, raw), defender)
 
 
-func _snipe_damage(defender: Character) -> int:
-	return _shield_halved(_soften(BattleState.ARCHER_SNIPE_DAMAGE, defender), defender)
+func _snipe_damage(attacker: Character, defender: Character) -> int:
+	return _soften(_suppression_cut(attacker, BattleState.ARCHER_SNIPE_DAMAGE), defender)
 
 
-## The cleave's spill on one neighbor — flat, doubled on the wind-up turn,
-## never armored, but softened and shield-halved like any physical hit.
+## The cleave's spill on one neighbor — flat, doubled on the heavy beat,
+## softened and blocked like any physical hit.
 func _graze_damage(attacker: Character, victim: Character) -> int:
 	var base := BattleState.CLEAVE_GRAZE_DAMAGE
-	if attacker.windup == 0:
+	if attacker.current_beat() == "heavy":
 		base *= 2
-	return _shield_halved(_soften(base, victim), victim)
+	return _soften(_suppression_cut(attacker, base), victim)
+
+
+## SUPPRESSED (docs/block-and-patterns.md): every damage packet the mark
+## deals loses a third, rounded up against him — never below 1.
+func _suppression_cut(attacker: Character, dmg: int) -> int:
+	if attacker.suppressed <= 0:
+		return dmg
+	@warning_ignore("integer_division")
+	return maxi(1, dmg - (dmg + 2) / 3)
+
+
+## End-of-own-turn decay for timed statuses, fielded and reserve alike —
+## time passes for a man dragged home too.
+func _tick_statuses(side: Character.Side) -> void:
+	for c in state.fielded(side) + state.reserve_of(side):
+		c.suppressed = maxi(0, c.suppressed - 1)
+		c.pinned = maxi(0, c.pinned - 1)
 
 
 ## The captain's leader aura: his line-neighbors strike +1 in melee.
@@ -1020,22 +1144,36 @@ func _leader_bonus(attacker: Character) -> int:
 	return bonus
 
 
-## The shieldman's aura: +1 armor with a shieldman standing beside the
-## defender — flat, never stacking with a second shield. Worn armor only
-## helps in melee, so the aura is melee-only by construction.
-func _aura_armor(defender: Character) -> int:
-	for neighbor in state.formation_of(defender.side).line_neighbors(defender):
-		if neighbor.is_shieldman:
-			return 1
-	return 0
+## Guard up (docs/block-and-patterns.md): at the start of a side's turn every
+## fielded man's block resets to his armor — leftover block does not bank,
+## and only the fielded raise it: nobody swings at the reserve.
+func _raise_guard(side: Character.Side) -> void:
+	for c in state.fielded(side):
+		c.block = c.armor
 
 
-## The shieldman's own hide: physical hits (melee, snipes, grazes) halve on
-## his shield, rounded up, after every other reduction. Card and tactic true
-## damage goes around the shield — volleys are the shieldman counter-play.
-func _shield_halved(dmg: int, defender: Character) -> int:
-	@warning_ignore("integer_division")
-	return (dmg + 1) / 2 if defender.is_shieldman else dmg
+## The one place block arithmetic lives, shared by resolution and the
+## forecast so the bill on a token is the same math the blow resolves with.
+## Physical damage is absorbed point for point — except the axe, whose every
+## point destroys TWO block (and the block swallows it at that rate), so the
+## axeman's job is opening a guarded man for the swords behind him.
+## Pure: returns {"destroyed": block lost, "wounded": damage reaching flesh}.
+static func block_math(kind: Weapon.Kind, block: int, dmg: int) -> Dictionary:
+	if block <= 0 or dmg <= 0:
+		return {"destroyed": 0, "wounded": maxi(0, dmg)}
+	if kind == Weapon.Kind.AXE:
+		var destroyed := mini(block, dmg * 2)
+		@warning_ignore("integer_division")
+		return {"destroyed": destroyed, "wounded": dmg - (destroyed + 1) / 2}
+	var absorbed := mini(block, dmg)
+	return {"destroyed": absorbed, "wounded": dmg - absorbed}
+
+
+## Spend the defender's block against one physical hit; returns what wounds.
+func _chew_block(kind: Weapon.Kind, defender: Character, dmg: int) -> int:
+	var bill := block_math(kind, defender.block, dmg)
+	defender.block -= bill["destroyed"]
+	return bill["wounded"]
 
 
 ## Side-wide protections (shield wall, careful advance) soften every hit
@@ -1082,9 +1220,11 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 ## preview of intent, not a simulation.
 func forecast() -> Dictionary:
 	var out := {}
+	var guard := {}
 	var everyone := state.fielded(Character.Side.PLAYER) + state.fielded(Character.Side.ENEMY)
 	for c in everyone:
 		out[c] = {"hp": 0, "morale": 0}
+		guard[c] = c.block
 	# The rail archers open your fight phase: one arrow per ship archer,
 	# re-aimed between arrows against the hp these predictions already cost.
 	if state.archer_support_damage > 0:
@@ -1094,15 +1234,25 @@ func forecast() -> Dictionary:
 				break
 			out[mark]["hp"] += state.archer_support_damage
 	# Your side strikes on current geometry: your fight phase resolves before
-	# the telegraphed call re-arranges their line.
-	for attacker in state.fielded(Character.Side.PLAYER):
-		_forecast_attacker(attacker, out)
+	# the telegraphed call re-arranges their line. Axes first, both sides, so
+	# the predicted block spend follows the resolution order.
+	for attacker in _attack_order(Character.Side.PLAYER):
+		_forecast_attacker(attacker, out, guard)
 	# Their side strikes AFTER the call: preview it on the real grid, then
-	# put every man back where he stands.
+	# put every man back where he stands. A telegraphed captain's order fires
+	# before they swing, so the preview rages them for the pass and un-rages
+	# them after — the real men are never touched.
 	var held: Array[Character] = state.enemy_formation.slots.duplicate()
+	var preview_rage: int = state.captain_command.get("amount", 1) \
+			if state.next_tactic == "captains_order" \
+			and state.captain_command.get("effect", "") == "blood_rage" else 0
 	_apply_call(state.next_tactic)
-	for attacker in state.fielded(Character.Side.ENEMY):
-		_forecast_attacker(attacker, out)
+	for c in state.fielded(Character.Side.ENEMY):
+		c.rage += preview_rage
+	for attacker in _attack_order(Character.Side.ENEMY):
+		_forecast_attacker(attacker, out, guard)
+	for c in state.fielded(Character.Side.ENEMY):
+		c.rage -= preview_rage
 	state.enemy_formation.slots = held
 	# The telegraphed tactic's direct damage is part of the bill.
 	match state.next_tactic:
@@ -1131,28 +1281,57 @@ func forecast() -> Dictionary:
 
 
 ## One attacker's contribution to the forecast bill, at his current target.
-func _forecast_attacker(attacker: Character, out: Dictionary) -> void:
+## `guard` is the running block ledger: predicted hits chew it with the same
+## block_math resolution uses, so the bill on a token is blood, not
+## steel-on-shield.
+func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary) -> void:
 	if not attacker.is_alive():
 		return
-	if not _is_sniper(attacker) and not _can_melee(attacker):
-		return
-	# An aimed double shot is bound to its mark — or to nothing at all.
-	if _is_sniper(attacker) and attacker.windup == 0:
-		var mark: Character = state.archer_marks.get(attacker)
-		if mark != null and mark.is_alive() and out.has(mark) \
-				and state.opposing_formation(attacker.side).has(mark):
-			out[mark]["hp"] += _snipe_damage(mark) * 2
+	match attacker.current_beat():
+		"guard":
+			# No blow — and a player-side guard beat raises the ledger before
+			# the enemy phase spends it (your fight phase resolves first; an
+			# enemy guard beat lands after your hits, so it covers nothing
+			# inside this forecast's window).
+			if guard.has(attacker):
+				guard[attacker] += attacker.armor
+			if attacker.is_shieldman:
+				for neighbor in state.formation_of(attacker.side).line_neighbors(attacker):
+					if guard.has(neighbor):
+						guard[neighbor] += BattleState.SHIELD_AURA_BLOCK
+			return
+		"aim":
+			if _is_sniper(attacker):
+				return  # the mark locks, nothing is loosed
+		"shoot":
+			if _is_sniper(attacker):
+				# The aimed double shot is bound to its mark — or to nothing.
+				var mark: Character = state.archer_marks.get(attacker)
+				if mark != null and mark.is_alive() and out.has(mark) \
+						and state.opposing_formation(attacker.side).has(mark):
+					for i in 2:
+						_forecast_hit(attacker, mark, _snipe_damage(attacker, mark), out, guard)
+				return
+	if not _can_melee(attacker):
 		return
 	var target := _pick_target(attacker)
 	if target == null or not out.has(target):
 		return
 	var swings := 1 + attacker.bonus_attacks
-	var dmg := _snipe_damage(target) if _is_sniper(attacker) \
-			else _melee_damage(attacker, target)
-	out[target]["hp"] += dmg * swings
-	if attacker.is_berserker and not _is_sniper(attacker):
-		for victim in state.formation_of(target.side).line_neighbors(target):
-			out[victim]["hp"] += _graze_damage(attacker, victim) * swings
+	for i in swings:
+		_forecast_hit(attacker, target, _melee_damage(attacker, target), out, guard)
+		if attacker.is_berserker:
+			for victim in state.formation_of(target.side).line_neighbors(target):
+				if out.has(victim):
+					_forecast_hit(attacker, victim, _graze_damage(attacker, victim), out, guard)
+
+
+## One predicted physical hit: spend the ledger's block, bill the blood.
+func _forecast_hit(attacker: Character, defender: Character, dmg: int,
+		out: Dictionary, guard: Dictionary) -> void:
+	var bill := block_math(attacker.weapon.kind, guard[defender], dmg)
+	guard[defender] -= bill["destroyed"]
+	out[defender]["hp"] += bill["wounded"]
 
 
 # --- Death, morale and routing ----------------------------------------------
@@ -1163,6 +1342,7 @@ func _handle_death(dead: Character) -> void:
 	# drags the prowman from the prow — his fall is the pair's hinge, and an
 	# automatic save would chain into a forced crossing the player never chose.
 	if dead.side == Character.Side.PLAYER and not dead.is_captain \
+			and dead.pinned == 0 \
 			and not _pair_member(dead) and state.player_formation.has(dead):
 		var save := _affordable_reaction_save()
 		if save != null:
@@ -1268,10 +1448,24 @@ func _pair_exit(line: int, col: int) -> void:
 		state.player_formation.place(captain, line, col)
 	else:
 		state.player_formation.place_at_index(captain, state.player_formation.first_free_index())
+	captain.beat = 0
 	state.log_event("%s leaps the rail and takes the prow himself." % captain.display_name)
 
 
 # --- Enemy tactics and reinforcements ----------------------------------------
+
+## The telegraph for a given turn: every period-th enemy turn the captain's
+## command replaces whatever the rotation would have picked — from the
+## sterncastle or the line alike, so a full locked board cannot silence the
+## escalation. Off the beat, the rotation runs (seeded-random for now; a
+## fixed cycle is an open ruling).
+func _pick_tactic_for(turn: int) -> String:
+	var period: int = state.captain_command.get("period", 0)
+	if period > 0 and turn % period == 0 \
+			and state.enemy_captain != null and state.enemy_captain.is_alive():
+		return "captains_order"
+	return _pick_tactic()
+
 
 func _pick_tactic() -> String:
 	if enemy_tactics.is_empty():
@@ -1281,6 +1475,8 @@ func _pick_tactic() -> String:
 
 func _resolve_tactic(tactic: String) -> void:
 	match tactic:
+		"captains_order":
+			_resolve_command()
 		"arrow_volley":
 			if state.shield_wall_active:
 				state.log_event("Enemy arrows rattle off the shield wall.")
@@ -1314,6 +1510,21 @@ func _resolve_tactic(tactic: String) -> void:
 			state.log_event("The enemy presses the attack.")
 
 
+## The captain's command (docs/block-and-patterns.md): dispatched on the
+## scenario's effect id, so later captains carry different words. blood_rage:
+## every fielded defender gains a permanent, stacking +amount attack damage —
+## men below decks miss the speech, and what a man has heard he keeps.
+func _resolve_command() -> void:
+	var command := state.captain_command
+	match command.get("effect", ""):
+		"blood_rage":
+			var amount: int = command.get("amount", 1)
+			for c in state.fielded(Character.Side.ENEMY):
+				c.rage += amount
+			state.log_event("%s roars from the stern — %s! Every defender strikes +%d, and the rage does not fade." %
+					[state.enemy_captain.display_name, command.get("name", "the command"), amount])
+
+
 ## The captain's calls are formation moves (docs/lines-redesign.md phase C):
 ## the same verbs the player's cards use, applied to the enemy grid. Shared
 ## between resolution and the forecast's preview. Larboard slides toward
@@ -1332,38 +1543,6 @@ func _apply_call(tactic: String) -> bool:
 	return false
 
 
-## An enemy with a wind-up rhythm: the berserker's heavy cleave, the
-## archer's aimed double shot. Player characters never carry timers —
-## wind-ups are the enemy's telegraph layer (phase C ruling).
-func _windup_role(c: Character) -> bool:
-	return c.side == Character.Side.ENEMY \
-			and (c.is_berserker or c.weapon.kind == Weapon.Kind.BOW)
-
-
-## The end-of-enemy-turn tick: counters run only while fielded, restart on
-## arrival and after firing (dodged or landed alike). An archer reaching 0
-## locks his mark now — one full player turn of warning before the arrows.
-func _advance_windups() -> void:
-	for c in state.fielded(Character.Side.ENEMY):
-		if not _windup_role(c):
-			continue
-		if c.windup <= 0:
-			state.archer_marks.erase(c)
-			c.windup = BattleState.WINDUP_PERIOD - 1
-			continue
-		c.windup -= 1
-		if c.windup != 0:
-			continue
-		if _is_sniper(c):
-			var mark := _weakest_fielded(state.player_formation)
-			if mark != null:
-				state.archer_marks[c] = mark
-				state.log_event("%s marks %s — the next arrows are his." %
-						[c.display_name, mark.display_name])
-		elif c.is_berserker:
-			state.log_event("%s begins the wind-up for a terrible blow." % c.display_name)
-
-
 ## Reinforcements choose their slots deterministically: front gaps left to
 ## right, then the second line (Formation.first_free_index).
 func _reinforce() -> void:
@@ -1377,6 +1556,7 @@ func _reinforce() -> void:
 			and not state.enemy_formation.is_full():
 		var c: Character = state.enemy_reserve.pop_front()
 		state.enemy_formation.place_at_index(c, state.enemy_formation.first_free_index())
+		c.beat = 0
 		moved += 1
 		state.log_event("%s comes up from below decks." % c.display_name)
 	# The captain is the final reinforcement: he steps in himself only when
@@ -1388,6 +1568,7 @@ func _reinforce() -> void:
 			and not state.enemy_formation.is_full():
 		state.enemy_formation.place_at_index(state.enemy_captain,
 				state.enemy_formation.first_free_index())
+		state.enemy_captain.beat = 0
 		state.log_event("%s himself steps into the line!" % state.enemy_captain.display_name)
 
 
@@ -1447,6 +1628,12 @@ func _slot_free(formation: Formation, index: int) -> bool:
 
 func _register(c: Character) -> void:
 	c.order_id = _next_order_id()
+	# The battle opens with every guard up; a man crossing later carries the
+	# guard he boarded with (dents included) until his side's next turn start.
+	c.block = c.armor
+	# A scenario may hand a man a custom rhythm; everyone else gets his role's.
+	if c.pattern.is_empty():
+		c.pattern = c.default_pattern()
 
 
 ## Field a scenario character: his deploy_slot hint if it names a free slot,

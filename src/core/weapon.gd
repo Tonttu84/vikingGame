@@ -5,7 +5,7 @@ extends RefCounted
 enum Kind {
 	NONE,   ## bare hands
 	SPEAR,  ## reach: fights his column even from the second line
-	AXE,    ## ignores 2 points of the defender's armor
+	AXE,    ## chews 2 block per point of damage, and swings first (CombatEngine)
 	SWORD,  ## plain damage bonus, no gimmick
 	BOW,    ## from the second line: snipes the weakest fielded enemy anywhere
 }

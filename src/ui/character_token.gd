@@ -99,8 +99,8 @@ func _build() -> void:
 
 	if not compact:
 		var stats := "%s · STR %d · SPD %d" % [character.weapon.display_name, character.strength, character.speed]
-		if character.armor > 0:
-			stats += " · ARM %d" % character.armor
+		if character.block > 0:
+			stats += " · BLK %d" % character.block
 		var stats_label := UIPalette.label(stats, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 		stats_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		box.add_child(stats_label)
@@ -114,17 +114,19 @@ func _build() -> void:
 	var status_row := HBoxContainer.new()
 	status_row.add_theme_constant_override("separation", 6)
 	status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if character.windup >= 0:
-		var windup_text: String
-		if character.windup > 0:
-			windup_text = "winds up: %d" % character.windup
-		else:
-			windup_text = "HEAVY BLOW NEXT" if character.is_berserker else "ARROWS AIMED"
-		status_row.add_child(UIPalette.label(windup_text, UIPalette.FONT_SMALL,
+	var beat_text := _beat_text(character)
+	if beat_text != "":
+		status_row.add_child(UIPalette.label(beat_text, UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
 	if marked:
 		status_row.add_child(UIPalette.label("MARKED", UIPalette.FONT_SMALL,
 				UIPalette.BLOOD.lightened(0.45)))
+	if character.pinned > 0:
+		status_row.add_child(UIPalette.label("PINNED %d" % character.pinned,
+				UIPalette.FONT_SMALL, UIPalette.BLOOD.lightened(0.45)))
+	if character.suppressed > 0:
+		status_row.add_child(UIPalette.label("suppressed", UIPalette.FONT_SMALL,
+				UIPalette.PARCHMENT_DIM))
 	var hint: String = display.get("hint", "")
 	if hint != "":
 		var hint_label := UIPalette.label(hint, UIPalette.FONT_SMALL,
@@ -194,12 +196,19 @@ func _tooltip() -> String:
 				("prowman" if character.is_prowman else
 				("berserker" if character.is_berserker else
 				("shieldman" if character.is_shieldman else "fighter")))],
-		"HP %d/%d · Morale %s · STR %d · SPD %d · Armor %d" % [
+		"HP %d/%d · Morale %s · STR %d · SPD %d" % [
 			maxi(0, character.hp), character.max_hp,
 			"immune" if character.morale_immune() else "%d/%d" % [character.morale, character.max_morale],
-			character.strength, character.speed, character.armor],
+			character.strength, character.speed],
+		"Block %d (guard %d — raised again at his side's turn)" % [character.block, character.armor],
 		"%s: %s" % [character.weapon.display_name, _weapon_note()],
 	]
+	if character.rage > 0:
+		lines.append("Raging: +%d damage from the captain's commands, permanent" % character.rage)
+	if character.suppressed > 0:
+		lines.append("Suppressed: deals a third less for %d of his turns" % character.suppressed)
+	if character.pinned > 0:
+		lines.append("Pinned: cannot move for %d turns" % character.pinned)
 	var note: String = display.get("note", "")
 	if note != "":
 		lines.append(note)
@@ -209,8 +218,8 @@ func _tooltip() -> String:
 func _weapon_note() -> String:
 	match character.weapon.kind:
 		Weapon.Kind.SPEAR: return "reach — fights his column even from the second line"
-		Weapon.Kind.AXE: return "ignores 2 armor"
-		Weapon.Kind.BOW: return "from the second line, snipes the weakest enemy anywhere (2 dmg)"
+		Weapon.Kind.AXE: return "chews 2 block per point of damage, and swings first"
+		Weapon.Kind.BOW: return "from the second line: aims, then both arrows (2 dmg each) suppress the mark"
 		Weapon.Kind.SWORD: return "+2 damage, no tricks"
 	return "no weapon"
 
@@ -228,3 +237,20 @@ func _can_drop_data(_at: Vector2, data: Variant) -> bool:
 
 func _drop_data(_at: Vector2, data: Variant) -> void:
 	battle_ui.play_card(data["card"], character)
+
+
+## The telegraph line for a man's next beat. Plain single-beat fighters show
+## nothing; a rhythm worth reading is spelled out.
+static func _beat_text(character: Character) -> String:
+	if character.pattern.size() <= 1:
+		return ""
+	match character.current_beat():
+		"heavy":
+			return "HEAVY BLOW NEXT"
+		"aim":
+			return "taking aim"
+		"shoot":
+			return "ARROWS AIMED"
+		"guard":
+			return "shield up next"
+	return "strikes next"

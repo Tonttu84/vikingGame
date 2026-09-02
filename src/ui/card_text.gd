@@ -108,6 +108,7 @@ static func _effect_line(effect: Dictionary) -> String:
 
 static func tactic_name(tactic: String) -> String:
 	match tactic:
+		"captains_order": return "The Captain's Order"
 		"arrow_volley": return "Arrow Volley"
 		"fear_horn": return "Fear Horn"
 		"reinforcement_surge": return "Reinforcement Surge"
@@ -120,6 +121,8 @@ static func tactic_name(tactic: String) -> String:
 
 static func tactic_description(tactic: String) -> String:
 	match tactic:
+		"captains_order":
+			return "Their captain roars: every fielded defender gains +1 damage, permanently. It stacks."
 		"arrow_volley":
 			return "1 damage to each of your boarders. A Shield Wall stops it."
 		"fear_horn":
@@ -145,7 +148,7 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Momentum[/b] powers cards: +1 each turn, more for each enemy slain. Routs pay nothing — breaking men is free but earns no tempo.
 
-[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Trade Places, Drag Him Back!), which wait in hand for their moment. Play cards — most also move one of your men, and that move is mandatory and its DIRECTION IS PRINTED ON THE CARD: larboard, starboard, press forward, give ground, or close on the nearest enemy. The board lights up every man who could take that step and you pick which one, never whether and never which way — and a card whose step nobody can take cannot be played at all. Then both formations fight, fastest first. Axes ignore 2 armor.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Trade Places, Drag Him Back!), which wait in hand for their moment. Play cards — most also move one of your men, and that move is mandatory and its DIRECTION IS PRINTED ON THE CARD: larboard, starboard, press forward, give ground, or close on the nearest enemy. The board lights up every man who could take that step and you pick which one, never whether and never which way — and a card whose step nobody can take cannot be played at all. Then both formations fight — axes first (they chew 2 block per point of damage), then the rest by speed. Every man follows his rhythm: berserkers build to a doubled HEAVY blow, archers AIM before both arrows fly (the mark comes away suppressed, a third weaker), shieldmen raise the wall before they swing. Armor is guard: it comes back up as block at each side's turn.
 
 [b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
 

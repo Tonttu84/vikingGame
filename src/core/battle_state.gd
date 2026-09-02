@@ -27,9 +27,11 @@ const CLEAVE_GRAZE_DAMAGE := 2
 ## leaps the rail himself for this price — and if the crew cannot pay,
 ## panic takes them and the battle is lost outright.
 const PAIR_ENTRY_COST := 1
-## Enemy wind-up rhythm: the heavy cleave and the aimed double shot fire
-## every 3rd enemy fight phase (visible counter 2, 1, 0 — fires at 0).
-const WINDUP_PERIOD := 3
+## The shieldman's guard beat covers his line-neighbors too: each gains this
+## much block when he plants the shield (docs/block-and-patterns.md).
+const SHIELD_AURA_BLOCK := 2
+## How many of the mark's own turn-ends the double shot's suppression lasts.
+const SUPPRESS_TURNS := 2
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the
@@ -50,6 +52,12 @@ var enemy_dead: Array[Character] = []
 ## Reachable like anyone else once fielded — and he fields himself as the
 ## final reinforcement, after the hold has emptied.
 var enemy_captain: Character = null
+
+## The enemy captain's command (docs/block-and-patterns.md): scenario data,
+## e.g. {"name": ..., "effect": "blood_rage", "amount": 1, "period": 4}.
+## Every period-th enemy turn the telegraphed tactic IS the command; an empty
+## dict (bare test scenarios) means the rotation is never replaced.
+var captain_command := {}
 
 var momentum := 0
 var deck: Array[CardData] = []
@@ -74,8 +82,8 @@ var block_reinforcements := false
 var surge_active := false
 var focus_target: Character = null
 var next_tactic := ""
-## Locked marks: enemy archer -> the boarder his aimed double shot is bound
-## to. Placed one turn ahead when his counter reaches 0; a mark that dies,
+## Locked marks, both sides' bows: archer -> the man his aimed double shot
+## is bound to. Placed by the aim beat, spent by the shot; a mark that dies,
 ## routs or leaves the field wastes the shot.
 var archer_marks := {}
 

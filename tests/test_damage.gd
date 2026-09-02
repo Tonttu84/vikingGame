@@ -1,5 +1,6 @@
 extends TestCase
-## Deterministic damage math: Str + weapon - armor, min 1, weapon traits.
+## Deterministic damage math: Str + weapon, min 1, side-wide softening.
+## Armor is guard now, spent as block — that math lives in test_block.gd.
 
 const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
@@ -11,16 +12,17 @@ func test_sword_damage() -> void:
 	assert_eq(a.damage_against(d), 5, "3 Str + 2 sword - 0 armor")
 
 
-func test_minimum_damage_is_one() -> void:
+func test_raw_damage_is_never_below_one() -> void:
 	var a := TestHelpers.grunt(P, "a", 12, 6, 1, 3, null, 0)
 	var d := TestHelpers.grunt(E, "d", 12, 6, 3, 3, null, 5)
-	assert_eq(a.damage_against(d), 1, "armor can never zero out a hit")
+	assert_eq(a.damage_against(d, -4), 1,
+			"whatever debuffs subtract, a swing that lands is worth at least 1 — before block")
 
 
-func test_axe_ignores_two_armor() -> void:
+func test_defender_sheet_no_longer_enters_the_math() -> void:
 	var a := TestHelpers.grunt(P, "a", 12, 6, 3, 3, Weapon.axe(), 0)
 	var d := TestHelpers.grunt(E, "d", 12, 6, 3, 3, null, 3)
-	assert_eq(a.damage_against(d), 3, "3 Str + 1 axe - (3-2) armor")
+	assert_eq(a.damage_against(d), 4, "3 Str + 1 axe; the 3 armor is his guard, spent as block")
 
 
 func test_spear_damage_is_plain() -> void:

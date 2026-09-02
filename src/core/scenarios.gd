@@ -39,7 +39,7 @@ static func default_skirmish() -> Dictionary:
 
 	# The prowman leads the default first wave; the captain waits on your own
 	# ship (safe until sent across). First in reserve crosses first by default.
-	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 14, 7, 2, 2, Weapon.sword(), 2)
+	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 14, 7, 2, 2, Weapon.sword(), 4)
 	shieldman.is_shieldman = true
 	var prowman := Character.new("p_prow", "Prowman Sten", P, 14, 8, 4, 3, Weapon.axe(), 1)
 	prowman.is_prowman = true
@@ -61,9 +61,9 @@ static func default_skirmish() -> Dictionary:
 
 	# The watch auto-places front left to right, then the second line: the
 	# shieldmen anchor f1/f2, the bowman lands b1 behind them and snipes.
-	var wall1 := Character.new("e_shield1", "Housecarl Bran", E, 14, 7, 2, 3, Weapon.sword(), 2)
+	var wall1 := Character.new("e_shield1", "Housecarl Bran", E, 14, 7, 2, 3, Weapon.sword(), 4)
 	wall1.is_shieldman = true
-	var wall2 := Character.new("e_shield2", "Housecarl Eyvind", E, 14, 7, 2, 2, Weapon.sword(), 2)
+	var wall2 := Character.new("e_shield2", "Housecarl Eyvind", E, 14, 7, 2, 2, Weapon.sword(), 4)
 	wall2.is_shieldman = true
 	var enemy_field: Array[Character] = [
 		wall1,
@@ -89,6 +89,8 @@ static func default_skirmish() -> Dictionary:
 		"enemy_field": enemy_field,
 		"enemy_reserve": enemy_reserve,
 		"enemy_captain": enemy_captain,
+		"captain_command": {"name": "Blood for blood", "effect": "blood_rage",
+				"amount": 1, "period": 4},
 		"deck": CardLibrary.starter_deck(),
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [
@@ -111,7 +113,7 @@ static func veteran_raid() -> Dictionary:
 	var captain := Character.new("p_captain", "Captain Aslak", P, 22, 11, 5, 4, Weapon.sword(), 3)
 	captain.is_captain = true
 
-	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 16, 8, 3, 2, Weapon.sword(), 3)
+	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 16, 8, 3, 2, Weapon.sword(), 5)
 	shieldman.is_shieldman = true
 	var prowman := Character.new("p_prow", "Prowman Sten", P, 16, 9, 5, 3, Weapon.axe(), 2)
 	prowman.is_prowman = true
@@ -120,7 +122,7 @@ static func veteran_raid() -> Dictionary:
 		shieldman,
 		Character.new("p_spear1", "Spearman Orm", P, 14, 7, 4, 3, Weapon.spear(), 2),
 	]
-	var shieldman2 := Character.new("p_shield2", "Shield-bearer Halla", P, 14, 7, 2, 2, Weapon.sword(), 3)
+	var shieldman2 := Character.new("p_shield2", "Shield-bearer Halla", P, 14, 7, 2, 2, Weapon.sword(), 5)
 	shieldman2.is_shieldman = true
 	var player_reserve: Array[Character] = [
 		Character.new("p_axe1", "Axeman Grim", P, 14, 7, 4, 3, Weapon.axe(), 2),
@@ -135,9 +137,9 @@ static func veteran_raid() -> Dictionary:
 	var enemy_captain := Character.new("e_captain", "Jarl Eirik Iron-Hand", E, 36, 11, 6, 3, Weapon.sword(), 3)
 	enemy_captain.is_captain = true
 
-	var wall1 := Character.new("e_shield1", "Huskarl Arnbjorn", E, 16, 8, 3, 3, Weapon.sword(), 3)
+	var wall1 := Character.new("e_shield1", "Huskarl Arnbjorn", E, 16, 8, 3, 3, Weapon.sword(), 5)
 	wall1.is_shieldman = true
-	var wall2 := Character.new("e_shield2", "Huskarl Thorgil", E, 16, 8, 3, 2, Weapon.sword(), 3)
+	var wall2 := Character.new("e_shield2", "Huskarl Thorgil", E, 16, 8, 3, 2, Weapon.sword(), 5)
 	wall2.is_shieldman = true
 	var enemy_field: Array[Character] = [
 		wall1,
@@ -164,6 +166,8 @@ static func veteran_raid() -> Dictionary:
 		"enemy_field": enemy_field,
 		"enemy_reserve": enemy_reserve,
 		"enemy_captain": enemy_captain,
+		"captain_command": {"name": "Iron and hunger", "effect": "blood_rage",
+				"amount": 1, "period": 4},
 		"deck": CardLibrary.veteran_deck(),
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [
