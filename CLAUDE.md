@@ -351,7 +351,28 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-0. ~~**The press**~~ — RULED and BUILT (see the Done block above and
+0. **The turn choice** — RULED 2026-09-05, NOT YET BUILT (owner parked it
+   to clear the session; build it next, TDD, new suite `test_turn_choice`).
+   The momentum commit (`RESERVE_COMMIT_COST`, `can_commit`, the reserve
+   click-to-commit flow) is REMOVED. Instead, every player turn opens with
+   a FORCED three-way choice — nothing else is playable until it is made:
+   (a) **1 free reinforcement**: a reserve man crosses into a slot the
+   player picks (prow-pair law unchanged: the pair still crosses only by
+   trading with each other or the forced crossing); (b) **a free swap**
+   (the owner's word: "snap"): two of your men trade places, fielded↔fielded
+   or fielded↔reserve, pair law unchanged; (c) **+1 momentum AND +1 card**,
+   ON TOP of the normal +1 momentum turn income (so reinforce/swap cost
+   exactly one momentum and one card of tempo). The Reinforce card STAYS at
+   its price as a second crossing (retune may cut it later); Trade Places
+   stays as a second, paid swap. Shape: a controller hook the engine awaits
+   at turn start (`choose_opening(state) -> {"op": "reinforce"|"swap"|
+   "income", ...}`), bots and the UI answer it (UI: a three-button bar that
+   gates the hand until answered; reinforce/swap open the usual slot /
+   partner picks); the sim bot's crossing priority moves into the choice.
+   Sims before/after on both anchors; combat-design.md's turn flow and the
+   rules text updated; the retune's momentum-at-cap question re-read
+   afterwards, since income turns now pay 2 momentum + a card.
+0b. ~~**The press**~~ — RULED and BUILT (see the Done block above and
    docs/press-proposal.md's status header). Its constants join the retune's
    scope below.
 1. **The numeric retune** — the slice the owner has been deferring until the
