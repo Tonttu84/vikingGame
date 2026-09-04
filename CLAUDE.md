@@ -68,7 +68,41 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the press** (owner ruled the three open forks 2026-09-05; two
+Done: **the turn choice — THE OPENING** (owner's ruling 2026-09-05; three
+commits). The momentum commit is DELETED (`RESERVE_COMMIT_COST`,
+`can_commit`, `_commit_reserve`, the reserve click-to-commit flow). In its
+place every player turn opens, after the guard/income/deal and before a
+single card may be played, with one FORCED three-way choice: (a) a free
+reinforcement — a man off the ship into a slot you pick; (b) a free swap
+(the owner's word: "snap") — two of your men trade places, fielded↔fielded
+or fielded↔reserve; (c) the income — +1 momentum AND +1 card, on top of
+the turn's own +1. So the two free moves cost exactly one momentum and one
+card of tempo, and the rail stops being a toll. The engine awaits
+`choose_opening(state)`; `opening_options()` and `opening_swappers()` are
+the legality queries (the UI and the bot never judge for themselves), the
+income resolves WITHOUT asking when it is the only legal answer, and a
+missing hook / unknown op / illegal man gets the income — never a free
+move by accident. The prow pair's law is untouched. `_cross_reserve` and
+`_swap_men` are shared with the cards, so Reinforce is the same crossing
+at a price and Trade Places the same trade at a price, both still playable
+as the turn's SECOND one. UI: a three-button bar (Reinforce / Snap /
++1 & draw) IN THE BANNER ROW — the canvas has ~5px to spare, so it had to
+buy no vertical space — which gates the hand and both turn buttons until
+answered and opens the usual board picks behind it; the reserve row's dim
+now means "cannot take the free crossing". Suite `test_turn_choice` (57
+tests). 1059 unit + 158 smoke. Sims (n=300, random bot), before → after:
+skirmish 25.3% → 24.7% win / 13.1 → 12.2 turns / 1.46 → 0.96 dead in a
+win; veteran 50.3% → 38.0% / 16.5 → 14.9 / 1.03 → 0.81. Fights are
+shorter and cheaper to win; the veteran fall is the bot crossing free
+EVERY turn and exposing men in a grid it never arranges (crew fled 1.70 →
+3.79 there). Refused proposals 44.0% → 62.8% and 36.1% → 63.7%, empty
+decision points 26.8% → 27.3% and 27.0% → 32.0% — READ THAT WITH CARE:
+the income's momentum lifts cards over the affordability bar and into the
+rider gate, so the denominator grew; it is not the gate biting harder.
+RETUNE NOTE: income turns now pay 2 momentum AND a card, so the
+momentum-at-cap question is due a re-read, and the Reinforce/Trade Places
+prices are now the price of a SECOND crossing or trade, not the only one.
+Earlier: **the press** (owner ruled the three open forks 2026-09-05; two
 commits). Every column is a duel judged once per round after both sides'
 beats, before reinforcements: presence first (a column held by one side
 alone is that side's; blood into a column you do not hold wins nothing;
@@ -351,27 +385,10 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-0. **The turn choice** — RULED 2026-09-05, NOT YET BUILT (owner parked it
-   to clear the session; build it next, TDD, new suite `test_turn_choice`).
-   The momentum commit (`RESERVE_COMMIT_COST`, `can_commit`, the reserve
-   click-to-commit flow) is REMOVED. Instead, every player turn opens with
-   a FORCED three-way choice — nothing else is playable until it is made:
-   (a) **1 free reinforcement**: a reserve man crosses into a slot the
-   player picks (prow-pair law unchanged: the pair still crosses only by
-   trading with each other or the forced crossing); (b) **a free swap**
-   (the owner's word: "snap"): two of your men trade places, fielded↔fielded
-   or fielded↔reserve, pair law unchanged; (c) **+1 momentum AND +1 card**,
-   ON TOP of the normal +1 momentum turn income (so reinforce/swap cost
-   exactly one momentum and one card of tempo). The Reinforce card STAYS at
-   its price as a second crossing (retune may cut it later); Trade Places
-   stays as a second, paid swap. Shape: a controller hook the engine awaits
-   at turn start (`choose_opening(state) -> {"op": "reinforce"|"swap"|
-   "income", ...}`), bots and the UI answer it (UI: a three-button bar that
-   gates the hand until answered; reinforce/swap open the usual slot /
-   partner picks); the sim bot's crossing priority moves into the choice.
-   Sims before/after on both anchors; combat-design.md's turn flow and the
-   rules text updated; the retune's momentum-at-cap question re-read
-   afterwards, since income turns now pay 2 momentum + a card.
+0. ~~**The turn choice**~~ — RULED and BUILT 2026-09-05 (see the Done block
+   above; combat-design.md's turn structure carries the shipped rule). The
+   Reinforce and Trade Places prices, and the momentum-at-cap question it
+   re-opens, join the retune's scope below.
 0b. ~~**The press**~~ — RULED and BUILT (see the Done block above and
    docs/press-proposal.md's status header). Its constants join the retune's
    scope below.
