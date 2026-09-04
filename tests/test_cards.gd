@@ -211,7 +211,8 @@ func test_taunt_takes_a_bowman_out_of_sniping_position() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [bow]})
 	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 2)
 	TestHelpers.station(eng.state.enemy_formation, bow, Formation.BACK, 0)
-	assert_true(eng._is_sniper(bow), "back line with a bow: he is picking off your weakest")
+	TestHelpers.cover_at(eng, E, 0)
+	assert_true(eng._is_sniper(bow), "covered in the back line: he is picking off your weakest")
 	await _taunt(eng, bow, p1)
 	assert_false(eng._is_sniper(bow), "at the rail he is just a man with the wrong weapon")
 
@@ -302,19 +303,37 @@ func test_a_driven_man_still_takes_his_column_s_blows() -> void:
 	var hp_before := driven.hp
 	await eng._fight_phase(P)
 	assert_true(driven.hp < hp_before, "your man still reaches him")
-	assert_false(eng._can_melee(driven), "and he has no swing to answer with")
+	# The relative front line changed this card's edge: a man driven back
+	# with NOBODY left in front of him counts as front and fights on. The
+	# silencing needs his column to keep a front man — the swap case.
+	assert_true(eng._can_melee(driven), "alone in his column he is still the front line")
 
 
-## The card's whole skill test: it silences a swordsman and ARMS a bowman,
-## because sniping is a second-line privilege.
+## The card's whole skill test: it silences a swordsman (when his column
+## keeps a front man) and ARMS a bowman, because sniping is a covered
+## second-liner's privilege. The drive's swap provides the cover itself:
+## the man who stood behind is promoted into the rail rank in front of him.
 func test_driving_a_bowman_back_upgrades_him() -> void:
+	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
+	var backer := TestHelpers.grunt(E, "backer")
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [bow]})
+	TestHelpers.station(eng.state.enemy_formation, bow, Formation.FRONT, 3)
+	TestHelpers.station(eng.state.enemy_formation, backer, Formation.BACK, 3)
+	assert_false(eng._is_sniper(bow), "at the rail he is a man with the wrong weapon")
+	await _drive(eng, bow)
+	assert_true(eng._is_sniper(bow), "driven back BEHIND HIS BACKER he starts picking off " +
+			"your weakest — play it on the wrong man and you help them")
+
+
+func test_driving_back_a_lone_bowman_arms_nobody() -> void:
 	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
 	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
 			"enemy_field": [bow]})
 	TestHelpers.station(eng.state.enemy_formation, bow, Formation.FRONT, 3)
-	assert_false(eng._is_sniper(bow), "at the rail he is a man with the wrong weapon")
 	await _drive(eng, bow)
-	assert_true(eng._is_sniper(bow), "driven back he starts picking off your weakest — play it on the wrong man and you help them")
+	assert_false(eng._is_sniper(bow),
+			"nobody steps in front of him: uncovered, he counts as front and stays a poor fighter")
 
 
 func test_drive_him_back_is_refused_on_a_second_liner() -> void:

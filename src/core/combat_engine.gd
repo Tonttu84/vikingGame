@@ -989,18 +989,32 @@ func _pin_down(dodger: Character) -> void:
 			[dodger.display_name, dodger.pinned])
 
 
-## An archer earning his keep: in the second line with a bow.
+## The relative front line (docs/block-and-patterns.md addendum): a
+## second-liner with nobody in the front slot of his own column counts as
+## standing in the front line. The column rule always let the blows find
+## him; now his find them back — and the bow needs cover to be a bow.
+## Auras and the forced movements read REAL positions, never relative ones.
+func _covered(c: Character) -> bool:
+	var formation := state.formation_of(c.side)
+	return formation.line_of(c) == Formation.BACK \
+			and formation.at(Formation.FRONT, formation.column_of(c)) != null
+
+
+## An archer earning his keep: in the second line with a bow, AND a man in
+## front of him — uncovered, he counts as front and fights hand to hand.
 func _is_sniper(c: Character) -> bool:
-	return c.weapon.kind == Weapon.Kind.BOW \
-			and state.formation_of(c.side).line_of(c) == Formation.BACK
+	return c.weapon.kind == Weapon.Kind.BOW and _covered(c)
 
 
-## Front-liners fight their column; spears reach over their front man.
+## Front-liners — actual or relative — fight their column; a covered spear
+## still reaches over his front man.
 func _can_melee(c: Character) -> bool:
 	var line := state.formation_of(c.side).line_of(c)
 	if line == Formation.FRONT:
 		return true
-	return line == Formation.BACK and c.weapon.kind == Weapon.Kind.SPEAR
+	if line != Formation.BACK:
+		return false
+	return not _covered(c) or c.weapon.kind == Weapon.Kind.SPEAR
 
 
 func _focus_valid(attacker: Character) -> bool:

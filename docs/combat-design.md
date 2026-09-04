@@ -43,15 +43,25 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
   turn. Two survivors in different columns can no longer stand and
   stare at each other until the turn limit, and a runner cannot run
   forever.
-- **Front-liners** fight their column. **Spears** also fight it from the
-  second line (reach). **Archers** in the second line work on their two
-  beats (docs/block-and-patterns.md): AIM locks the lowest-HP fielded
-  enemy *anywhere* (spawn-order tiebreak; the focus target while one
-  stands) with a full turn of warning, then SHOOT looses both flat-2
-  arrows at the mark and leaves him suppressed — the attack placement
-  cannot dodge, though a raised guard blocks it and a rescued mark
-  wastes it. Any other second-liner simply holds his place. The
-  **reserve never acts and can never be hit.**
+- **The front line is relative** (owner's playtest ruling, 2026-09-04):
+  a second-liner with nobody in the front slot of his own column counts
+  as standing in the front line — he fights his column, he takes its
+  blows (the column rule always sent them to him), and he closes like
+  any front-liner when his column is empty of enemies. Auras and the
+  forced movements (shove, drive) read REAL positions, never relative
+  ones — being effectively front carries no boosts.
+- **Front-liners** — actual or relative — fight their column. **Spears**
+  also fight it from the second line even when covered (reach).
+  **Archers** work their two beats only while COVERED — a man in the
+  front slot of their column (docs/block-and-patterns.md): AIM locks the
+  lowest-HP fielded enemy *anywhere* (spawn-order tiebreak; the focus
+  target while one stands) with a full turn of warning, then SHOOT
+  looses both flat-2 arrows at the mark and leaves him suppressed — the
+  attack placement cannot dodge, though a raised guard blocks it and a
+  rescued mark wastes it. An uncovered archer counts as front like
+  anyone else: hand to hand, no aiming. A covered second-liner without
+  reach simply holds his place. The **reserve never acts and can never
+  be hit.**
 - **Your first wave** (e.g. 3 men, placed before the fight) boards a
   larger, surprised watch (e.g. 5); the rest of both crews feed in over
   the fight. Their reinforcements enter at a fixed rate (2/turn, never a
