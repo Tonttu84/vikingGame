@@ -17,6 +17,76 @@ static func describe(card: CardData) -> String:
 	return "\n".join(lines)
 
 
+## The card face's short text: one compact line per effect, so the face stays
+## readable at hand size. Full sentences (describe) belong to the hover
+## preview — the face only has to be actable at a glance, never complete.
+## Movement riders keep their DIRECTION loud: that word is the rules promise
+## "the direction is printed on the card".
+static func summarize(card: CardData) -> String:
+	if card.is_loot:
+		return "Dead weight. Clogs your draws until you sail home."
+	var lines: Array[String] = []
+	for effect in card.effects:
+		lines.append(_effect_short(effect))
+	if card.reaction_save:
+		lines.append("Fires by itself: saves a falling fighter at 1 HP (pays %d)." % card.cost)
+	return "\n".join(lines)
+
+
+static func _effect_short(effect: Dictionary) -> String:
+	var amount: int = effect.get("amount", 0)
+	match effect.get("type"):
+		CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE:
+			return "Deal %d to their whole front line, straight through block." % amount
+		CardData.EffectType.MORALE_DAMAGE_ALL_ENEMIES:
+			return "%d morale damage to every enemy on deck." % amount
+		CardData.EffectType.HEAL:
+			return "Heal an ally for %d." % amount
+		CardData.EffectType.FOCUS_FIRE:
+			return "His column + your archers all strike him now."
+		CardData.EffectType.SHIELD_WALL:
+			return "Your side takes 2 less per hit this turn. Stops volleys."
+		CardData.EffectType.PULL_TO_RESERVE:
+			return "Pull an ally back to your ship."
+		CardData.EffectType.SHOVE:
+			return "Shove an enemy front-liner one column sideways."
+		CardData.EffectType.TAUNT:
+			return "Drag an enemy to the front of your man's column."
+		CardData.EffectType.DRIVE_BACK:
+			return "Swap an enemy behind the man at his back — he takes blows, answers none."
+		CardData.EffectType.BLOCK_REINFORCEMENTS:
+			return "No enemy reinforcements next turn."
+		CardData.EffectType.EXTRA_ATTACK:
+			return "An ally strikes %d extra time." % amount
+		CardData.EffectType.DRAW:
+			return "Draw %d cards." % amount
+		CardData.EffectType.WAR_CRY:
+			return "+1 momentum per enemy slain this turn."
+		CardData.EffectType.GAIN_MOMENTUM:
+			return "Gain %d momentum." % amount
+		CardData.EffectType.SEND_DEFENDERS_BELOW:
+			return "%d defenders caught below decks, shaken." % amount
+		CardData.EffectType.ARCHER_SUPPORT:
+			return "All battle: each ship archer opens with a %d-dmg arrow." % amount
+		CardData.EffectType.PLAYER_ARMOR_BONUS:
+			return "All battle: your side takes %d less per hit." % amount
+		CardData.EffectType.DEFENDERS_FORM_UP:
+			return "%d extra defenders form up at the rail." % amount
+		CardData.EffectType.ENEMY_MORALE_BONUS:
+			return "Every defender gains %d morale." % amount
+		CardData.EffectType.RIDER_PORT:
+			return "Then a man steps to PORT."
+		CardData.EffectType.RIDER_STARBOARD:
+			return "Then a man steps to STARBOARD."
+		CardData.EffectType.RIDER_FORWARD:
+			return "Then he PRESSES to the front."
+		CardData.EffectType.RIDER_BACKWARD:
+			return "Then he GIVES GROUND a line back."
+		CardData.EffectType.RIDER_CLOSE:
+			return "Then a man CLOSES on the enemy."
+	return _effect_line(effect)
+
+
 ## How this card is played, for the card's own footnote. Reinforce names a
 ## slot, the targeted cards name a man, the rest land anywhere.
 static func drop_hint(card: CardData) -> String:

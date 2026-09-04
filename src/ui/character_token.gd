@@ -70,7 +70,8 @@ func _build() -> void:
 		# Greyed out, but not invisible when his one legal play is available.
 		modulate = Color(1, 1, 1, 0.9 if display.get("hint_lit", false) else 0.5)
 	# Tokens are the layout's unit cell: a slim margin keeps a fully lit
-	# token (stats + telegraph + forecast) inside its 100px formation row.
+	# token (stats + telegraph + forecast) inside its fixed box — the
+	# formation rows are exactly TOKEN_SIZE.y tall.
 	style.set_content_margin_all(4)
 	add_theme_stylebox_override("panel", style)
 

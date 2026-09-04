@@ -25,6 +25,10 @@ var _turn_text := "Turn 1"
 var _pick := {}
 ## The card currently in the air, so every place it may land lights up.
 var _drag_card: CardData = null
+## The full-size readable copy of the card face the mouse is resting on.
+## An overlay above the table (never a layout child), so showing and hiding
+## it cannot move the board by a pixel.
+var _card_preview_layer: Control
 
 var _turn_label: Label
 var _intent_title: Label
@@ -400,7 +404,36 @@ func _drop_data(_at: Vector2, data: Variant) -> void:
 ## that could take it lights up until the drag ends.
 func on_card_drag_started(card: CardData) -> void:
 	_drag_card = card
+	hide_card_preview()
 	_render()
+
+
+# --- The hover preview: the full card, readable ------------------------------
+
+## Rest the mouse on a card face and the full-size card pops over the board:
+## same face, full rules text at reading size, nothing clipped. It sits above
+## the hovered card (clamped inside the canvas) and ignores the mouse, so it
+## can never eat a click or start a drag.
+func show_card_preview(view: CardView) -> void:
+	if _drag_card != null:
+		return
+	hide_card_preview()
+	var popup := CardView.build_preview(view.card)
+	_card_preview_layer.add_child(popup)
+	var popup_size := popup.get_combined_minimum_size()
+	var card_rect := view.get_global_rect()
+	var canvas := get_viewport_rect().size
+	popup.position = Vector2(
+			clampf(card_rect.get_center().x - popup_size.x / 2.0,
+					8.0, canvas.x - popup_size.x - 8.0),
+			maxf(8.0, card_rect.position.y - popup_size.y - 6.0))
+	_card_preview_layer.visible = true
+
+
+func hide_card_preview() -> void:
+	for child in _card_preview_layer.get_children():
+		child.queue_free()
+	_card_preview_layer.visible = false
 
 
 func _notification(what: int) -> void:
@@ -573,6 +606,9 @@ func _refresh_enemy_captain(state: BattleState) -> void:
 
 
 func _refresh_hand(state: BattleState) -> void:
+	# The face the preview mirrors is about to be freed with the rest of the
+	# row; a preview that outlived its card would just float there.
+	hide_card_preview()
 	for child in _hand_row.get_children():
 		child.queue_free()
 	# A Feint can take the hand past the turn's five, so the faces narrow to
@@ -709,6 +745,14 @@ func _build_layout() -> void:
 	table.add_child(_build_bottom_strip())
 	main.add_child(_build_log_panel())
 
+	# Above the table, below the modal layers: the hover preview may cover
+	# the board, but an outcome or the maneuver picker still covers IT.
+	_card_preview_layer = Control.new()
+	_card_preview_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_preview_layer.visible = false
+	_card_preview_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_card_preview_layer)
+
 	_build_dialogs()
 	_build_outcome_layer()
 	_build_maneuver_layer()
@@ -769,7 +813,8 @@ func _build_enemy_zone() -> Control:
 	zone.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.IRON_DARK.darkened(0.2)))
 	zone.mouse_filter = Control.MOUSE_FILTER_PASS
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	# 5, not 6, in both deck zones: two pixels a zone, spent on the cards.
+	box.add_theme_constant_override("separation", 5)
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	zone.add_child(box)
 
@@ -808,7 +853,9 @@ func _formation_row() -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
-	row.custom_minimum_size.y = 100
+	# Exactly the token's fixed height: the four rows' spare pixels were
+	# spent on the taller card faces, and the canvas guard counts them all.
+	row.custom_minimum_size.y = CharacterToken.TOKEN_SIZE.y
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	return row
 
@@ -818,7 +865,7 @@ func _build_player_zone() -> Control:
 	zone.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.SEA.darkened(0.25)))
 	zone.mouse_filter = Control.MOUSE_FILTER_PASS
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 5)
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	zone.add_child(box)
 

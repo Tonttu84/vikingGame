@@ -68,7 +68,25 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the battleline slice** (owner's playtest feedback, 2026-09-04; four
+Done: **card readability** (owner's playtest feedback, 2026-09-04): the card
+faces now show CardText.summarize — one compact line per effect, rider
+directions kept loud — instead of the full sentences, and resting the mouse
+on a face pops a full-size preview card (CardView.build_preview, 380 wide,
+14px text) over the board with the complete rules text; it replaces the old
+OS tooltip on faces, sits on an overlay that ignores the mouse, hides on
+drag/hand refresh, and is clamped inside the canvas. Faces grew 178x130 ->
+186x148 (body font starts at 13 now), paid for by the formation rows
+shrinking to the token's exact 96px and the deck zones' separation 6 -> 5 —
+the table still fits the 800px canvas with ~5px to spare, so the next
+vertical addition must buy its own space. Two rendering fixes worth
+remembering: the body labels wrap AUTOWRAP_WORD with line_spacing 0 so
+fit_font_size's measurement is exactly what renders (WORD_SMART balances
+onto an extra line the measurement never counted, which clipped the last
+line at 7-card widths), and build_preview measures every text block with the
+font before boxing it, because an autowrapping label reports no usable
+minimum height. Smoke suite grew the hover-preview checks: 937 unit + 142
+smoke.
+Earlier: **the battleline slice** (owner's playtest feedback, 2026-09-04; four
 commits). (1) **Larboard is "port" everywhere now** — effect id RIDER_PORT,
 tactic shift_port, all text; the player-facing word wins over the archaic
 one. (2) **Riders swap by default**: a rider step into an occupied slot

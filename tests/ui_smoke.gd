@@ -260,8 +260,6 @@ func check_card_box_is_fixed(ui) -> void:
 					int(CardView.CARD_SIZE.y), size.y])
 	check(size.x <= CardView.CARD_SIZE.x + 0.5,
 			"and a very long card name does not widen it, got %.0f" % size.x)
-	check(view.tooltip_text.contains(CardText.describe(wordy)),
-			"whatever is clipped is still readable on the tooltip")
 
 	# The fitter itself: more text means smaller print, never a taller box.
 	var short_size := CardView.fit_font_size("Draw 2 cards.", 164, 62)
@@ -271,6 +269,57 @@ func check_card_box_is_fixed(ui) -> void:
 	check(long_size >= CardView.BODY_FONT_FLOOR, "but never below the legible floor")
 
 	holder.queue_free()
+	await process_frame
+
+
+## Hovering a card face pops the full-size readable card over the board: the
+## complete rules text at reading size — the promise that whatever the small
+## face clips is one mouse-rest away, never lost.
+func check_card_hover_preview(ui) -> void:
+	check(ui._hand_row.get_child_count() > 0, "a hand to hover over")
+	if ui._hand_row.get_child_count() == 0:
+		return
+	var view = ui._hand_row.get_child(0)
+	var card: CardData = view.card
+	ui.show_card_preview(view)
+	await process_frame
+	check(ui._card_preview_layer.visible, "resting on a card shows the preview")
+	check(_has_label_containing(ui._card_preview_layer, CardText.describe(card)),
+			"the preview carries the FULL rules text, not the face's summary")
+	check(_has_label_containing(ui._card_preview_layer, card.display_name),
+			"and the card's name")
+	check(ui._card_preview_layer.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+			"the preview never eats a click or a drag")
+	var popup: Control = ui._card_preview_layer.get_child(0)
+	check(popup.get_global_rect().end.y <= view.get_global_rect().position.y,
+			"the preview sits above the hovered card, not on top of it")
+	await check_fits_canvas(ui, "the hover preview open")
+	ui.hide_card_preview()
+	await process_frame
+	check(not ui._card_preview_layer.visible, "leaving the card hides it again")
+
+	# Picking a card up kills the preview — a drag needs the whole board.
+	ui.show_card_preview(view)
+	ui.on_card_drag_started(card)
+	check(not ui._card_preview_layer.visible, "starting a drag hides the preview")
+	ui._drag_card = null
+	ui._render()
+	await process_frame
+
+	# Every card in the library gets a preview that fits the canvas — however
+	# wordy — because the guarantee "clipped on the face, full on the preview"
+	# has to hold for text that has not been written yet.
+	for id in CardLibrary.card_ids():
+		var probe := CardView.build_preview(CardLibrary.by_id(id))
+		ui._card_preview_layer.add_child(probe)
+		await process_frame
+		var probe_size := probe.get_combined_minimum_size()
+		check(probe_size.y <= CANVAS.y - 16.0 and probe_size.x <= CANVAS.x - 16.0,
+				"the %s preview fits the canvas, needs %.0fx%.0f" % [id, probe_size.x, probe_size.y])
+		check(_has_label_containing(probe, CardText.describe(CardLibrary.by_id(id))),
+				"the %s preview holds its full text" % id)
+		probe.queue_free()
+	ui.hide_card_preview()
 	await process_frame
 
 
@@ -353,6 +402,7 @@ func _run() -> void:
 	check(ui._retreat_button.get_global_rect().end.y <= CANVAS.y,
 			"the Retreat button is on screen, not below the canvas")
 	await check_card_box_is_fixed(ui)
+	await check_card_hover_preview(ui)
 	await check_a_full_hand_fits(ui)
 	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
 	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
