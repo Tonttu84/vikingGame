@@ -104,7 +104,7 @@ Constants — `PRESS_MORALE = 1`, `PRESS_MORALE_MARGIN = 2`, momentum
 - **The first wave.** Three boarders against a watch of five leaves one
   column with defenders only, so the watch wins it every round until a
   reinforcement fills it: the press starts against the boarder, and
-  hurrying men over the rail (Reinforce, the commit action) is how it is
+  hurrying men over the rail (the turn's opening, Reinforce) is how it is
   turned. On-fantasy, and it prices the boarding maneuver's opening
   momentum against a standing morale leak — the sims should read how many
   rounds the fourth column stays open.

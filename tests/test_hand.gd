@@ -19,11 +19,13 @@ func test_fresh_hand_every_turn() -> void:
 		"player_field": [TestHelpers.grunt(P, "crew")],
 		"deck": CardLibrary.starter_deck(),
 	})
+	# The refill deals 5; the opening's income adds its own card on top, and
+	# with a lone man and no ship the income is the only opening there is.
 	await eng._player_turn()
-	assert_eq(eng.state.hand.size(), 5, "turn 1: a hand of 5")
+	assert_eq(eng.state.hand.size(), 6, "turn 1: a hand of 5 plus the opening's card")
 	var first_hand := eng.state.hand.duplicate()
 	await eng._player_turn()
-	assert_eq(eng.state.hand.size(), 5, "turn 2: a fresh hand of 5")
+	assert_eq(eng.state.hand.size(), 6, "turn 2: a fresh hand, same size")
 	for card: CardData in first_hand:
 		if not card.retained:
 			assert_false(eng.state.hand.has(card),
@@ -54,7 +56,8 @@ func test_retained_cards_count_toward_hand_size() -> void:
 	eng.state.hand.append(CardLibrary.reinforce())
 	eng.state.hand.append(CardLibrary.swap())
 	await eng._player_turn()
-	assert_eq(eng.state.hand.size(), 5, "2 retained + 3 drawn: retaining costs draw room")
+	assert_eq(eng.state.hand.size(), 6,
+			"2 retained + 3 drawn: retaining costs draw room (+1 from the opening)")
 
 
 func test_drag_him_back_fires_automatically() -> void:

@@ -14,7 +14,6 @@ const REINFORCE_RATE := 2
 const SURGE_REINFORCE_RATE := 4
 const DEATH_MORALE_HIT := 2
 const ROUT_MORALE_HIT := 1
-const RESERVE_COMMIT_COST := 1
 ## Kills pay double income: sniping the right man is the tempo engine.
 ## Routs still pay nothing — breaking men is free but earns no momentum.
 const KILL_MOMENTUM := 2
@@ -42,7 +41,8 @@ const PRESS_MORALE_MARGIN := 2
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the
-## crossing rate (Reinforce/Swap/commit), not a standing limit.
+## crossing rate (the turn's opening, Reinforce/Trade Places), not a standing
+## limit.
 var player_formation := Formation.new()
 var player_reserve: Array[Character] = []
 var player_fled: Array[Character] = []

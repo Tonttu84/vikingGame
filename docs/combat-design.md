@@ -22,8 +22,8 @@ some momentum-related reward. Permadeath needs a coward's exit to be fair.
 
 Each side fields **4 columns × 2 lines** of slots, plus an untouchable
 reserve (their hold, your ship). Any slot may be empty; the slots themselves
-are the fielded cap. The rail bottleneck is the crossing **rate**
-(Reinforce/Swap/commit per turn), not a standing limit.
+are the fielded cap. The rail bottleneck is the crossing **rate** (the
+turn's opening, plus Reinforce/Trade Places per turn), not a standing limit.
 
 - **Placement is targeting.** A fighter attacks the nearest occupied enemy
   slot in his own column — their front first, then their second line. A
@@ -72,11 +72,12 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
   he steps in himself, and then he stands in the formation like anyone:
   reach him through his column, snipe him, shove his line apart. All the
   old exposure rules are gone.
-- Your reinforcements flow **through the deck**: `Reinforce` fields a man
-  from your ship **into a slot you choose**, `Swap` trades any two of your
-  men (fielded↔fielded or fielded↔reserve — also how the captain trades
-  places with his prowman). The 1-momentum commit action remains as a slow
-  fallback so a bad hand never strands the first wave alone.
+- Your reinforcements flow through **the turn's opening** and **the deck**:
+  the opening crosses one man free every turn (below), and on top of it
+  `Reinforce` fields a man from your ship **into a slot you choose** while
+  `Trade Places` trades any two of your men (fielded↔fielded or
+  fielded↔reserve — also how the captain trades places with his prowman).
+  A bad hand can never strand the first wave: the opening is always there.
 
 ## The press (shipped, 2026-09-05)
 
@@ -196,9 +197,10 @@ captain's alternate, not his subordinate. Rulings (2026-08-28):
 - **One of the pair must hold the field.** The prowman leads the first
   wave; the captain waits at his own rail. They are never fielded together.
 - **They trade places only with each other.** `Swap` played on the fielded
-  one brings the other across into his exact slot. Neither can swap with
-  ordinary crew, cross by `Reinforce`, or be sent over by the momentum
-  commit — and once the captain is the last of the pair, he cannot leave.
+  one — or the turn's free opening trade — brings the other across into his
+  exact slot. Neither can swap with ordinary crew, cross by `Reinforce`, or
+  take the opening's free crossing — and once the captain is the last of the
+  pair, he cannot leave.
 - **If the prowman leaves the field for good** — slain or broken — **the
   captain leaps the rail himself, immediately, for 1 momentum**
   (`PAIR_ENTRY_COST`). If the crew cannot pay, panic takes them: instant
@@ -221,8 +223,13 @@ BOARDING (once)
   0. Choose and resolve a boarding maneuver (free card from its own deck).
 PLAYER TURN
   1. Gain +1 momentum. Discard the hand (Retained cards stay), draw to 5.
-  2. Play any number of cards (pay momentum).
-  3. Commit a reserve to the field (costs 1 momentum), optional fallback.
+  2. THE OPENING — one forced choice, nothing else is playable until it is
+     made: (a) a FREE reinforcement, one man off your ship into a slot you
+     pick; (b) a FREE swap ("snap"), two of your men trade places,
+     fielded<->fielded or fielded<->reserve; or (c) +1 momentum AND +1 card,
+     on top of step 1's own +1.
+  3. Play any number of cards (pay momentum). Reinforce is the turn's
+     SECOND crossing, Trade Places its second snap — both still priced.
   4. Fight: every fielded man performs his beat — axes first, then by
      speed (see character control); guard resets to armor at turn start.
 ENEMY TURN
@@ -242,6 +249,9 @@ boarding maneuver supplies a large opening surge (see above): you start the
 fight rich and act from strength, exactly as a boarder should.
 
 - **+1** at the start of your turn.
+- **+1 more, and a card**, when the turn's opening takes the income instead
+  of a free crossing or a free snap. That is the whole price of those two
+  moves: a momentum and a card of tempo, paid by not taking them.
 - **+2** per enemy your side kills (including on the enemy's turn) — with
   targeting positional, choosing WHO dies is the player's craft, and
   sniping the right man is the tempo engine.
@@ -569,9 +579,12 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
   surge while it's hot. Undecided by design; try carryover first.
 - **Enemy reinforcement rate** — fixed 2/turn now; try 1/turn. A constant
   either way, never random.
-- **The commit action** — the 1-momentum manual crossing may be redundant
-  next to Reinforce/Swap cards; keep it until playtests say the deck alone
-  never strands the first wave.
+- ~~**The commit action**~~ — RESOLVED 2026-09-05: the 1-momentum manual
+  crossing is deleted and **the turn's opening** replaces it (turn
+  structure, step 2). The deck no longer has to carry the first wave alone
+  and the crossing costs tempo, not coin. What the opening opens instead:
+  income turns now pay 2 momentum and a card, so re-read the momentum-cap
+  question above against that.
 
 ## What "fun" means here (evaluation checklist for the prototype)
 

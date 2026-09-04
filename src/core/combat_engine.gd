@@ -9,8 +9,26 @@ extends RefCounted
 ##     {"op": "play", "card": CardData, "target": Character (optional),
 ##      "second_target": Character (optional), "slot": int (optional),
 ##      "direction": int (optional, Break the Line)}
-##     {"op": "commit", "character": Character, "slot": int (optional)}
 ##     {"op": "retreat"} | {"op": "end"}
+##
+##   choose_opening(state: BattleState) -> Dictionary  (optional, awaited)
+##     THE OPENING (docs/combat-design.md, turn structure): every player turn
+##     begins with one forced choice, and nothing else is playable until it is
+##     made. Answer shapes:
+##       {"op": "reinforce", "character": Character, "slot": int (optional)}
+##         — a free crossing; an occupied or absent slot takes the first free
+##           one in reading order.
+##       {"op": "swap", "character": Character, "partner": Character}
+##         — a free trade ("snap"); `character` is fielded, `partner` comes
+##           from swap_partners(character) — his fellows on deck or the men
+##           on the ship. The prow pair's law is unchanged.
+##       {"op": "income"} — +1 momentum AND +1 card, on top of the turn's own
+##         +1: which is exactly what the two free moves cost in tempo.
+##     Ask opening_options() for what is legal now (income always is) and
+##     opening_swappers() for who can take the snap. When the income is the
+##     ONLY legal answer the engine takes it without asking, as any pick with
+##     one option resolves itself. A controller without the hook, an unknown
+##     op, or an illegal man gets the income: never a free move by accident.
 ##
 ##   choose_rider(state: BattleState, card: CardData, moves: Array[Dictionary])
 ##       -> Dictionary  (optional, awaited)
@@ -187,6 +205,9 @@ func _player_turn() -> void:
 			state.hand.erase(card)
 			state.discard.append(card)
 	_draw_to_hand_size()
+	# The hand is dealt BEFORE the opening — you choose knowing what you hold
+	# — but nothing in it may be played until the opening has been answered.
+	await _opening_choice()
 	var actions := 0
 	while outcome == Outcome.NONE and actions < MAX_ACTIONS_PER_TURN:
 		actions += 1
@@ -200,6 +221,81 @@ func _player_turn() -> void:
 	for c in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		c.bonus_attacks = 0
 	_tick_statuses(Character.Side.PLAYER)
+
+
+# --- The opening: one forced choice at the head of every player turn ---------
+# Owner's ruling 2026-09-05 (docs/combat-design.md, turn structure). It
+# replaces the old momentum commit: the crossing is free now, and the price
+# is the tempo you did not take instead — because the third option pays a
+# momentum and a card. Reinforce and Trade Places remain as the PAID second
+# crossing and second trade in the same turn.
+
+func _opening_choice() -> void:
+	var options := opening_options()
+	# One legal answer is no question at all: it resolves itself, exactly as
+	# a board pick with a single lit option does.
+	if options.size() == 1 or not controller.has_method("choose_opening"):
+		_opening_income()
+		return
+	var answer: Dictionary = await controller.choose_opening(state)
+	_apply_opening(answer if answer != null else {}, options)
+
+
+## Resolve the controller's answer. Anything the rules do not allow — an op
+## that is not on offer, a man who is not on the ship, a partner Swap would
+## refuse — falls back to the income: the opening must never hand out a free
+## move nobody was entitled to, and the income is always legal.
+func _apply_opening(answer: Dictionary, options: Array[String]) -> void:
+	var op: String = str(answer.get("op", "income"))
+	if not options.has(op):
+		op = "income"
+	match op:
+		"reinforce":
+			var crosser: Character = answer.get("character")
+			if crosser == null or not crossing_candidates().has(crosser):
+				_opening_income()
+				return
+			state.log_event("The opening: a free crossing.")
+			_cross_reserve(crosser, answer.get("slot", -1))
+		"swap":
+			var mover: Character = answer.get("character")
+			var partner: Character = answer.get("partner")
+			if mover == null or partner == null or not swap_partners(mover).has(partner):
+				_opening_income()
+				return
+			state.log_event("The opening: a free trade.")
+			_swap_men(mover, partner)
+		_:
+			_opening_income()
+
+
+func _opening_income() -> void:
+	_gain_momentum(1)
+	_draw(1)
+	state.log_event("The opening: the crew gathers itself (+1 momentum, +1 card).")
+
+
+## What the opening may legally be answered with, in the order the table
+## offers it. The income is always among them — a line that cannot move a
+## single man still has an opening to take.
+func opening_options() -> Array[String]:
+	var out: Array[String] = []
+	if not state.player_formation.is_full() and not crossing_candidates().is_empty():
+		out.append("reinforce")
+	if not opening_swappers().is_empty():
+		out.append("swap")
+	out.append("income")
+	return out
+
+
+## The fielded men with somewhere to trade to: whoever swap_partners() can
+## still offer a partner for. A pinned man takes no snap and is nobody's.
+func opening_swappers() -> Array[Character]:
+	var out: Array[Character] = []
+	for c in state.player_formation.fielded():
+		if not swap_partners(c).is_empty():
+			out.append(c)
+	return out
 
 
 func _enemy_turn() -> void:
@@ -230,8 +326,6 @@ func _apply_action(action: Dictionary) -> void:
 			await _play_card(action.get("card"), action.get("target"),
 					action.get("second_target"), action.get("slot", -1),
 					action.get("direction", 0))
-		"commit":
-			_commit_reserve(action.get("character"), action.get("slot", -1))
 		"retreat":
 			outcome = Outcome.RETREAT
 			state.log_event("The crew cuts the ropes and falls back.")
@@ -355,7 +449,7 @@ func _target_valid(card: CardData, target: Character) -> bool:
 	return false
 
 
-## Reserve men an ordinary crossing may take (Reinforce, the momentum commit),
+## Reserve men an ordinary crossing may take (the turn's opening, Reinforce),
 ## in queue order. The prow pair is not among them: they cross only by trading
 ## with each other (docs/combat-design.md, the prow pair).
 func crossing_candidates() -> Array[Character]:
@@ -364,14 +458,6 @@ func crossing_candidates() -> Array[Character]:
 		if not _pair_member(c):
 			out.append(c)
 	return out
-
-
-## Could this man be sent over by the momentum commit right now? Same guards
-## _commit_reserve enforces, asked before the click instead of after.
-func can_commit(c: Character) -> bool:
-	return c != null and state.player_reserve.has(c) and not _pair_member(c) \
-			and not state.player_formation.is_full() \
-			and state.momentum >= BattleState.RESERVE_COMMIT_COST
 
 
 ## Everyone the fielded `target` may trade places with by Swap: his fellows on
@@ -554,30 +640,10 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 					c.max_morale += amount
 					c.morale += amount
 		CardData.EffectType.REINFORCE:
-			var crosser := target if target != null else _default_crosser()
-			state.player_reserve.erase(crosser)
-			var index := slot if _slot_free(state.player_formation, slot) \
-					else state.player_formation.first_free_index()
-			state.player_formation.place_at_index(crosser, index)
-			crosser.beat = 0
-			state.log_event("%s comes over the rail." % crosser.display_name)
+			_cross_reserve(target if target != null else _default_crosser(), slot)
 		CardData.EffectType.SWAP:
-			var partner := second_target if second_target != null \
-					else _default_swap_partner(target)
-			if state.player_formation.has(partner):
-				state.player_formation.swap_positions(target, partner)
-				state.log_event("%s and %s trade places." %
-						[target.display_name, partner.display_name])
-			else:
-				var line := state.player_formation.line_of(target)
-				var col := state.player_formation.column_of(target)
-				state.player_formation.remove(target)
-				state.player_reserve.append(target)
-				state.player_reserve.erase(partner)
-				state.player_formation.place(partner, line, col)
-				partner.beat = 0
-				state.log_event("%s falls back; %s takes his place." %
-						[target.display_name, partner.display_name])
+			_swap_men(target, second_target if second_target != null \
+					else _default_swap_partner(target))
 		CardData.EffectType.RIDER_PORT, CardData.EffectType.RIDER_STARBOARD, \
 		CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
 		CardData.EffectType.RIDER_CLOSE:
@@ -719,8 +785,9 @@ func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 
 ## The prow pair is active whenever the roster declares a prowman: then the
 ## captain and the prowman move only by trading places with each other (the
-## Swap card) or by the forced crossing in _pair_exit — never by Reinforce,
-## the momentum commit, or a swap with ordinary crew.
+## Swap card, or the turn's free opening trade) or by the forced crossing in
+## _pair_exit — never by Reinforce, the opening's free crossing, or a swap
+## with ordinary crew.
 func _pair_member(c: Character) -> bool:
 	return state.player_prowman != null \
 			and (c == state.player_captain or c == state.player_prowman)
@@ -767,16 +834,37 @@ func _pair_swap_legal(target: Character, second_target: Character) -> bool:
 	return second_target == null or not _pair_member(second_target)
 
 
-func _commit_reserve(character: Character, slot := -1) -> void:
-	if not can_commit(character):
-		return
-	state.momentum -= BattleState.RESERVE_COMMIT_COST
-	state.player_reserve.erase(character)
+## The rail crossing itself, shared by the turn's opening and the Reinforce
+## card: a man off the ship takes the slot he was sent to, or — when that one
+## is taken or none was named — the first free slot in reading order. A man
+## fielded mid-battle opens his pattern from the top.
+func _cross_reserve(crosser: Character, slot := -1) -> void:
+	state.player_reserve.erase(crosser)
 	var index := slot if _slot_free(state.player_formation, slot) \
 			else state.player_formation.first_free_index()
-	state.player_formation.place_at_index(character, index)
-	character.beat = 0
-	state.log_event("%s joins the boarding party." % character.display_name)
+	state.player_formation.place_at_index(crosser, index)
+	crosser.beat = 0
+	state.log_event("%s comes over the rail." % crosser.display_name)
+
+
+## Two of your men change places, shared by the turn's opening and the Trade
+## Places card: on deck they exchange slots, across the rail the fielded man
+## goes back aboard and the other takes his exact slot.
+func _swap_men(mover: Character, partner: Character) -> void:
+	if state.player_formation.has(partner):
+		state.player_formation.swap_positions(mover, partner)
+		state.log_event("%s and %s trade places." %
+				[mover.display_name, partner.display_name])
+		return
+	var line := state.player_formation.line_of(mover)
+	var col := state.player_formation.column_of(mover)
+	state.player_formation.remove(mover)
+	state.player_reserve.append(mover)
+	state.player_reserve.erase(partner)
+	state.player_formation.place(partner, line, col)
+	partner.beat = 0
+	state.log_event("%s falls back; %s takes his place." %
+			[mover.display_name, partner.display_name])
 
 
 # --- Fighting ----------------------------------------------------------------

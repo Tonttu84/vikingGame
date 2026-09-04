@@ -2,7 +2,7 @@ extends TestCase
 ## The prow pair (officer system, first slice): the captain and the prowman
 ## are alternates. One of the pair must stand on the field; they trade
 ## places only with each other (the Swap card), never with ordinary crew,
-## and neither crosses by Reinforce or the momentum commit. When the
+## and neither crosses by Reinforce or the turn's free opening. When the
 ## prowman leaves the field for good — slain or broken — the captain leaps
 ## the rail himself for 1 momentum; if the crew cannot pay, panic takes
 ## them and the battle is lost. Rulings from playtest discussion 2026-08-28.
@@ -39,12 +39,13 @@ func test_setup_finds_the_prowman() -> void:
 	assert_true(eng.state.player_prowman != null and eng.state.player_prowman.is_prowman)
 
 
-func test_captain_cannot_be_committed_while_pair_stands() -> void:
+func test_captain_cannot_take_the_free_crossing_while_the_pair_stands() -> void:
 	var eng := _pair_engine(5)
 	var captain := eng.state.player_captain
-	eng._commit_reserve(captain)
-	assert_true(eng.state.player_reserve.has(captain), "the captain never crosses by commit")
-	assert_eq(eng.state.momentum, 5, "nothing paid for a refused commit")
+	eng._apply_opening({"op": "reinforce", "character": captain}, eng.opening_options())
+	assert_true(eng.state.player_reserve.has(captain),
+			"the captain never crosses by the opening's free reinforcement")
+	assert_eq(eng.state.momentum, 6, "the refused free move fell back to the income")
 
 
 func test_reinforce_default_crosser_skips_the_captain() -> void:
@@ -197,7 +198,8 @@ func test_rosters_without_a_prowman_keep_the_old_rules() -> void:
 		"player_reserve": [TestHelpers.captain_of(P, "aslak")],
 	})
 	eng.state.momentum = 2
-	eng._commit_reserve(eng.state.player_captain)
+	eng._apply_opening({"op": "reinforce", "character": eng.state.player_captain},
+			eng.opening_options())
 	assert_true(eng.state.player_formation.has(eng.state.player_captain),
 			"no prowman declared: the captain may still be sent across")
 

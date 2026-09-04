@@ -102,18 +102,53 @@ func _await_until(predicate: Callable, what: String, max_frames := 300) -> void:
 
 
 ## Let the board settle back to waiting for the player, answering anything it
-## asks on the way. A pick always takes the first lit option — the same move
-## the engine falls back to for a controller that cannot choose — so a
-## mandatory movement rider never parks the battle here.
+## asks on the way: the turn's opening first (the income — it moves nobody, so
+## it disturbs no other check), then any pick, always taking the first lit
+## option — the same move the engine falls back to for a controller that
+## cannot choose — so a mandatory movement rider never parks the battle here.
 func _settle(ui, max_frames := 600) -> void:
 	for i in max_frames:
 		if not ui._pick.is_empty():
 			ui.choose_pick(ui._pick["options"][0])
 			continue
+		if ui._awaiting_opening:
+			ui.submit_opening({"op": "income"})
+			await process_frame
+			continue
 		if ui._awaiting_action or ui.engine.outcome != CombatEngine.Outcome.NONE:
 			return
 		await process_frame
 	failures.append("timed out settling the board")
+
+
+## Wait for the board to come back to the player, taking the income at the
+## turn's opening on the way (it moves nobody, so it disturbs nothing else).
+## Every "end the turn and wait" step goes through here: since the opening
+## landed, the engine parks on it before it ever asks for an action.
+func _await_player(ui, max_frames := 600) -> void:
+	for i in max_frames:
+		if ui.engine.outcome != CombatEngine.Outcome.NONE:
+			return
+		if not ui._pick.is_empty():
+			ui.choose_pick(ui._pick["options"][0])
+			continue
+		if ui._awaiting_opening:
+			ui.submit_opening({"op": "income"})
+			await process_frame
+			continue
+		if ui._awaiting_action:
+			return
+		await process_frame
+	failures.append("timed out waiting for the player's turn")
+
+
+## Wait for the next turn's opening WITHOUT answering it.
+func _await_opening(ui, max_frames := 600) -> void:
+	for i in max_frames:
+		if ui._awaiting_opening or ui.engine.outcome != CombatEngine.Outcome.NONE:
+			return
+		await process_frame
+	failures.append("timed out waiting for the turn's opening")
 
 
 func _reserve_token(ui, character: Character):
@@ -385,8 +420,42 @@ func _run() -> void:
 	# player's choice reaches the engine.
 	_press_maneuver(ui, "dawn_raid")
 	await _await_until(func() -> bool:
-		return ui.engine.state.turn == 1 and ui._awaiting_action,
-		"battle running (boarding done) and waiting for the player")
+		return ui.engine.state.turn == 1 and ui._awaiting_opening,
+		"battle running (boarding done) and asking for the turn's opening")
+
+	# THE OPENING gates the turn: the bar is the only live control on the
+	# table until it is answered — no card may be picked up, no turn ended.
+	check(ui._awaiting_opening, "turn 1 opens on the forced three-way choice")
+	check(ui._opening_bar.visible, "and the three-button bar is on the table")
+	await check_fits_canvas(ui, "the turn's opening bar")
+	check(ui._opening_bar.get_global_rect().end.x <= CANVAS.x
+			and ui._opening_bar.get_global_rect().end.y <= CANVAS.y,
+			"the opening bar is inside the canvas")
+	var gated := true
+	for v in ui._hand_row.get_children():
+		if v.draggable:
+			gated = false
+	check(gated, "the hand is locked until the opening is answered")
+	check(ui._end_turn_button.disabled, "the turn cannot be ended before the opening")
+	check(not ui._awaiting_action, "and the engine has not asked for an action yet")
+	for op in ["reinforce", "swap", "income"]:
+		check((ui._opening_buttons[op] as Button).disabled
+				== not ui._opening_options.has(op),
+				"the bar offers exactly what the engine allows: " + op)
+	var hand_before: int = ui.engine.state.hand.size()
+	var momentum_before: int = ui.engine.state.momentum
+	(ui._opening_buttons["income"] as Button).pressed.emit()
+	await _await_until(func() -> bool: return ui._awaiting_action,
+			"the answered opening hands the turn to the player")
+	check(ui.engine.state.hand.size() == hand_before + 1,
+			"the income drew its card (%d -> %d)" % [hand_before, ui.engine.state.hand.size()])
+	check(ui.engine.state.momentum == momentum_before + 1, "and paid its momentum")
+	check(not ui._opening_bar.visible, "the bar is gone once the opening is spent")
+	var unlocked := false
+	for v in ui._hand_row.get_children():
+		if v.draggable:
+			unlocked = true
+	check(unlocked, "and the hand is live again")
 
 	check(ui.engine.state.turn == 1, "battle started on turn 1")
 	check(ui._awaiting_action, "UI is waiting for the player")
@@ -405,7 +474,8 @@ func _run() -> void:
 	await check_card_hover_preview(ui)
 	await check_a_full_hand_fits(ui)
 	check(ui.engine.state.momentum >= 4, "the maneuver surge came through (momentum %d)" % ui.engine.state.momentum)
-	check(ui._hand_row.get_child_count() == 5, "hand shows 5 cards, saw %d" % ui._hand_row.get_child_count())
+	check(ui._hand_row.get_child_count() == 6,
+			"hand shows the dealt 5 plus the opening's card, saw %d" % ui._hand_row.get_child_count())
 	check(_tokens_in(ui._player_front_row).size() == 3, "first wave of 3 on their deck")
 	check(ui._player_front_row.get_child_count() == 4, "the front line renders all 4 column slots")
 	check(ui.engine.state.enemy_formation.size() == 2,
@@ -510,40 +580,45 @@ func _run() -> void:
 	else:
 		skipped.append("the Reinforce slot drag (battle already decided)")
 
-	# Clicking a man on your own ship asks which slot he takes, and a lit slot
-	# answers a real mouse click — not just the driver's shortcut.
+	# The opening's FREE CROSSING, answered the way a player answers it: end
+	# the turn, catch the next one at its opening, press Reinforce, name the
+	# man, and click the lit slot with a real mouse event.
 	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
-		ui.engine.state.momentum = maxi(ui.engine.state.momentum,
-				BattleState.RESERVE_COMMIT_COST)
-		ui.refresh(ui.engine.state)
-		var crew: Character = null
-		for c: Character in ui.engine.state.player_reserve:
-			if crew == null and ui.engine.can_commit(c):
-				crew = c
-		check(crew != null, "someone on the ship can still be sent over")
-		if crew != null:
-			var crew_token = _reserve_token(ui, crew)
-			check(crew_token != null and not crew_token.display.get("dim", false),
-					"a man who can be sent over is not dimmed")
-			crew_token.clicked.emit(crew)
-			check(not ui._pick.is_empty(), "committing a man asks which slot he takes")
+		ui.submit({"op": "end"})
+		await _await_opening(ui)
+	if ui._awaiting_opening and ui._opening_options.has("reinforce"):
+		var reserve_before: int = ui.engine.state.player_reserve.size()
+		var hand_at_opening: int = ui.engine.state.hand.size()
+		(ui._opening_buttons["reinforce"] as Button).pressed.emit()
+		for i in 3:
+			await process_frame
+		check(not ui._opening_bar.visible, "the bar steps aside while its pick is open")
+		var crosser: Character = null
+		if not ui._pick.is_empty() and ui._pick["options"][0].get("character") != null:
+			crosser = ui._pick["options"][0]["value"]
+			check(ui._pick_cancel_button.visible, "the opening's pick can be backed out of")
+			ui.choose_pick(ui._pick["options"][0])
 			for i in 3:
 				await process_frame
-			var lit_slot = null
-			for row in [ui._player_front_row, ui._player_back_row]:
-				for child in row.get_children():
-					if child is SlotPanel and lit_slot == null \
-							and not child.pick_option.is_empty():
-						lit_slot = child
-			check(lit_slot != null, "the free slots are lit for that pick")
-			if lit_slot != null:
-				var index := Formation.slot_index(lit_slot.line, lit_slot.col)
-				await _click(lit_slot.get_global_rect().get_center())
-				await _settle(ui)
-				check(ui.engine.state.player_formation.slots[index] == crew,
-						"clicking the lit slot is where he took his place")
+		var lit_slot = null
+		for row in [ui._player_front_row, ui._player_back_row]:
+			for child in row.get_children():
+				if child is SlotPanel and lit_slot == null \
+						and not child.pick_option.is_empty():
+					lit_slot = child
+		check(lit_slot != null, "the free slots are lit for the crossing")
+		if lit_slot != null:
+			var index := Formation.slot_index(lit_slot.line, lit_slot.col)
+			await _click(lit_slot.get_global_rect().get_center())
+			await _settle(ui)
+			check(crosser == null or ui.engine.state.player_formation.slots[index] == crosser,
+					"clicking the lit slot is where the free crossing put him")
+			check(ui.engine.state.player_reserve.size() == reserve_before - 1,
+					"one man fewer on the ship")
+			check(ui.engine.state.hand.size() == hand_at_opening,
+					"a free crossing draws nothing — that is what it costs")
 	else:
-		skipped.append("the commit slot pick (battle already decided)")
+		skipped.append("the opening's free crossing (battle already decided)")
 
 	# End several turns; pace timers run on real frames headlessly.
 	var turns_seen: Array[int] = [ui.engine.state.turn]
@@ -551,11 +626,7 @@ func _run() -> void:
 		if ui.engine.outcome != CombatEngine.Outcome.NONE:
 			break
 		ui.submit({"op": "end"})
-		var guard := 0
-		while guard < 600 and ui.engine.outcome == CombatEngine.Outcome.NONE \
-				and not ui._awaiting_action:
-			guard += 1
-			await process_frame
+		await _await_player(ui)
 		turns_seen.append(ui.engine.state.turn)
 	check(turns_seen[-1] > 1 or ui.engine.outcome != CombatEngine.Outcome.NONE,
 			"turns advance through the UI controller, saw %s" % str(turns_seen))
@@ -571,8 +642,9 @@ func _run() -> void:
 	check(ui.engine != old_engine, "restart builds a fresh engine")
 	_press_maneuver(ui, "grapple_rush")
 	await _await_until(func() -> bool:
-		return ui.engine.state.turn >= 1 and ui._awaiting_action,
-		"restarted battle waiting for player input")
+		return ui.engine.state.turn >= 1 and ui._awaiting_opening,
+		"restarted battle asking for its opening")
+	await _await_player(ui)
 	check(ui.engine.state.turn >= 1, "restarted battle is running")
 	check(ui._awaiting_action, "restarted battle waits for player input")
 
@@ -581,10 +653,7 @@ func _run() -> void:
 	check(bad["errors"].size() >= 1, "parser reports errors for the panel")
 
 	# The hand cycles: end a turn and the non-retained cards are replaced.
-	var guard2 := 0
-	while guard2 < 600 and not ui._awaiting_action:
-		guard2 += 1
-		await process_frame
+	await _await_player(ui)
 	check(ui._awaiting_action, "awaiting input before the hand-cycle test")
 	var old_cyclers: Array = []
 	for card: CardData in ui.engine.state.hand:
@@ -592,19 +661,16 @@ func _run() -> void:
 			old_cyclers.append(card)
 	check(old_cyclers.size() > 0, "some non-retained cards in hand to cycle")
 	ui._end_turn_button.pressed.emit()
-	await _await_until(func() -> bool: return ui._awaiting_action,
-		"next turn after the hand-cycle end-turn")
+	await _await_player(ui)
 	if ui.engine.outcome == CombatEngine.Outcome.NONE:
 		for card: CardData in old_cyclers:
 			check(not ui.engine.state.hand.has(card),
 					"non-retained card cycled out of hand: " + card.id)
-		check(ui.engine.state.hand.size() == 5, "hand refilled to 5")
+		check(ui.engine.state.hand.size() == 6,
+				"hand refilled to 5, plus the opening's income card")
 
 	# Drag a targeted card onto a token (heal an ally).
-	guard2 = 0
-	while guard2 < 600 and not ui._awaiting_action:
-		guard2 += 1
-		await process_frame
+	await _await_player(ui)
 	var rally: CardData = null
 	for c: CardData in ui.engine.state.hand:
 		if c.id == "rally" and c.cost <= ui.engine.state.momentum:

@@ -11,6 +11,7 @@ extends RefCounted
 signal action_submitted(action: Dictionary)
 signal maneuver_submitted(card: CardData)
 signal rider_submitted(move: Dictionary)
+signal opening_submitted(answer: Dictionary)
 
 const PACE_SECONDS := 0.3
 
@@ -45,6 +46,19 @@ func choose_rider(state: BattleState, card: CardData,
 	return move if not move.is_empty() else moves[0]
 
 
+## The turn's opening (docs/combat-design.md): one forced choice before a
+## single card may be played — a free crossing, a free trade, or the income.
+## The engine has already ruled which of the three are possible; the bar
+## offers those and the board handles the man-and-slot picks behind them.
+## An aborted battle takes the income: always legal, and it moves nobody.
+func choose_opening(state: BattleState) -> Dictionary:
+	if aborted:
+		return {"op": "income"}
+	ui.on_opening_prompt(state)
+	var answer: Dictionary = await opening_submitted
+	return answer if not answer.is_empty() else {"op": "income"}
+
+
 func choose_action(state: BattleState) -> Dictionary:
 	if aborted:
 		return {"op": "retreat"}
@@ -68,4 +82,5 @@ func abort() -> void:
 	aborted = true
 	maneuver_submitted.emit(null)  # engine falls back to the first maneuver
 	rider_submitted.emit({})       # ... and to the first legal rider move
+	opening_submitted.emit({"op": "income"})
 	action_submitted.emit({"op": "retreat"})

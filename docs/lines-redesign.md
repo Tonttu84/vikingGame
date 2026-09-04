@@ -46,7 +46,8 @@ your reserve   (your ship — can NEVER act; ship archers feed covering fire)
 
 - **Adjacency** = same line, neighboring column (auras, cleaves).
 - Any slot may be empty. Fielded caps are the slots themselves (up to 8);
-  the rail bottleneck stays as the flow limit (Reinforce/commit per turn),
+  the rail bottleneck stays as the flow limit (the turn's opening,
+  Reinforce per turn),
   not a standing cap.
 - The old bow-fires-from-reserve rule is **deleted**. Reserve does nothing.
 

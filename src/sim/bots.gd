@@ -50,17 +50,40 @@ class RandomBot:
 	var decision_points := 0
 	var empty_decision_points := 0
 
+	## The turn's opening (docs/combat-design.md): the bot's crossing priority
+	## lives here now that the free reinforcement is where men come over.
+	## Bodies on the deck first; failing that, rotate a man who is more than
+	## half spent for a fresh one off the ship; failing both, take the income.
+	## Every answer is checked against the engine's own list — the bot never
+	## works legality out for itself.
+	func choose_opening(state: BattleState) -> Dictionary:
+		var income := {"op": "income"}
+		if engine == null:
+			return income
+		var options: Array[String] = engine.opening_options()
+		if options.has("reinforce"):
+			var crosser := _crosser_for(state)
+			if crosser != null:
+				return {"op": "reinforce", "character": crosser,
+						"slot": _random_free_slot(state)}
+		if options.has("swap"):
+			for c in state.fielded(Character.Side.PLAYER):
+				if c.is_captain or c.hp * 2 >= c.max_hp:
+					continue
+				for partner: Character in engine.swap_partners(c):
+					if state.player_reserve.has(partner):
+						return {"op": "swap", "character": c, "partner": partner}
+		return income
+
 	func choose_action(state: BattleState) -> Dictionary:
-		# Crossing men is the highest priority: play Reinforce whenever the
-		# grid has room, fall back to the momentum commit if the hand lacks one.
+		# Crossing men is still the highest priority once the opening is spent:
+		# the Reinforce card is the turn's SECOND crossing, and it is paid for.
 		var crosser := _crosser_for(state)
 		if not state.player_formation.is_full() and crosser != null:
 			for card in state.hand:
 				if card.id == "reinforce" and card.cost <= state.momentum:
 					return {"op": "play", "card": card, "target": crosser,
 							"slot": _random_free_slot(state)}
-			if state.player_formation.size() < 3 and state.momentum >= 2:
-				return {"op": "commit", "character": crosser, "slot": _random_free_slot(state)}
 		var playable: Array[CardData] = []
 		decision_points += 1
 		for card in state.hand:
