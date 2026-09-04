@@ -16,6 +16,7 @@ var marked := false
 ## Presentation flags the table sets per refresh, all of them answers the
 ## engine already gave BattleUI — never judgements made here:
 ##   highlight: the board is asking for a pick and this man is one of them
+##   selected: the open pick is ABOUT this man — he wears the white rim
 ##   dim:       he cannot be sent over at all (the prow pair's other half)
 ##   hint:      a line of small text under his bars (the pair's swap hint)
 ##   hint_lit:  that hint is available right now, not just true in principle
@@ -59,7 +60,11 @@ func _build() -> void:
 	var style := UIPalette.panel(bg, trim, 2 if character.is_captain else 1)
 	# One visual language for "the board wants a pick from you": a gold rim
 	# here, the same gold rim on an empty slot that would take the pick.
-	if highlighted():
+	# The man the pick is ABOUT wears the white rim instead — selected,
+	# not selectable.
+	if display.get("selected", false):
+		style = UIPalette.panel(bg.lightened(0.12), UIPalette.PARCHMENT, 3)
+	elif highlighted():
 		style = UIPalette.panel(bg.lightened(0.08), UIPalette.GOLD, 3)
 	if display.get("dim", false):
 		# Greyed out, but not invisible when his one legal play is available.

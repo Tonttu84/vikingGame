@@ -68,7 +68,43 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the mechanics overhaul — block, patterns, the captain's word, the
+Done: **the battleline slice** (owner's playtest feedback, 2026-09-04; four
+commits). (1) **Larboard is "port" everywhere now** — effect id RIDER_PORT,
+tactic shift_port, all text; the player-facing word wins over the archaic
+one. (2) **Riders swap by default**: a rider step into an occupied slot
+trades the two men (Press rotates the front man back, Close trades through
+your own wall); only the board's edge and a pin refuse a rider — a packed
+grid no longer does, which was the rider gate's whole bite on the sim bot.
+The sim now permanently prints the retune's headline metric (refused
+proposals per affordable card + empty decision points), labeled as a
+bot-proposal rate since random targeting counts alongside the gate.
+(3) **The front line is relative**: a second-liner with nobody in the front
+slot of his own column counts as front — fights, closes (and pins), and
+the BOW NEEDS COVER: an uncovered archer is just a fighter (owner ruled
+this explicitly). Auras and shove/drive read real positions; being
+effectively front carries no boosts. Drive Him Back's edge changed and is
+test-recorded: it silences only a man whose column keeps a front man, and
+driving back a lone bowman arms nobody. TestHelpers.cover_at is the
+fixture for covered archers. (4) **UI**: the gold rail between the decks
+is the compass now — "◀ PORT ... STARBOARD ▶" named in so many words
+(canvas guard forced the table separation 6 -> 5 to pay for the taller
+rail); the man an open pick is ABOUT (trades with him, shoved which way)
+wears a WHITE rim while pick options wear gold — selected vs selectable.
+937 unit + 94 smoke checks. Sims (n=300, random bot) across the slice:
+skirmish 17.7% -> 14.0% win / 12.8 -> 12.6 turns, veteran 38.0% -> 26.3% /
+16.6 -> 15.7; refused proposals 41.3%/33.6%, empty decision points
+36.8%/38.6% — mostly the bot's blind targeting and thin early momentum
+now, not walled-in movement. The drop is relative front freeing swings on
+both sides and the deeper enemy roster cashing more of them; the bot
+never arranges cover. STILL UNTUNED BY DESIGN — the retune prices all of
+it.
+DEFERRED ruling recorded (owner, 2026-09-04, do not build yet): **all
+characters get a frontline ability-or-pattern AND a rearline
+ability-or-pattern, and the rearline one works only with somebody
+actually in front of the character.** The relative front line and the
+bow's cover requirement are the first installment of exactly this; the
+per-role ability split is content design that should follow the retune.
+Earlier: **the mechanics overhaul — block, patterns, the captain's word, the
 pin** (docs/block-and-patterns.md is the ruling record; combat-design.md
 carries the shipped tables). Four chunks, one commit each. (1) **Armor is
 guard now**: block = armor at battle start and at each side's turn start,
@@ -316,8 +352,9 @@ Agreed next slices, in rough priority:
    4/5, everyone else 0-3), SHIELD_AURA_BLOCK 2, SUPPRESS_TURNS 2, the
    command's period 4 and amount 1. New questions it should read from the
    sims: does the command's escalation make the bot's late game hopeless
-   (18.0%/34.3% win rates say slow play now loses — a human should be
-   faster, but verify), and does the guarding wall stall the early game?
+   (14.0%/26.3% win rates after the battleline slice say slow play and
+   bare columns now lose — a human should be faster and keep cover, but
+   verify), and does the guarding wall stall the early game?
    Still-open rulings, PARKED until the owner has PLAYTESTED the new
    mechanism (owner's call 2026-08-30: do not decide these for him, ask
    after he has played): (a) deterministic vs seeded-random tactic

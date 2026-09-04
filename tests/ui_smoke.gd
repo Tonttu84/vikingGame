@@ -384,6 +384,10 @@ func _run() -> void:
 				block_shown = true
 	check(block_shown, "a raised guard shows as BLK on the token")
 
+	# The compass: the player is told which side is which, in so many words.
+	check(_has_label_containing(ui, "PORT"), "the port side is named on the table")
+	check(_has_label_containing(ui, "STARBOARD"), "the starboard side is named on the table")
+
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield
 	# Wall makes a front-liner give ground, so with a three-man first wave the
