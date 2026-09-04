@@ -273,3 +273,43 @@ func test_the_press_resolves_before_reinforcements() -> void:
 	assert_true(press_at != -1, "the verdict is in the saga")
 	assert_true(reinforce_at != -1, "and the reinforcement too")
 	assert_true(press_at < reinforce_at, "the press is judged before fresh men fill the gaps")
+
+
+# --- The forecast reads the press ------------------------------------------------
+
+func test_forecast_press_matches_the_verdict_it_predicts() -> void:
+	var strong := TestHelpers.grunt(P, "strong", 30, 6, 5, 3, Weapon.sword())
+	var weak := TestHelpers.grunt(E, "weak", 30, 6, 3, 3, null)
+	var eng := TestHelpers.engine_for({"player_field": [strong], "enemy_field": [weak]})
+	eng.state.next_tactic = "press_the_attack"
+	var seen: Dictionary = eng.forecast_press()
+	assert_eq(seen.get("holder"), "player", "the bill says the column is yours")
+	assert_eq(seen.get("margin"), 1, "")
+	assert_eq(seen.get("momentum"), 2, "and what it would pay")
+	await _round(eng)
+	assert_eq(eng.state.last_press.get("columns"), seen.get("columns"),
+			"the verdict the table showed is the verdict that lands")
+
+
+func test_forecast_press_judges_their_called_positions() -> void:
+	var pc := _post(P, "pc")
+	var foe := TestHelpers.grunt(E, "foe", 30, 6, 3, 3, null)
+	var eng := TestHelpers.engine_for({"player_field": [pc], "enemy_field": [foe]})
+	eng.state.next_tactic = "shift_starboard"
+	var seen: Dictionary = eng.forecast_press()
+	var columns: Array = seen.get("columns")
+	assert_eq(columns[0], 1, "after their shift, column 0 is yours by presence")
+	assert_eq(columns[1], -1, "and column 1 theirs")
+	assert_eq(seen.get("holder"), "none", "")
+	assert_eq(eng.state.enemy_formation.column_of(foe), 0, "the preview never moved the real line")
+
+
+func test_forecast_press_is_side_effect_free() -> void:
+	var eng := _sweep_engine(2)
+	eng.state.momentum = 0
+	eng.state.next_tactic = "press_the_attack"
+	var seen: Dictionary = eng.forecast_press()
+	assert_eq(seen.get("margin"), 2, "")
+	assert_eq(eng.state.momentum, 0, "a forecast pays nothing")
+	assert_eq(eng.state.player_column_blood, [0, 0, 0, 0] as Array[int],
+			"and writes nothing on the real ledger")

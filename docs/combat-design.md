@@ -78,6 +78,40 @@ are the fielded cap. The rail bottleneck is the crossing **rate**
   places with his prowman). The 1-momentum commit action remains as a slow
   fallback so a bad hand never strands the first wave alone.
 
+## The press (shipped, 2026-09-05)
+
+Every column is a duel and the line is a verdict (docs/press-proposal.md,
+owner's rulings). Judged **once per round, after both sides' beats and
+before reinforcements**, where men stand at that moment:
+
+- **Presence first.** A column held by one side alone is that side's — the
+  man facing nobody already lost his swing; holding the column is what he
+  contributes. A column empty on both sides scores for nobody.
+- **Both present: blood decides.** The side that dealt more blood INTO the
+  column this round wins it — only what reached flesh (a blow that died on
+  the guard is 0; the shieldman's planted shield is a full answer), from
+  melee, heavy blows and cleave grazes alike, in the column the victim
+  stood in when the blow landed. Equal, including 0–0, is no result.
+- **The no-resolution tag.** Blood from a man whose weapon carries
+  `resolves_columns = false` — the bow — never scores, ranged or melee.
+  The rule is on the weapon, never the row: a covered spear's reach from
+  the second line counts like any steel.
+- **The press.** The side with more column wins has it; `margin` is the
+  difference. Equal wins: no press.
+- **The win bonus.** Player has the press: **+1 momentum for having it, +1
+  per column of margin** (2–1 pays 2, 4–0 pays 4; capped at 10). Whoever
+  has the press at **margin ≥ 2**: every fielded man of the losing line
+  takes **−1 morale** (the morale-immune shrug; routs check). The enemy has
+  no momentum, so its press pays only your morale.
+- **Nothing moves.** A verdict, never a shove.
+- The table shows the projected press beside their telegraphed tactic
+  (`forecast_press()`, the same pass as the damage forecast: your blows on
+  current geometry, theirs from their called positions) and last round's
+  verdict; the ledgers (`player_column_blood`/`enemy_column_blood`) reset
+  at your turn.
+
+Constants are placeholders for the retune, like everything else.
+
 ## Role kits (shipped, phase B)
 
 The sheet stays small; a kit is one or two positional hooks riding the

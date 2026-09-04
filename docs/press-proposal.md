@@ -1,8 +1,29 @@
 # The press — scoring the shieldwall column by column (proposal)
 
-Status: **TODO, noted 2026-09-02, not yet ruled on or built.** The owner's
-idea, written up so it can be argued with. Nothing here is implemented; the
-shipped rules stay those in `docs/combat-design.md`.
+Status: **RULED 2026-09-05 and IMPLEMENTED** (suite `tests/test_press.gd`;
+the shipped rule is tabulated in `docs/combat-design.md`, "The press").
+The owner's rulings on the forks below:
+
+1. **Payout — the win bonus (e):** +1 momentum for having the press, +1
+   more per column of margin (`PRESS_WIN_MOMENTUM`, `PRESS_MARGIN_MOMENTUM`);
+   the losing line takes −1 morale on every fielded man at margin ≥ 2
+   (`PRESS_MORALE`, `PRESS_MORALE_MARGIN`). The enemy has no momentum, so
+   its press pays only your morale.
+2. **Which damage counts — a TAG, not a row rule.** Arrows do not resolve
+   columns, but the rule is not "second line does not count": a covered
+   spear's reach from the second row scores like any steel. The bow carries
+   `Weapon.resolves_columns = false`, so an archer's damage never wins a
+   column — ranged or bow-butt melee alike. Future units can carry the tag.
+3. **Only blood counts.** Damage the guard absorbed is a 0; the shieldman's
+   planted shield is a full answer. The scoring equals what the forecast
+   already shows.
+4. Uncontested columns are wins for the side present (ruled 2026-09-02) —
+   and **presence comes first**: a column held by one side only is that
+   side's whatever the ledger says, so blood into a column you do not hold
+   wins nothing, and a column empty on both sides scores for nobody.
+
+Everything below is the proposal as argued; where it and the rulings
+differ, the rulings and `combat-design.md` win.
 
 ## The idea (owner's words, lightly ordered)
 

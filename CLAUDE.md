@@ -68,7 +68,28 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **card readability** (owner's playtest feedback, 2026-09-04): the card
+Done: **the press** (owner ruled the three open forks 2026-09-05; two
+commits). Every column is a duel judged once per round after both sides'
+beats, before reinforcements: presence first (a column held by one side
+alone is that side's; blood into a column you do not hold wins nothing;
+empty-both scores nobody), then BLOOD — only what reached flesh, melee /
+heavy / grazes in the victim's column, equal is no result. The bow carries
+`Weapon.resolves_columns = false` (the owner's call: a TAG, not a row rule
+— a covered spear's reach from the second row counts; an archer's damage
+never does, arrows or melee). The win bonus: +1 momentum for having the
+press, +1 per column of margin; at margin ≥ 2 the losing line takes −1
+morale a man; the enemy's press pays only your morale. `forecast_press()`
+shares `_forecast_pass()` with `forecast()` (no second damage model) and
+the intent panel shows "Press if nothing changes: yours 2–1 (+2) · last
+round: …". Suite `test_press` (25 tests). 993 unit + 143 smoke. Sims
+(n=300, random bot), before → after: skirmish 14.0% → 25.3% win / 12.6 →
+13.1 turns / 1.15 → 1.46 dead in a win; veteran 26.3% → 50.3% / 15.7 →
+16.5 / 1.07 → 1.03; empty decision points 36.8% → 26.8% and 38.6% →
+27.0% — the second tempo engine feeds hands that used to sit idle.
+RETUNE NOTE: the proposal foresaw momentum riding the cap; the constants
+(PRESS_WIN_MOMENTUM 1, PRESS_MARGIN_MOMENTUM 1, PRESS_MORALE 1,
+PRESS_MORALE_MARGIN 2) are the retune's first levers if it does.
+Earlier: **card readability** (owner's playtest feedback, 2026-09-04): the card
 faces now show CardText.summarize — one compact line per effect, rider
 directions kept loud — instead of the full sentences, and resting the mouse
 on a face pops a full-size preview card (CardView.build_preview, 380 wide,
@@ -330,21 +351,9 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-0. **The press** (TODO, owner's idea noted 2026-09-02, unruled —
-   docs/press-proposal.md): score every column as a duel (more damage
-   dealt into the column wins it); the side winning more columns has the
-   press, paying the player momentum by the margin and the losing line
-   morale damage at a wide enough margin. Makes holding a shieldwall a
-   tempo engine, not just survival. RULED so far: an uncontested column
-   is a win for the side present (the man facing nobody already lost his
-   swing to the miss; holding the column is his contribution). Three
-   forks remain open in the proposal (what the press pays — including
-   the owner's addendum that *just winning* might be what matters, a
-   flat reward for the press instead of or on top of the margin —
-   whether arrows count, whether blocked damage counts), each with a
-   recommendation; they need the owner's ruling before anything is
-   built, and by the standing rule it lands before the retune moves any
-   price.
+0. ~~**The press**~~ — RULED and BUILT (see the Done block above and
+   docs/press-proposal.md's status header). Its constants join the retune's
+   scope below.
 1. **The numeric retune** — the slice the owner has been deferring until the
    cards were real, which they now are. Card prices and roster HP against
    both scenario anchors, reading turn count and the cost of victory

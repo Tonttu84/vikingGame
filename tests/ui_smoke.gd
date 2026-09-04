@@ -437,6 +437,8 @@ func _run() -> void:
 	# The compass: the player is told which side is which, in so many words.
 	check(_has_label_containing(ui, "PORT"), "the port side is named on the table")
 	check(_has_label_containing(ui, "STARBOARD"), "the starboard side is named on the table")
+	check(_has_label_containing(ui, "Press if nothing changes"),
+			"the projected press is on the table before the player commits a card")
 
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield

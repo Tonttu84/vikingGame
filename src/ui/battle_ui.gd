@@ -33,6 +33,7 @@ var _card_preview_layer: Control
 var _turn_label: Label
 var _intent_title: Label
 var _intent_body: Label
+var _press_label: Label
 var _status_label: Label
 var _captain_status: Label
 var _enemy_captain_row: HBoxContainer
@@ -603,6 +604,22 @@ func _refresh_enemy_captain(state: BattleState) -> void:
 	var tactic := state.next_tactic
 	_intent_title.text = "Next: " + CardText.tactic_name(tactic)
 	_intent_body.text = CardText.tactic_description(tactic)
+	var press_text := "Press if nothing changes: " + _press_words(engine.forecast_press())
+	if not state.last_press.is_empty():
+		press_text += "  ·  last round: " + _press_words(state.last_press)
+	_press_label.text = press_text
+
+
+## "yours 3–1 (+4)", "theirs 2–1", "even 1–1" — the press in four words.
+static func _press_words(press: Dictionary) -> String:
+	var yours: int = press.get("player_wins", 0)
+	var theirs: int = press.get("enemy_wins", 0)
+	match press.get("holder", "none"):
+		"player":
+			return "yours %d–%d (+%d)" % [yours, theirs, press.get("momentum", 0)]
+		"enemy":
+			return "theirs %d–%d" % [theirs, yours]
+	return "even %d–%d" % [yours, theirs]
 
 
 func _refresh_hand(state: BattleState) -> void:
@@ -837,6 +854,11 @@ func _build_enemy_zone() -> Control:
 	intent.add_child(_intent_title)
 	_intent_body = UIPalette.label("", UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 	intent.add_child(_intent_body)
+	# The press: the verdict the table would give if nothing changed, and
+	# last round's. Ellipsized, never widened — the panel sets the row's width.
+	_press_label = UIPalette.label("", UIPalette.FONT_SMALL, UIPalette.GOLD)
+	_press_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	intent.add_child(_press_label)
 	top.add_child(intent)
 	box.add_child(top)
 

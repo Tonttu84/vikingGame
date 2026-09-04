@@ -1260,8 +1260,40 @@ func _deal_morale_damage(c: Character, amount: int) -> void:
 ## cascades, rout shocks and reaction saves are not chained: it is a
 ## preview of intent, not a simulation.
 func forecast() -> Dictionary:
+	return _forecast_pass()["bill"]
+
+
+## The press the table would judge if nothing changed (docs/press-proposal.md):
+## the same shape as state.last_press, from the same pass as forecast() —
+## your blows on current geometry, theirs from their called positions, and
+## presence judged there too. Side-effect free like forecast().
+func forecast_press() -> Dictionary:
+	var pass_result := _forecast_pass()
+	var blood: Dictionary = pass_result["blood"]
+	var theirs: Array = pass_result["enemy_presence"]
+	var columns: Array[int] = []
+	var player_wins := 0
+	var enemy_wins := 0
+	for col in Formation.COLUMNS:
+		var yours := state.player_formation.at(Formation.FRONT, col) != null \
+				or state.player_formation.at(Formation.BACK, col) != null
+		var verdict := _verdict(yours, theirs[col], blood["player"][col], blood["enemy"][col])
+		columns.append(verdict)
+		if verdict > 0:
+			player_wins += 1
+		elif verdict < 0:
+			enemy_wins += 1
+	return _press_summary(columns, player_wins, enemy_wins)
+
+
+## One pass of predicted blows, shared by forecast() and forecast_press():
+## {"bill": {Character: {"hp", "morale"}}, "blood": {"player": [4], "enemy":
+## [4]} — the press ledger those blows would write —, "enemy_presence":
+## [4 bools] where their line stands after the telegraphed call}.
+func _forecast_pass() -> Dictionary:
 	var out := {}
 	var guard := {}
+	var blood := {"player": [0, 0, 0, 0], "enemy": [0, 0, 0, 0]}
 	var everyone := state.fielded(Character.Side.PLAYER) + state.fielded(Character.Side.ENEMY)
 	for c in everyone:
 		out[c] = {"hp": 0, "morale": 0}
@@ -1278,7 +1310,7 @@ func forecast() -> Dictionary:
 	# the telegraphed call re-arranges their line. Axes first, both sides, so
 	# the predicted block spend follows the resolution order.
 	for attacker in _attack_order(Character.Side.PLAYER):
-		_forecast_attacker(attacker, out, guard)
+		_forecast_attacker(attacker, out, guard, blood)
 	# Their side strikes AFTER the call: preview it on the real grid, then
 	# put every man back where he stands. A telegraphed captain's order fires
 	# before they swing, so the preview rages them for the pass and un-rages
@@ -1291,7 +1323,11 @@ func forecast() -> Dictionary:
 	for c in state.fielded(Character.Side.ENEMY):
 		c.rage += preview_rage
 	for attacker in _attack_order(Character.Side.ENEMY):
-		_forecast_attacker(attacker, out, guard)
+		_forecast_attacker(attacker, out, guard, blood)
+	var enemy_presence: Array[bool] = []
+	for col in Formation.COLUMNS:
+		enemy_presence.append(state.enemy_formation.at(Formation.FRONT, col) != null \
+				or state.enemy_formation.at(Formation.BACK, col) != null)
 	for c in state.fielded(Character.Side.ENEMY):
 		c.rage -= preview_rage
 	state.enemy_formation.slots = held
@@ -1318,14 +1354,15 @@ func forecast() -> Dictionary:
 		for c in state.fielded(side):
 			if out[c]["hp"] < c.hp and not c.morale_immune():
 				out[c]["morale"] += waves * BattleState.DEATH_MORALE_HIT
-	return out
+	return {"bill": out, "blood": blood, "enemy_presence": enemy_presence}
 
 
 ## One attacker's contribution to the forecast bill, at his current target.
 ## `guard` is the running block ledger: predicted hits chew it with the same
 ## block_math resolution uses, so the bill on a token is blood, not
 ## steel-on-shield.
-func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary) -> void:
+func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary,
+		blood: Dictionary) -> void:
 	if not attacker.is_alive():
 		return
 	match attacker.current_beat():
@@ -1351,7 +1388,7 @@ func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary)
 				if mark != null and mark.is_alive() and out.has(mark) \
 						and state.opposing_formation(attacker.side).has(mark):
 					for i in 2:
-						_forecast_hit(attacker, mark, _snipe_damage(attacker, mark), out, guard)
+						_forecast_hit(attacker, mark, _snipe_damage(attacker, mark), out, guard, blood)
 				return
 	if not _can_melee(attacker):
 		return
@@ -1360,19 +1397,25 @@ func _forecast_attacker(attacker: Character, out: Dictionary, guard: Dictionary)
 		return
 	var swings := 1 + attacker.bonus_attacks
 	for i in swings:
-		_forecast_hit(attacker, target, _melee_damage(attacker, target), out, guard)
+		_forecast_hit(attacker, target, _melee_damage(attacker, target), out, guard, blood)
 		if attacker.is_berserker:
 			for victim in state.formation_of(target.side).line_neighbors(target):
 				if out.has(victim):
-					_forecast_hit(attacker, victim, _graze_damage(attacker, victim), out, guard)
+					_forecast_hit(attacker, victim, _graze_damage(attacker, victim), out, guard, blood)
 
 
-## One predicted physical hit: spend the ledger's block, bill the blood.
+## One predicted physical hit: spend the ledger's block, bill the blood —
+## and write it on the press ledger by the same rule resolution uses.
 func _forecast_hit(attacker: Character, defender: Character, dmg: int,
-		out: Dictionary, guard: Dictionary) -> void:
+		out: Dictionary, guard: Dictionary, blood: Dictionary) -> void:
 	var bill := block_math(attacker.weapon.kind, guard[defender], dmg)
 	guard[defender] -= bill["destroyed"]
 	out[defender]["hp"] += bill["wounded"]
+	if bill["wounded"] <= 0 or not attacker.weapon.resolves_columns:
+		return
+	var col := state.formation_of(defender.side).column_of(defender)
+	if col != -1:
+		blood["player" if attacker.side == Character.Side.PLAYER else "enemy"][col] += bill["wounded"]
 
 
 # --- Death, morale and routing ----------------------------------------------
@@ -1530,6 +1573,10 @@ func _column_verdict(col: int, player_blood: int, enemy_blood: int) -> int:
 			or state.player_formation.at(Formation.BACK, col) != null
 	var theirs := state.enemy_formation.at(Formation.FRONT, col) != null \
 			or state.enemy_formation.at(Formation.BACK, col) != null
+	return _verdict(yours, theirs, player_blood, enemy_blood)
+
+
+static func _verdict(yours: bool, theirs: bool, player_blood: int, enemy_blood: int) -> int:
 	if yours and not theirs:
 		return 1
 	if theirs and not yours:
@@ -1537,6 +1584,22 @@ func _column_verdict(col: int, player_blood: int, enemy_blood: int) -> int:
 	if not yours and not theirs:
 		return 0
 	return signi(player_blood - enemy_blood)
+
+
+## The press summary in state.last_press's shape, payout computed but not
+## paid — resolution pays it, the forecast only shows it.
+static func _press_summary(columns: Array[int], player_wins: int, enemy_wins: int) -> Dictionary:
+	var margin := absi(player_wins - enemy_wins)
+	var holder := "none"
+	if player_wins > enemy_wins:
+		holder = "player"
+	elif enemy_wins > player_wins:
+		holder = "enemy"
+	var paid := 0
+	if holder == "player":
+		paid = BattleState.PRESS_WIN_MOMENTUM + margin * BattleState.PRESS_MARGIN_MOMENTUM
+	return {"columns": columns, "player_wins": player_wins, "enemy_wins": enemy_wins,
+			"margin": margin, "holder": holder, "momentum": paid}
 
 
 ## The round's judgment and the win bonus (owner's ruling): the side with
@@ -1556,18 +1619,12 @@ func _resolve_press() -> void:
 			player_wins += 1
 		elif verdict < 0:
 			enemy_wins += 1
-	var margin := absi(player_wins - enemy_wins)
-	var holder := "none"
-	if player_wins > enemy_wins:
-		holder = "player"
-	elif enemy_wins > player_wins:
-		holder = "enemy"
-	var paid := 0
-	if holder == "player":
-		paid = BattleState.PRESS_WIN_MOMENTUM + margin * BattleState.PRESS_MARGIN_MOMENTUM
+	state.last_press = _press_summary(columns, player_wins, enemy_wins)
+	var holder: String = state.last_press["holder"]
+	var margin: int = state.last_press["margin"]
+	var paid: int = state.last_press["momentum"]
+	if paid > 0:
 		_gain_momentum(paid)
-	state.last_press = {"columns": columns, "player_wins": player_wins,
-			"enemy_wins": enemy_wins, "margin": margin, "holder": holder, "momentum": paid}
 	match holder:
 		"player":
 			state.log_event("The press is yours: %d columns to %d (+%d momentum)." %
