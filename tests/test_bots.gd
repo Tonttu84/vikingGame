@@ -24,7 +24,7 @@ func _bot_engine(seed_value := 5) -> CombatEngine:
 	return eng
 
 
-## Four men packed into the two larboard columns, enemies right across from
+## Four men packed into the two port columns, enemies right across from
 ## them: no sidestep, no press, no give-ground and nothing to close on.
 func _boxed_in() -> CombatEngine:
 	var rng := RandomNumberGenerator.new()

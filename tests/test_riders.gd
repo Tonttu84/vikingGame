@@ -5,7 +5,7 @@ extends TestCase
 ## Riders stay mandatory, resolve after the effect, and move men between slots
 ## only, so they never cross the rail and the prow pair's law is untouched.
 ##
-## The five movements: Larboard (toward column 0), Starboard (toward column 3),
+## The five movements: Port (toward column 0), Starboard (toward column 3),
 ## Press (second line into the empty front slot of his column), Give Ground
 ## (front into the empty second-line slot of his column) and Close (one column
 ## toward the nearest occupied enemy column — the closing rule's own direction).
@@ -56,35 +56,35 @@ func _moves(eng: CombatEngine, card: CardData, target: Character = null) -> Arra
 	return eng._rider_moves(card.effects[0]["type"], card, target)
 
 
-# --- Larboard and starboard: the coin-flip riders ----------------------------
+# --- Port and starboard: the coin-flip riders ----------------------------
 
-func test_larboard_rider_slides_toward_column_zero() -> void:
+func test_port_rider_slides_toward_column_zero() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var eng := TestHelpers.engine_for({"player_field": [p1],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, F, 2)
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
-	assert_eq(eng.state.player_formation.at(F, 1), p1, "one column toward the larboard rail")
-	assert_true(_log_index(eng, "sidesteps to larboard") != -1, "the move is logged by name")
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
+	assert_eq(eng.state.player_formation.at(F, 1), p1, "one column toward the port rail")
+	assert_true(_log_index(eng, "sidesteps to port") != -1, "the move is logged by name")
 
 
-func test_larboard_rider_has_no_move_at_the_larboard_rail() -> void:
+func test_port_rider_has_no_move_at_the_port_rail() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var eng := TestHelpers.engine_for({"player_field": [p1],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, F, 0)
-	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD)).size(), 0,
+	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_PORT)).size(), 0,
 			"the board edge is not a direction he may take")
 
 
-func test_larboard_rider_has_no_move_into_an_occupied_slot() -> void:
+func test_port_rider_has_no_move_into_an_occupied_slot() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var eng := TestHelpers.engine_for({"player_field": [p1, p2],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, F, 0)
 	TestHelpers.station(eng.state.player_formation, p2, F, 1)
-	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD,
+	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_PORT,
 			CardData.TargetType.ALLY), p2).size(), 0,
 			"riders never displace: the destination must be empty")
 
@@ -185,7 +185,7 @@ func test_close_rider_steps_toward_the_nearest_occupied_enemy_column() -> void:
 	assert_true(_log_index(eng, "presses toward the fighting") != -1)
 
 
-func test_close_rider_breaks_a_tie_to_larboard() -> void:
+func test_close_rider_breaks_a_tie_to_port() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var e1 := TestHelpers.grunt(E, "e1")
 	var e2 := TestHelpers.grunt(E, "e2")
@@ -230,7 +230,7 @@ func test_an_ally_card_binds_the_rider_to_its_own_target() -> void:
 			"enemy_field": [TestHelpers.grunt(E, "e1")]}, bot)
 	TestHelpers.station(eng.state.player_formation, p2, F, 3)
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD,
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT,
 			CardData.TargetType.ALLY), p2)
 	assert_eq(bot.offered.size(), 1, "one man, one direction: nothing to ask")
 	assert_eq(eng.state.player_formation.at(F, 2), p2, "the man the card named moves")
@@ -247,8 +247,8 @@ func test_an_untargeted_card_offers_every_man_who_can_take_the_move() -> void:
 	TestHelpers.station(eng.state.player_formation, p2, F, 3)
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
 	TestHelpers.station(eng.state.player_formation, p3, B, 0)
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
-	assert_eq(bot.offered.size(), 2, "p3 is at the larboard rail already")
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
+	assert_eq(bot.offered.size(), 2, "p3 is at the port rail already")
 	assert_eq(bot.offered[0]["character"], p1, "reading order: front line left to right")
 	assert_eq(bot.offered[1]["character"], p2)
 	assert_eq(bot.offered[0]["direction"], -1, "and every move carries the card's own direction")
@@ -263,7 +263,7 @@ func test_the_controller_picks_which_man_never_which_way() -> void:
 	TestHelpers.station(eng.state.player_formation, p2, F, 3)
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
 	bot.answer = {"character": p2, "direction": -1}
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
 	assert_eq(eng.state.player_formation.at(F, 2), p2, "the man he asked for")
 	assert_eq(eng.state.player_formation.at(F, 1), p1, "the other stands fast")
 
@@ -278,7 +278,7 @@ func test_an_answer_that_was_never_offered_gets_the_first_legal_move() -> void:
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
 	# The other way is not on the table at all, whoever asks for it.
 	bot.answer = {"character": p2, "direction": 1}
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
 	assert_eq(eng.state.player_formation.at(F, 0), p1, "moves[0]: reading order, no free pass")
 	assert_eq(eng.state.player_formation.at(F, 3), p2)
 
@@ -301,7 +301,7 @@ func test_the_effect_resolves_before_the_rider() -> void:
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
 	var card := CardData.new("probe_volley", "Probe Volley", 0, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
-			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}] as Array[Dictionary])
+			{"type": CardData.EffectType.RIDER_PORT, "amount": 1}] as Array[Dictionary])
 	await _play(eng, card)
 	var slain := _log_index(eng, "is slain")
 	var stepped := _log_index(eng, "sidesteps")
@@ -317,7 +317,7 @@ func test_rider_never_fires_when_the_card_ends_the_battle() -> void:
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
 	var card := CardData.new("probe_volley", "Probe Volley", 0, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
-			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}] as Array[Dictionary])
+			{"type": CardData.EffectType.RIDER_PORT, "amount": 1}] as Array[Dictionary])
 	await _play(eng, card)
 	assert_eq(eng.outcome, CombatEngine.Outcome.VICTORY, "the volley kills their captain")
 	assert_eq(eng.state.player_formation.at(F, 1), p1, "a won battle carries no rider")
@@ -325,10 +325,10 @@ func test_rider_never_fires_when_the_card_ends_the_battle() -> void:
 
 # --- The shipped set: which card carries which direction ---------------------
 # docs/card-design-proposal.md §2. Perk riders (Close, Press) ride the cheap
-# cards, the coin-flip pair (Larboard, Starboard) the mid ones, Give Ground
+# cards, the coin-flip pair (Port, Starboard) the mid ones, Give Ground
 # the strong ones. The direction is on the card face; only the man is a choice.
 
-func test_spear_volley_steps_a_man_to_larboard() -> void:
+func test_spear_volley_steps_a_man_to_port() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var eng := TestHelpers.engine_for({"player_field": [p1],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
@@ -337,7 +337,7 @@ func test_spear_volley_steps_a_man_to_larboard() -> void:
 	assert_eq(eng.state.player_formation.at(F, 1), p1)
 
 
-func test_war_cry_steps_a_man_to_larboard() -> void:
+func test_war_cry_steps_a_man_to_port() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var eng := TestHelpers.engine_for({"player_field": [p1],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
@@ -456,7 +456,7 @@ func test_a_rider_never_reaches_over_the_rail() -> void:
 			"player_reserve": [TestHelpers.grunt(P, "p2")],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, F, 1)
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
 	assert_eq(eng.state.player_reserve.size(), 1, "the man on the ship is not a candidate mover")
 	assert_eq(eng.state.player_formation.size(), 1, "and nobody crossed")
 
@@ -469,7 +469,7 @@ func test_rider_may_move_the_fielded_prowman() -> void:
 			"player_reserve": [captain],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, prow, F, 1)
-	await _play(eng, _rider_card(CardData.EffectType.RIDER_LARBOARD))
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT))
 	assert_eq(eng.state.player_formation.at(F, 0), prow, "the prowman sidesteps like anyone")
 	assert_true(eng.state.player_reserve.has(captain), "the captain keeps his own rail")
 	assert_eq(eng.outcome, CombatEngine.Outcome.NONE, "and the pair's hinge never trips")

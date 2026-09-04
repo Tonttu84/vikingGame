@@ -95,7 +95,7 @@ static func default_skirmish() -> Dictionary:
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [
 			"press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge",
-			"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up",
+			"fresh_men_forward", "shift_port", "shift_starboard", "step_up",
 		],
 	}
 
@@ -172,6 +172,6 @@ static func veteran_raid() -> Dictionary:
 		"maneuvers": CardLibrary.default_maneuvers(),
 		"enemy_tactics": [
 			"press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge",
-			"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up",
+			"fresh_men_forward", "shift_port", "shift_starboard", "step_up",
 		],
 	}

@@ -112,8 +112,8 @@ func test_shift_calls_slide_the_enemy_line_each_way() -> void:
 	TestHelpers.station(eng.state.enemy_formation, mover, F, 1)
 	await eng._resolve_tactic("shift_starboard")
 	assert_eq(eng.state.enemy_formation.column_of(mover), 2, "starboard slides up a column")
-	await eng._resolve_tactic("shift_larboard")
-	assert_eq(eng.state.enemy_formation.column_of(mover), 1, "larboard slides back down")
+	await eng._resolve_tactic("shift_port")
+	assert_eq(eng.state.enemy_formation.column_of(mover), 1, "port slides back down")
 
 
 func test_step_up_call_fills_their_front_gaps() -> void:

@@ -245,7 +245,7 @@ func check_card_box_is_fixed(ui) -> void:
 		{"type": CardData.EffectType.PLAYER_ARMOR_BONUS, "amount": 1},
 		{"type": CardData.EffectType.WAR_CRY, "amount": 1},
 		{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
-		{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1},
+		{"type": CardData.EffectType.RIDER_PORT, "amount": 1},
 	]
 	var wordy := CardData.new("probe_wordy",
 			"A Card Whose Name Runs On Far Longer Than Any Real One", 3,

@@ -19,9 +19,9 @@ extends RefCounted
 ##     and the controller picks WHICH MAN, never whether and never which way.
 ##     A card that names an ally binds the rider to him, so it offers 0 or 1
 ##     moves and nothing is asked. Move shapes:
-##       RIDER_LARBOARD, RIDER_STARBOARD,
+##       RIDER_PORT, RIDER_STARBOARD,
 ##       RIDER_CLOSE:        {"character": Character, "direction": int}
-##                           (-1 larboard / left, +1 starboard / right)
+##                           (-1 port / left, +1 starboard / right)
 ##       RIDER_FORWARD,
 ##       RIDER_BACKWARD:     {"character": Character, "line": int}
 ##                           (Formation.FRONT or Formation.BACK)
@@ -299,7 +299,7 @@ func _effect_preconditions_met(card: CardData, target: Character,
 			# before payment rather than fizzling. It makes the penalty riders
 			# honest — you cannot engineer them away by packing your grid — and
 			# turns a crowded deck into a real constraint on your hand.
-			CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
+			CardData.EffectType.RIDER_PORT, CardData.EffectType.RIDER_STARBOARD, \
 			CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
 			CardData.EffectType.RIDER_CLOSE:
 				if _rider_moves(effect.get("type"), card, target).is_empty():
@@ -382,7 +382,7 @@ func swap_partners(target: Character) -> Array[Character]:
 	return out
 
 
-## Which way Break the Line may shove this defender: larboard (-1) before
+## Which way Break the Line may shove this defender: port (-1) before
 ## starboard (+1), and only from the rank at the rail into an empty slot.
 func shove_directions(target: Character) -> Array[int]:
 	var out: Array[int] = []
@@ -573,7 +573,7 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				partner.beat = 0
 				state.log_event("%s falls back; %s takes his place." %
 						[target.display_name, partner.display_name])
-		CardData.EffectType.RIDER_LARBOARD, CardData.EffectType.RIDER_STARBOARD, \
+		CardData.EffectType.RIDER_PORT, CardData.EffectType.RIDER_STARBOARD, \
 		CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
 		CardData.EffectType.RIDER_CLOSE:
 			await _resolve_rider(effect.get("type"), target, card)
@@ -633,7 +633,7 @@ func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary
 	if line == -1 or mover.pinned > 0:
 		return {}
 	match rider:
-		CardData.EffectType.RIDER_LARBOARD:
+		CardData.EffectType.RIDER_PORT:
 			return _rider_slide_move(mover, line, col, -1)
 		CardData.EffectType.RIDER_STARBOARD:
 			return _rider_slide_move(mover, line, col, 1)
@@ -685,7 +685,7 @@ func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 			state.log_event("%s presses toward the fighting." % mover.display_name)
 		else:
 			state.log_event("%s sidesteps to %s." %
-					[mover.display_name, "larboard" if dir < 0 else "starboard"])
+					[mover.display_name, "port" if dir < 0 else "starboard"])
 	elif move["line"] == Formation.FRONT:
 		if formation.advance(mover):
 			state.log_event("%s steps up into the front line." % mover.display_name)
@@ -924,7 +924,7 @@ func _pick_target(attacker: Character) -> Character:
 ## turn, so placement is still defence — but the fight now converges, and
 ## two survivors in different columns can no longer stand and stare until
 ## the turn limit. Deterministic, as every miss here is: the nearest column
-## with someone to hit in it, larboard on a tie. Zero when his own line
+## with someone to hit in it, port on a tie. Zero when his own line
 ## walls him in, or there is nobody left to close on.
 func _close_direction(attacker: Character) -> int:
 	var own := state.formation_of(attacker.side)
@@ -940,7 +940,7 @@ func _close_direction(attacker: Character) -> int:
 
 
 ## The column the closing rule walks a man toward: the nearest opposing
-## column with someone to hit in it, larboard on a tie; -1 for his own
+## column with someone to hit in it, port on a tie; -1 for his own
 ## column or an empty opposing board.
 func _nearest_manned_column(attacker: Character) -> int:
 	var col := state.formation_of(attacker.side).column_of(attacker)
@@ -1494,14 +1494,14 @@ func _resolve_tactic(tactic: String) -> void:
 		"reinforcement_surge":
 			state.surge_active = true
 			state.log_event("The enemy captain roars for every hand on deck.")
-		"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up":
+		"fresh_men_forward", "shift_port", "shift_starboard", "step_up":
 			var moved := _apply_call(tactic)
 			match tactic:
 				"fresh_men_forward":
 					state.log_event("Fresh men to the front — their lines rotate!")
-				"shift_larboard", "shift_starboard":
+				"shift_port", "shift_starboard":
 					state.log_event("The enemy line shifts %s." %
-							("larboard" if tactic == "shift_larboard" else "starboard")
+							("port" if tactic == "shift_port" else "starboard")
 							if moved else "The call to shift goes up, but the line has nowhere to go.")
 				"step_up":
 					state.log_event("Defenders step up into the gaps in their front line."
@@ -1527,14 +1527,14 @@ func _resolve_command() -> void:
 
 ## The captain's calls are formation moves (docs/lines-redesign.md phase C):
 ## the same verbs the player's cards use, applied to the enemy grid. Shared
-## between resolution and the forecast's preview. Larboard slides toward
+## between resolution and the forecast's preview. Port slides toward
 ## column 0, starboard away. Returns whether anyone actually moved.
 func _apply_call(tactic: String) -> bool:
 	match tactic:
 		"fresh_men_forward":
 			state.enemy_formation.swap_lines()
 			return not state.enemy_formation.is_empty()
-		"shift_larboard":
+		"shift_port":
 			return state.enemy_formation.shift(-1)
 		"shift_starboard":
 			return state.enemy_formation.shift(1)

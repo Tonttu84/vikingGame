@@ -113,7 +113,7 @@ movement, and the movement's direction is printed on the card.** 15 tactics
 in three families: the rail pair plus the reaction save (their movement is
 the crossing), the *theirs* family (Break the Line, the new Drive Him Back,
 the new Taunt — the movement is forced on an enemy), and the riders. Five
-fixed rider movements — Close, Press, Larboard, Starboard, Give Ground —
+fixed rider movements — Close, Press, Port, Starboard, Give Ground —
 priced in registers: perks on the cheap cards, the coin-flip pair on the mid
 ones, Give Ground on the bombs. The player picks WHICH man steps, never which
 way, and a card that names an ally binds the rider to him so it asks nothing
@@ -128,7 +128,7 @@ are gone and there is no targeting override left in the engine at all; a duel
 is arranged by moving men. **A live bug fixed**: `HEAL` was missing from the
 fielded-only list, so Rally could be spent on a man safe on the ship, where
 its rider evaporated. Trade Places (was Swap) costs 2 and keeps its id.
-Larboard and starboard counts are equal in both decks, held there by a test.
+Port and starboard counts are equal in both decks, held there by a test.
 Sims (n=300, random bot) before → after: skirmish 46.3% → 31.0% win, 14.1 →
 14.1 turns, 1.12 → 1.09 dead in a win; veteran 58.7% → 51.3%, 16.7 → 17.3,
 0.81 → 1.14. A comparison, not a target — **the gate bites hard on a bot that
@@ -166,7 +166,7 @@ NOT verified: nobody has looked at the rebuilt web build in a browser — the
 fixes are proven by measurement and tests only. `make serve` to check.
 Earlier: **phase D chunk 3 — the closing rule** (ruling in
 docs/lines-redesign.md): a man whose column is empty forfeits his swing and
-steps one column toward the nearest column with someone in it (larboard on
+steps one column toward the nearest column with someone in it (port on
 a tie; he stays and swings at air only when his own line walls him in, and
 second-liners without reach never step). Diagnosis first: 44% of all melee
 swings were hitting an empty column, and sampled stalemates were twenty
@@ -240,7 +240,7 @@ wins bloodless; veteran 63% win / 0.88 / 53% bloodless (veteran slack
 stands until phase D retunes).
 Earlier: **the lines redesign phase C — enemy dynamics** (docs/lines-redesign.md,
 rulings recorded there): the four captain's calls as telegraphed tactics
-(fresh men forward, shift larboard/starboard with slide-what-can edge
+(fresh men forward, shift port/starboard with slide-what-can edge
 pinning, step up) via new Formation verbs (`swap_lines`/`shift`/`step_up`);
 enemy-only wind-ups on a visible 3-turn counter (`Character.windup`, ticked
 end of enemy turn) — the berserker's heavy cleave (2× blow, graze 4, wasted

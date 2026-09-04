@@ -56,7 +56,7 @@ your reserve   (your ship — can NEVER act; ship archers feed covering fire)
   (their front first, then their second line). Whole enemy column empty →
   **the attack misses** — he swings at air, and then **closes** (below).
 - **Closing (ruled in D, see the retune below).** A man who misses steps
-  one column toward the nearest column with someone in it — larboard on a
+  one column toward the nearest column with someone in it — port on a
   tie, and not at all if his own line walls him in or he is a second-liner
   without reach. He forfeits the swing either way.
 - Dodging is real: vacate a column and their berserker there hits nothing
@@ -130,7 +130,7 @@ Two layers keep the solved order dissolving:
 
 1. **Captain's calls** — formation moves telegraphed one turn ahead like
    tactics today: *Fresh men forward* (front and second lines swap),
-   *Shift larboard/starboard* (the line slides one column, all matchups
+   *Shift port/starboard* (the line slides one column, all matchups
    change), *Step up* (back-liners fill empty front slots). Chosen
    deterministically from the enemy's tactic list by the seeded RNG.
 2. **Wind-ups** — per-role rhythms shown on the token: their berserker

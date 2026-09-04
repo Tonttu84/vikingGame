@@ -93,10 +93,10 @@ func test_the_rider_gate_refuses_a_card_whose_only_mover_is_pinned() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [stuck, walled], "enemy_field": [ec]})
 	TestHelpers.station(eng.state.player_formation, walled, F, 2)
 	TestHelpers.station(eng.state.player_formation, stuck, F, 1)
-	var card := CardLibrary.war_cry()  # rider: larboard
+	var card := CardLibrary.war_cry()  # rider: port
 	eng.state.hand.append(card)
 	eng.state.momentum = 5
-	assert_true(eng.can_play(card), "walled cannot step larboard, but stuck can: playable")
+	assert_true(eng.can_play(card), "walled cannot step port, but stuck can: playable")
 	stuck.pinned = 1
 	assert_false(eng.can_play(card), "the one legal mover is pinned: the movement cannot be paid")
 

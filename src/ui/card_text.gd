@@ -38,8 +38,8 @@ static func rider_kind(card: CardData) -> String:
 		return "move"
 	for effect in card.effects:
 		match effect.get("type"):
-			CardData.EffectType.RIDER_LARBOARD:
-				return "step to larboard"
+			CardData.EffectType.RIDER_PORT:
+				return "step to port"
 			CardData.EffectType.RIDER_STARBOARD:
 				return "step to starboard"
 			CardData.EffectType.RIDER_FORWARD:
@@ -93,8 +93,8 @@ static func _effect_line(effect: Dictionary) -> String:
 			return "%d extra defenders have time to form up at the rail." % amount
 		CardData.EffectType.ENEMY_MORALE_BONUS:
 			return "The watch stands composed: every defender gains %d morale." % amount
-		CardData.EffectType.RIDER_LARBOARD:
-			return "Then one of your men steps one column to LARBOARD. Mandatory."
+		CardData.EffectType.RIDER_PORT:
+			return "Then one of your men steps one column to PORT. Mandatory."
 		CardData.EffectType.RIDER_STARBOARD:
 			return "Then one of your men steps one column to STARBOARD. Mandatory."
 		CardData.EffectType.RIDER_FORWARD:
@@ -113,7 +113,7 @@ static func tactic_name(tactic: String) -> String:
 		"fear_horn": return "Fear Horn"
 		"reinforcement_surge": return "Reinforcement Surge"
 		"fresh_men_forward": return "Fresh Men Forward"
-		"shift_larboard": return "Shift Larboard"
+		"shift_port": return "Shift Port"
 		"shift_starboard": return "Shift Starboard"
 		"step_up": return "Step Up"
 	return "Press the Attack"
@@ -131,7 +131,7 @@ static func tactic_description(tactic: String) -> String:
 			return "Up to 4 enemies step over the rail instead of 2."
 		"fresh_men_forward":
 			return "Their front and second lines trade places before they fight."
-		"shift_larboard":
+		"shift_port":
 			return "Their whole line slides one column to your left — every duel re-pairs."
 		"shift_starboard":
 			return "Their whole line slides one column to your right — every duel re-pairs."
@@ -148,7 +148,7 @@ You are the raid captain. Your crew fights on its own — your cards are the ord
 
 [b]Momentum[/b] powers cards: +1 each turn, more for each enemy slain. Routs pay nothing — breaking men is free but earns no tempo.
 
-[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Trade Places, Drag Him Back!), which wait in hand for their moment. Play cards — most also move one of your men, and that move is mandatory and its DIRECTION IS PRINTED ON THE CARD: larboard, starboard, press forward, give ground, or close on the nearest enemy. The board lights up every man who could take that step and you pick which one, never whether and never which way — and a card whose step nobody can take cannot be played at all. Then both formations fight — axes first (they chew 2 block per point of damage), then the rest by speed. Every man follows his rhythm: berserkers build to a doubled HEAVY blow, archers AIM before both arrows fly (the mark comes away suppressed, a third weaker), shieldmen raise the wall before they swing. Armor is guard: it comes back up as block at each side's turn.
+[b]Each turn[/b]: your hand is discarded and redrawn to 5 — except Retained cards (Reinforce, Trade Places, Drag Him Back!), which wait in hand for their moment. Play cards — most also move one of your men, and that move is mandatory and its DIRECTION IS PRINTED ON THE CARD: port, starboard, press forward, give ground, or close on the nearest enemy. The board lights up every man who could take that step and you pick which one, never whether and never which way — and a card whose step nobody can take cannot be played at all. Then both formations fight — axes first (they chew 2 block per point of damage), then the rest by speed. Every man follows his rhythm: berserkers build to a doubled HEAVY blow, archers AIM before both arrows fly (the mark comes away suppressed, a third weaker), shieldmen raise the wall before they swing. Armor is guard: it comes back up as block at each side's turn.
 
 [b]The enemy captain[/b] waits at the stern, unreachable, until his hold empties — then he steps into the line himself and fights like anyone: reach him through his column, or shove his line apart. Kill him and his crew yields. Lose your own captain and the raid is over.
 

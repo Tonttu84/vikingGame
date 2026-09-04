@@ -33,7 +33,7 @@ enum EffectType {
 	# mandatory and their DIRECTION IS FIXED BY THE CARD — the player never
 	# picks which way, only (on a card that does not already name an ally)
 	# which man. A card whose rider has no legal move is refused before payment.
-	RIDER_LARBOARD,            ## one column toward column 0, along his own line
+	RIDER_PORT,            ## one column toward column 0, along his own line
 	RIDER_STARBOARD,           ## one column toward column 3, along his own line
 	RIDER_FORWARD,             ## "Press": second line into the empty front slot of his column
 	RIDER_BACKWARD,            ## "Give Ground": front into the empty second-line slot

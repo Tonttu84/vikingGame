@@ -77,7 +77,7 @@ func test_the_step_takes_the_nearer_column() -> void:
 	assert_eq(eng.state.player_formation.column_of(p1), 0, "one column away beats two")
 
 
-func test_the_step_breaks_a_tie_to_larboard() -> void:
+func test_the_step_breaks_a_tie_to_port() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var port := TestHelpers.grunt(E, "port")
 	var starboard := TestHelpers.grunt(E, "starboard")
@@ -88,7 +88,7 @@ func test_the_step_breaks_a_tie_to_larboard() -> void:
 	TestHelpers.station(eng.state.enemy_formation, starboard, F, 2)
 	await eng._fight_phase(P)
 	assert_eq(eng.state.player_formation.column_of(p1), 0,
-			"larboard before starboard, as everywhere else")
+			"port before starboard, as everywhere else")
 
 
 ## A column holding only a second-liner is still worth closing on: a

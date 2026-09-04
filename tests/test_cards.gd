@@ -14,7 +14,7 @@ func test_spear_volley_hits_the_whole_enemy_front_line() -> void:
 	var thrower := TestHelpers.grunt(P, "thrower")
 	var eng := TestHelpers.engine_for({"player_field": [thrower], "enemy_field": [e1, e2, e3]})
 	TestHelpers.station(eng.state.enemy_formation, e3, Formation.BACK, 0)
-	# Somebody has to be able to take the card's larboard step, or it is refused.
+	# Somebody has to be able to take the card's port step, or it is refused.
 	TestHelpers.station(eng.state.player_formation, thrower, Formation.FRONT, 1)
 	var card := CardLibrary.spear_volley()
 	eng.state.hand.append(card)
@@ -356,22 +356,22 @@ func test_trade_places_is_a_two_momentum_card_and_still_retained() -> void:
 	assert_true(card.retained, "its job is the emergency rotation, on the turn it is needed")
 
 
-## Larboard and starboard have no intrinsic meaning on a symmetric board, so
+## Port and starboard have no intrinsic meaning on a symmetric board, so
 ## an unequal deck is not flavour — it is a silent structural drift of your
 ## whole crew toward one rail (docs/card-design-proposal.md §2).
-func test_both_decks_pull_equally_to_larboard_and_starboard() -> void:
+func test_both_decks_pull_equally_to_port_and_starboard() -> void:
 	for deck_name in ["starter", "veteran"]:
 		var deck: Array[CardData] = CardLibrary.starter_deck() if deck_name == "starter" \
 				else CardLibrary.veteran_deck()
-		var larboard := 0
+		var port := 0
 		var starboard := 0
 		for card in deck:
 			for effect in card.effects:
 				match effect.get("type"):
-					CardData.EffectType.RIDER_LARBOARD:
-						larboard += 1
+					CardData.EffectType.RIDER_PORT:
+						port += 1
 					CardData.EffectType.RIDER_STARBOARD:
 						starboard += 1
-		assert_true(larboard > 0, "%s deck carries the coin-flip riders at all" % deck_name)
-		assert_eq(larboard, starboard,
-				"%s deck: %d larboard vs %d starboard" % [deck_name, larboard, starboard])
+		assert_true(port > 0, "%s deck carries the coin-flip riders at all" % deck_name)
+		assert_eq(port, starboard,
+				"%s deck: %d port vs %d starboard" % [deck_name, port, starboard])

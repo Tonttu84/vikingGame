@@ -364,7 +364,7 @@ func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 		var col := engine.state.enemy_formation.column_of(target)
 		for dir: int in engine.shove_directions(target):
 			options.append(_slot_option(Character.Side.ENEMY, Formation.FRONT, col + dir,
-					dir, "larboard" if dir < 0 else "starboard"))
+					dir, "port" if dir < 0 else "starboard"))
 		_begin_pick("%s — which way is %s shoved?" % [card.display_name, target.display_name],
 				options, true,
 				func(dir: int) -> void:
