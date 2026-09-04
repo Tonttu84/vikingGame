@@ -20,7 +20,7 @@ written and at 815 unit + 91 smoke when it shipped.
 | Q5 | Trade Places at cost 2, still Retained? | **Yes to both.** The id stays `swap` so decks and debug tools do not churn; only the face and the price change. |
 | Q6 | Jump: in or out? | **Deferred, not cut on principle.** If it ever ships it must be a *player-aimed* jump movement on a card that also carries a real effect — never a pure-movement card — and it lands after the numeric retune. |
 | Q7 | Should riders displace? | **No.** The destination must be empty, always. A swap is a strong effect worth its own card. |
-| Q8 | Equal larboard/starboard counts? | **Yes, enforced by a test** over both decks (starter 3/3, veteran 5/5). |
+| Q8 | Equal port/starboard counts? | **Yes, enforced by a test** over both decks (starter 3/3, veteran 5/5). |
 | Q9 | Do the defenders get Taunt and Drive Him Back? | **Not in this slice.** Player-side only, so the coming turn stays readable off the board. |
 | Q10 | Rally restricted to fielded allies? | **Yes** — `HEAL` joins the fielded-only list in `_target_valid`. It was a live bug and started with a regression test. |
 
@@ -66,7 +66,7 @@ are non-obvious enough that they change what a card is worth.
 6. **`Formation.slide` / `advance` / `retire` all require an empty
    destination**; only `swap_positions` displaces. Movement never pushes.
 7. **`_close_direction` already exists** — the closing rule's "step toward
-   the nearest occupied enemy column, larboard on a tie". It is directly
+   the nearest occupied enemy column, port on a tie". It is directly
    reusable as a rider direction, at no new geometry cost.
 8. **Cards that cannot do their job are refused before payment**
    (`_effect_preconditions_met`: Reinforce, Swap, Shove, Challenge). This
@@ -111,9 +111,9 @@ Direction is always fixed by the card. The player never picks *which way*.
 
 | Keyword | Meaning | Register |
 | --- | --- | --- |
-| **Close** | one column toward the nearest occupied enemy column (larboard on a tie) — the closing rule's own direction, `_close_direction` | perk |
+| **Close** | one column toward the nearest occupied enemy column (port on a tie) — the closing rule's own direction, `_close_direction` | perk |
 | **Press** (forward) | second line → the empty front slot of his column | perk / setup |
-| **Larboard** | one column toward column 0 | coin-flip cost |
+| **Port** | one column toward column 0 | coin-flip cost |
 | **Starboard** | one column toward column 3 | coin-flip cost |
 | **Give Ground** (backward) | front → the empty second-line slot of his column | penalty |
 
@@ -123,7 +123,7 @@ And the pricing spine that falls out of it:
 > penalty riders on the bombs.**
 
 A perk rider (Close, Press) is a small free upside and it accelerates
-convergence, which serves the 6–10 turn goal. A coin-flip rider (Larboard,
+convergence, which serves the 6–10 turn goal. A coin-flip rider (Port,
 Starboard) is a real, variable cost you manage *in hand* — the decision
 moves from "where do I want him" to "which of these three cards fits the
 board as it stands". A penalty rider (Give Ground) is the price of a strong
@@ -186,9 +186,9 @@ does to your own crew.** A shout carries a direction; a shove you place.
 | Card | Cost | Effect | Fixed rider | The decision it asks | Engine support |
 | --- | --- | --- | --- | --- | --- |
 | **Feint** | 0 | Draw 2 | **Close** — a man you name presses toward the fighting | Which man you want walked into contact for free | Already `DRAW`; **new `RIDER_CLOSE`** (wraps `_close_direction`) |
-| **War Cry** | 1 | +1 momentum per enemy slain this turn | **Larboard** | Play it for the kills you are about to make, and eat a man dragged the wrong way | Already `WAR_CRY`; **new `RIDER_LARBOARD`** |
+| **War Cry** | 1 | +1 momentum per enemy slain this turn | **Port** | Play it for the kills you are about to make, and eat a man dragged the wrong way | Already `WAR_CRY`; **new `RIDER_PORT`** |
 | **Terrifying Bellow** | 1 | 2 morale damage to every fielded enemy | **Starboard** | Break the karls for free — but your line drifts starboard while you do it | Already `MORALE_DAMAGE_ALL_ENEMIES`; **new `RIDER_STARBOARD`** |
-| **Spear Volley** | 2 | 2 true damage to every enemy front-liner (ignores armour, ignores shields) | **Larboard** | The shieldman answer, at the price of a step you did not choose | Already `DAMAGE_ENEMY_FRONT_LINE`; `RIDER_LARBOARD` |
+| **Spear Volley** | 2 | 2 true damage to every enemy front-liner (ignores armour, ignores shields) | **Port** | The shieldman answer, at the price of a step you did not choose | Already `DAMAGE_ENEMY_FRONT_LINE`; `RIDER_PORT` |
 | **Concentrated Attack** | 2 | Everyone who can reach the target strikes it this fight phase | **Starboard** | Who dies *now* — and whether the man you must step starboard is the one who was reaching him | Already `FOCUS_FIRE`; `RIDER_STARBOARD` |
 | **Battle Fury** | 1 | An ally strikes one extra time this fight phase | **Press** — he advances into the empty front slot of his column | Play it on a second-liner and the fury arrives with him; a front-liner cannot take it at all (see the gate, §5 Q3) | Already `RIDER_ADVANCE`, renamed `RIDER_FORWARD` |
 | **Push Them Back** | 2 | No enemy reinforcements next turn | **Press** — a second-liner you name advances | Buy a turn of no fresh defenders and commit a man to the front rank while it lasts | Already `BLOCK_REINFORCEMENTS`; needs `RIDER_FORWARD` generalised to untargeted (pick the man) |
@@ -208,9 +208,9 @@ Fall Back breather (Rally is now it), and jump (§4).
 
 ### Direction balance
 
-Larboard: War Cry, Spear Volley. Starboard: Terrifying Bellow, Concentrated
+Port: War Cry, Spear Volley. Starboard: Terrifying Bellow, Concentrated
 Attack. **This has to be maintained at deck level**, in both `starter_deck()`
-and `veteran_deck()`, at equal copy counts. On a symmetric board larboard and
+and `veteran_deck()`, at equal copy counts. On a symmetric board port and
 starboard have no intrinsic meaning; the only thing an imbalance does is drag
 your whole crew toward one rail over a long fight, which crowds columns
 (worse against cleave grazes) and empties the far ones. An unequal deck is a
@@ -233,7 +233,7 @@ Under the proposal:
 
 **Fixing direction alone does NOT fix the fake-cost problem.** This is the
 part worth being sceptical about: with 8 movers still on offer, "slide
-someone larboard" is answered by sliding the archer larboard, and by fact 3
+someone port" is answered by sliding the archer port, and by fact 3
 that costs nothing whatsoever. The cure is the pairing of *fixed direction*
 with a *named mover* wherever the card has a target — which is why eight of
 the nine rider cards above either name their man (Rally, Battle Fury) or pay
@@ -263,9 +263,9 @@ real: your deck's directional mix becomes a thing you own.
 
 | Card | Today | Proposed |
 | --- | --- | --- |
-| Spear Volley | `RIDER_SLIDE` (your choice) | `RIDER_LARBOARD` |
+| Spear Volley | `RIDER_SLIDE` (your choice) | `RIDER_PORT` |
 | Concentrated Attack | `RIDER_SLIDE` | `RIDER_STARBOARD` |
-| War Cry | `RIDER_SLIDE` | `RIDER_LARBOARD` |
+| War Cry | `RIDER_SLIDE` | `RIDER_PORT` |
 | Terrifying Bellow | `RIDER_SLIDE` | `RIDER_STARBOARD` |
 | Feint | `RIDER_SLIDE` | `RIDER_CLOSE` |
 | Rally | `RIDER_STEP` (either line, position-dependent) | `RIDER_BACKWARD`, target restricted to fielded |
@@ -278,7 +278,7 @@ real: your deck's directional mix becomes a thing you own.
 
 **Enum churn** in `CardData.EffectType`: delete `RIDER_SLIDE`, `RIDER_STEP`,
 `RIDER_SWAP_FIELDED`; rename `RIDER_ADVANCE` → `RIDER_FORWARD`; add
-`RIDER_LARBOARD`, `RIDER_STARBOARD`, `RIDER_BACKWARD`, `RIDER_CLOSE`,
+`RIDER_PORT`, `RIDER_STARBOARD`, `RIDER_BACKWARD`, `RIDER_CLOSE`,
 `TAUNT`, `DRIVE_BACK`. Net: 4 out, 6 in.
 
 Note `RIDER_STEP` dies for a reason worth stating: it is *fixed* (a column
@@ -307,7 +307,7 @@ rule.
 
 - **It is illegal from half the board before anything is occupied.** With
   four columns, "jump starboard" exists only from columns 0 and 1; "jump
-  larboard" only from 2 and 3. A fixed-direction jump rider would be dead
+  port" only from 2 and 3. A fixed-direction jump rider would be dead
   on half your crew at all times.
 - **A free-direction jump is, counter-intuitively, less free than a slide.**
   Every column has exactly one legal jump destination (0↔2, 1↔3), so
@@ -438,9 +438,9 @@ card's ally target when it has one, and the player's pick otherwise.** This
 makes Rally and Battle Fury fully determined (no prompt at all) while
 leaving the untargeted cards a real board decision.
 
-**Q2 — Absolute directions (larboard/starboard) or relational ones
+**Q2 — Absolute directions (port/starboard) or relational ones
 (toward/away from the fighting)?** Absolute is a coin flip: on a symmetric
-board, half the time larboard is what you wanted anyway. Relational is
+board, half the time port is what you wanted anyway. Relational is
 deterministic *and* meaningful, and "toward the fighting" reuses
 `_close_direction` for free. **Recommendation: both, in registers** —
 relational perk riders (Close, Press) on the cheap cards, absolute coin-flip
@@ -490,7 +490,7 @@ the root. **Recommendation: no.** Every rider would then be a swap, which
 contradicts the brief's core ruling that a swap is a strong effect worth a
 card. Keep riders non-displacing and pay for it with the Q3 gate.
 
-**Q8 — Deck composition: equal larboard and starboard counts?**
+**Q8 — Deck composition: equal port and starboard counts?**
 **Recommendation: yes, enforced by a test** in `test_cards` over
 `starter_deck()` and `veteran_deck()`. Otherwise the deck has a hidden drift
 toward one rail that nobody will diagnose from win rates.

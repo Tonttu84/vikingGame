@@ -14,7 +14,7 @@ func test_spear_volley_hits_the_whole_enemy_front_line() -> void:
 	var thrower := TestHelpers.grunt(P, "thrower")
 	var eng := TestHelpers.engine_for({"player_field": [thrower], "enemy_field": [e1, e2, e3]})
 	TestHelpers.station(eng.state.enemy_formation, e3, Formation.BACK, 0)
-	# Somebody has to be able to take the card's larboard step, or it is refused.
+	# Somebody has to be able to take the card's port step, or it is refused.
 	TestHelpers.station(eng.state.player_formation, thrower, Formation.FRONT, 1)
 	var card := CardLibrary.spear_volley()
 	eng.state.hand.append(card)
@@ -71,13 +71,30 @@ func test_push_them_back_blocks_one_reinforcement() -> void:
 ## The card's movement rider (phase D) must take the only move on the board:
 ## p3 sidesteps out of his empty column, and the focused column stands as it
 ## was — the rider is mandatory, not free.
+class PickP3Bot:
+	var mover: Character
+
+	func choose_action(_state: BattleState) -> Dictionary:
+		return {"op": "end"}
+
+	func choose_rider(_state: BattleState, _card: CardData,
+			moves: Array[Dictionary]) -> Dictionary:
+		for move in moves:
+			if move.get("character") == mover:
+				return move
+		return {}
+
+
 func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var p3 := TestHelpers.grunt(P, "p3")
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var e2 := TestHelpers.grunt(E, "e2", 30)
-	var eng := TestHelpers.engine_for({"player_field": [p1, p2, p3], "enemy_field": [e1, e2]})
+	var bot := PickP3Bot.new()
+	bot.mover = p3
+	var eng := TestHelpers.engine_for({"player_field": [p1, p2, p3], "enemy_field": [e1, e2]},
+			bot)
 	TestHelpers.station(eng.state.enemy_formation, e2, Formation.BACK, 1)
 	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 1)
 	var card := CardLibrary.concentrated_attack()
@@ -85,7 +102,7 @@ func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	eng.state.momentum = 2
 	await eng._play_card(card, e2)
 	assert_eq(eng.state.player_formation.at(Formation.FRONT, 1), p2,
-			"the rider's only legal move is in an idle column")
+			"the rider was steered to the idle column: the focusing attacker stands fast")
 	await eng._fight_phase(P)
 	assert_eq(e2.hp, 30 - 3, "his column's attacker strikes past the front man")
 	assert_eq(e1.hp, 30, "the shielding front-liner is bypassed")
@@ -194,7 +211,8 @@ func test_taunt_takes_a_bowman_out_of_sniping_position() -> void:
 	var eng := TestHelpers.engine_for({"player_field": [p1], "enemy_field": [bow]})
 	TestHelpers.station(eng.state.player_formation, p1, Formation.FRONT, 2)
 	TestHelpers.station(eng.state.enemy_formation, bow, Formation.BACK, 0)
-	assert_true(eng._is_sniper(bow), "back line with a bow: he is picking off your weakest")
+	TestHelpers.cover_at(eng, E, 0)
+	assert_true(eng._is_sniper(bow), "covered in the back line: he is picking off your weakest")
 	await _taunt(eng, bow, p1)
 	assert_false(eng._is_sniper(bow), "at the rail he is just a man with the wrong weapon")
 
@@ -285,19 +303,37 @@ func test_a_driven_man_still_takes_his_column_s_blows() -> void:
 	var hp_before := driven.hp
 	await eng._fight_phase(P)
 	assert_true(driven.hp < hp_before, "your man still reaches him")
-	assert_false(eng._can_melee(driven), "and he has no swing to answer with")
+	# The relative front line changed this card's edge: a man driven back
+	# with NOBODY left in front of him counts as front and fights on. The
+	# silencing needs his column to keep a front man — the swap case.
+	assert_true(eng._can_melee(driven), "alone in his column he is still the front line")
 
 
-## The card's whole skill test: it silences a swordsman and ARMS a bowman,
-## because sniping is a second-line privilege.
+## The card's whole skill test: it silences a swordsman (when his column
+## keeps a front man) and ARMS a bowman, because sniping is a covered
+## second-liner's privilege. The drive's swap provides the cover itself:
+## the man who stood behind is promoted into the rail rank in front of him.
 func test_driving_a_bowman_back_upgrades_him() -> void:
+	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
+	var backer := TestHelpers.grunt(E, "backer")
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
+			"enemy_field": [bow]})
+	TestHelpers.station(eng.state.enemy_formation, bow, Formation.FRONT, 3)
+	TestHelpers.station(eng.state.enemy_formation, backer, Formation.BACK, 3)
+	assert_false(eng._is_sniper(bow), "at the rail he is a man with the wrong weapon")
+	await _drive(eng, bow)
+	assert_true(eng._is_sniper(bow), "driven back BEHIND HIS BACKER he starts picking off " +
+			"your weakest — play it on the wrong man and you help them")
+
+
+func test_driving_back_a_lone_bowman_arms_nobody() -> void:
 	var bow := TestHelpers.grunt(E, "bow", 12, 6, 3, 3, Weapon.bow())
 	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "p1")],
 			"enemy_field": [bow]})
 	TestHelpers.station(eng.state.enemy_formation, bow, Formation.FRONT, 3)
-	assert_false(eng._is_sniper(bow), "at the rail he is a man with the wrong weapon")
 	await _drive(eng, bow)
-	assert_true(eng._is_sniper(bow), "driven back he starts picking off your weakest — play it on the wrong man and you help them")
+	assert_false(eng._is_sniper(bow),
+			"nobody steps in front of him: uncovered, he counts as front and stays a poor fighter")
 
 
 func test_drive_him_back_is_refused_on_a_second_liner() -> void:
@@ -356,22 +392,22 @@ func test_trade_places_is_a_two_momentum_card_and_still_retained() -> void:
 	assert_true(card.retained, "its job is the emergency rotation, on the turn it is needed")
 
 
-## Larboard and starboard have no intrinsic meaning on a symmetric board, so
+## Port and starboard have no intrinsic meaning on a symmetric board, so
 ## an unequal deck is not flavour — it is a silent structural drift of your
 ## whole crew toward one rail (docs/card-design-proposal.md §2).
-func test_both_decks_pull_equally_to_larboard_and_starboard() -> void:
+func test_both_decks_pull_equally_to_port_and_starboard() -> void:
 	for deck_name in ["starter", "veteran"]:
 		var deck: Array[CardData] = CardLibrary.starter_deck() if deck_name == "starter" \
 				else CardLibrary.veteran_deck()
-		var larboard := 0
+		var port := 0
 		var starboard := 0
 		for card in deck:
 			for effect in card.effects:
 				match effect.get("type"):
-					CardData.EffectType.RIDER_LARBOARD:
-						larboard += 1
+					CardData.EffectType.RIDER_PORT:
+						port += 1
 					CardData.EffectType.RIDER_STARBOARD:
 						starboard += 1
-		assert_true(larboard > 0, "%s deck carries the coin-flip riders at all" % deck_name)
-		assert_eq(larboard, starboard,
-				"%s deck: %d larboard vs %d starboard" % [deck_name, larboard, starboard])
+		assert_true(port > 0, "%s deck carries the coin-flip riders at all" % deck_name)
+		assert_eq(port, starboard,
+				"%s deck: %d port vs %d starboard" % [deck_name, port, starboard])

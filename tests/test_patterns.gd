@@ -112,8 +112,8 @@ func test_shift_calls_slide_the_enemy_line_each_way() -> void:
 	TestHelpers.station(eng.state.enemy_formation, mover, F, 1)
 	await eng._resolve_tactic("shift_starboard")
 	assert_eq(eng.state.enemy_formation.column_of(mover), 2, "starboard slides up a column")
-	await eng._resolve_tactic("shift_larboard")
-	assert_eq(eng.state.enemy_formation.column_of(mover), 1, "larboard slides back down")
+	await eng._resolve_tactic("shift_port")
+	assert_eq(eng.state.enemy_formation.column_of(mover), 1, "port slides back down")
 
 
 func test_step_up_call_fills_their_front_gaps() -> void:
@@ -280,7 +280,8 @@ func test_the_aim_beat_marks_the_weakest_and_looses_nothing() -> void:
 		"player_field": [sturdy, weakling],
 		"enemy_field": [archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 3)
+	TestHelpers.cover_at(eng, E, 3)
 	await eng._fight_phase(E)
 	assert_eq(eng.state.archer_marks.get(archer), weakling, "the mark locks on the weakest")
 	assert_eq(weakling.hp, 6, "no arrow flies on the aim beat")
@@ -296,7 +297,8 @@ func test_the_double_shot_hits_the_marked_man_not_the_weakest() -> void:
 		"player_field": [marked, weaker_now],
 		"enemy_field": [archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 3)
+	TestHelpers.cover_at(eng, E, 3)
 	archer.beat = 1
 	eng.state.archer_marks[archer] = marked
 	await eng._fight_phase(E)
@@ -313,7 +315,8 @@ func test_the_double_shot_is_wasted_when_the_mark_is_gone() -> void:
 		"player_field": [marked, stand_in],
 		"enemy_field": [archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 3)
+	TestHelpers.cover_at(eng, E, 3)
 	archer.beat = 1
 	eng.state.archer_marks[archer] = marked
 	eng.state.player_formation.remove(marked)
@@ -331,7 +334,8 @@ func test_the_double_shot_suppresses_the_mark() -> void:
 		"player_field": [marked],
 		"enemy_field": [archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 3)
+	TestHelpers.cover_at(eng, E, 3)
 	archer.beat = 1
 	eng.state.archer_marks[archer] = marked
 	await eng._fight_phase(E)
@@ -422,7 +426,7 @@ func test_forecast_bills_the_heavy_cleave_and_the_double_shot() -> void:
 		"player_field": [left, mark],
 		"enemy_field": [berserk, archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 1)
 	TestHelpers.station(eng.state.enemy_formation, berserk, F, 1)
 	berserk.beat = 2
 	archer.beat = 1
@@ -440,7 +444,8 @@ func test_forecast_shows_no_arrows_for_a_lost_mark() -> void:
 		"player_field": [survivor],
 		"enemy_field": [archer],
 	})
-	TestHelpers.station(eng.state.enemy_formation, archer, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, archer, B, 3)
+	TestHelpers.cover_at(eng, E, 3)
 	archer.beat = 1
 	eng.state.next_tactic = "press_the_attack"
 	var bill: Dictionary = eng.forecast()

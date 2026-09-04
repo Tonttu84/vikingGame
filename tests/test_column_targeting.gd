@@ -77,7 +77,7 @@ func test_the_step_takes_the_nearer_column() -> void:
 	assert_eq(eng.state.player_formation.column_of(p1), 0, "one column away beats two")
 
 
-func test_the_step_breaks_a_tie_to_larboard() -> void:
+func test_the_step_breaks_a_tie_to_port() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var port := TestHelpers.grunt(E, "port")
 	var starboard := TestHelpers.grunt(E, "starboard")
@@ -88,7 +88,7 @@ func test_the_step_breaks_a_tie_to_larboard() -> void:
 	TestHelpers.station(eng.state.enemy_formation, starboard, F, 2)
 	await eng._fight_phase(P)
 	assert_eq(eng.state.player_formation.column_of(p1), 0,
-			"larboard before starboard, as everywhere else")
+			"port before starboard, as everywhere else")
 
 
 ## A column holding only a second-liner is still worth closing on: a
@@ -115,15 +115,16 @@ func test_a_man_with_nowhere_to_step_still_swings_at_air() -> void:
 	assert_true(_log_has(eng, "swings at air"), "so the swing is wasted after all")
 
 
-func test_a_second_liner_without_reach_never_steps() -> void:
+func test_a_covered_second_liner_without_reach_never_steps() -> void:
 	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
 	var e1 := TestHelpers.grunt(E, "e1")
 	var eng := TestHelpers.engine_for({"player_field": [sword], "enemy_field": [e1]})
 	TestHelpers.station(eng.state.player_formation, sword, B, 0)
+	TestHelpers.cover_at(eng, P, 0)
 	TestHelpers.station(eng.state.enemy_formation, e1, F, 2)
 	await eng._fight_phase(P)
 	assert_eq(eng.state.player_formation.column_of(sword), 0,
-			"he cannot reach from back there, so closing would buy him nothing")
+			"covered, he cannot reach from back there — closing would buy him nothing")
 
 
 func test_a_spear_closes_from_the_second_line() -> void:
@@ -171,22 +172,13 @@ func test_spear_reaches_from_the_second_line() -> void:
 	assert_eq(e1.hp, 12 - 4, "reach: 3 Str + 1 spear from the second line")
 
 
-func test_other_weapons_cannot_melee_from_the_second_line() -> void:
-	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
-	var e1 := TestHelpers.grunt(E, "e1")
-	var eng := TestHelpers.engine_for({"player_field": [sword], "enemy_field": [e1]})
-	TestHelpers.station(eng.state.player_formation, sword, B, 0)
-	await eng._fight_phase(P)
-	assert_eq(e1.hp, 12, "a sword in the second line holds his place")
-	assert_false(_log_has(eng, "swings at air"), "he is not swinging — he simply cannot reach")
-
-
 func test_archer_marks_the_weakest_fielded_enemy_anywhere() -> void:
 	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
 	var e1 := TestHelpers.grunt(E, "e1")
 	var e2 := TestHelpers.grunt(E, "e2", 5, 6, 3, 3, null, 0)
 	var eng := TestHelpers.engine_for({"player_field": [bow], "enemy_field": [e1, e2]})
-	TestHelpers.station(eng.state.player_formation, bow, B, 0)
+	TestHelpers.station(eng.state.player_formation, bow, B, 2)
+	TestHelpers.cover_at(eng, P, 2)
 	TestHelpers.station(eng.state.enemy_formation, e2, F, 3)
 	await eng._fight_phase(P)
 	assert_eq(eng.state.archer_marks.get(bow), e2, "the aim beat locks the lowest HP, any column")
@@ -200,7 +192,8 @@ func test_archer_mark_tiebreak_is_spawn_order() -> void:
 	var e1 := TestHelpers.grunt(E, "e1")
 	var e2 := TestHelpers.grunt(E, "e2")
 	var eng := TestHelpers.engine_for({"player_field": [bow], "enemy_field": [e1, e2]})
-	TestHelpers.station(eng.state.player_formation, bow, B, 0)
+	TestHelpers.station(eng.state.player_formation, bow, B, 2)
+	TestHelpers.cover_at(eng, P, 2)
 	await eng._fight_phase(P)
 	assert_eq(eng.state.archer_marks.get(bow), e1, "equal HP: the earlier spawn is marked")
 
@@ -238,7 +231,7 @@ func test_focus_fire_strikes_through_the_column() -> void:
 		"player_field": [pC, pA, bow],
 		"enemy_field": [e_front, e_weak],
 	})
-	TestHelpers.station(eng.state.player_formation, bow, B, 3)
+	TestHelpers.station(eng.state.player_formation, bow, B, 0)
 	TestHelpers.station(eng.state.enemy_formation, e_weak, B, 1)
 	TestHelpers.station(eng.state.enemy_formation, e_front, F, 1)
 	eng.state.focus_target = e_weak
@@ -286,3 +279,88 @@ func test_break_the_line_refused_when_no_room_to_shove() -> void:
 	assert_eq(eng.state.momentum, 5)
 	await eng._play_card(card, backer)
 	assert_true(eng.state.hand.has(card), "second-liners cannot be shoved: front-liners only")
+
+
+# --- The relative front line (docs/block-and-patterns.md addendum) -------------
+# An uncovered second-liner — nobody in the front slot of his own column —
+# counts as standing in the front line: he fights, he takes the hits (the
+# column rule always did that), and the bow needs cover to be a bow. Auras
+# and the forced movements (shove, drive) stay on REAL positions.
+
+func test_an_uncovered_second_liner_fights_his_column() -> void:
+	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [sword], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, sword, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 0)
+	await eng._fight_phase(P)
+	assert_eq(e1.hp, 30 - 5, "nobody in front of him: he IS the front line, and he swings")
+
+
+func test_a_covered_second_liner_without_reach_holds_his_place() -> void:
+	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
+	var cover := TestHelpers.grunt(P, "cover", 12, 6, 1, 2, null)
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [cover, sword], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, sword, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 0)
+	await eng._fight_phase(P)
+	assert_eq(e1.hp, 30 - 1, "only the cover man's fist lands: covered and reachless, he waits")
+
+
+func test_an_uncovered_second_liner_closes_toward_the_fighting() -> void:
+	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [sword], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, sword, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 2)
+	await eng._fight_phase(P)
+	assert_eq(eng.state.player_formation.column_of(sword), 1,
+			"effectively front, his column empty of enemies: he walks the deck down")
+	assert_eq(e1.pinned, 1, "and his closing step pins like any other")
+
+
+func test_an_uncovered_archer_is_just_a_fighter() -> void:
+	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [bow], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, bow, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, e1, F, 0)
+	await eng._fight_phase(P)
+	assert_eq(e1.hp, 30 - 3, "no cover, no bow work: 2 Str + 1 bow, hand to hand")
+	assert_false(eng.state.archer_marks.has(bow), "and nothing is marked")
+
+
+func test_cover_restores_the_bow() -> void:
+	var bow := TestHelpers.grunt(P, "bow", 10, 5, 2, 3, Weapon.bow())
+	var cover := TestHelpers.grunt(P, "cover")
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var eng := TestHelpers.engine_for({"player_field": [cover, bow], "enemy_field": [e1]})
+	TestHelpers.station(eng.state.player_formation, bow, B, 0)
+	await eng._fight_phase(P)
+	assert_eq(eng.state.archer_marks.get(bow), e1, "a man in front of her: she aims again")
+	assert_eq(e1.hp, 30 - 3, "the cover man's own swing still lands")
+
+
+func test_relative_front_skips_the_boosts() -> void:
+	var captain := TestHelpers.captain_of(P, "captain")
+	var sword := TestHelpers.grunt(P, "sword", 12, 6, 3, 3, Weapon.sword())
+	var e1 := TestHelpers.grunt(E, "e1", 30)
+	var e2 := TestHelpers.grunt(E, "e2", 30)
+	var eng := TestHelpers.engine_for({"player_field": [captain, sword],
+			"enemy_field": [e1, e2]})
+	TestHelpers.station(eng.state.player_formation, sword, B, 1)
+	TestHelpers.station(eng.state.enemy_formation, e2, F, 1)
+	await eng._fight_phase(P)
+	assert_eq(e2.hp, 30 - 5, "he counts as front for the fight, but auras read REAL lines: " +
+			"the captain at F0 is not his line-neighbor, no +1")
+
+
+func test_forced_movement_reads_real_positions_not_relative_ones() -> void:
+	var pc := TestHelpers.grunt(P, "pc")
+	var lurker := TestHelpers.grunt(E, "lurker")
+	var eng := TestHelpers.engine_for({"player_field": [pc], "enemy_field": [lurker]})
+	TestHelpers.station(eng.state.enemy_formation, lurker, B, 1)
+	assert_true(eng.shove_directions(lurker).is_empty(),
+			"effectively front or not, Break the Line shoves the RANK AT THE RAIL only")
+	assert_false(eng.can_drive_back(lurker), "and there is no further back to drive him")

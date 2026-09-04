@@ -30,7 +30,7 @@ extends RefCounted
 const CHARACTER_SECTIONS := ["player field", "player reserve", "enemy field", "enemy reserve", "enemy captain"]
 const KNOWN_TACTICS := [
 	"press_the_attack", "arrow_volley", "fear_horn", "reinforcement_surge",
-	"fresh_men_forward", "shift_larboard", "shift_starboard", "step_up",
+	"fresh_men_forward", "shift_port", "shift_starboard", "step_up",
 ]
 const STAT_KEYS := ["hp", "morale", "str", "speed", "armor"]
 const WEAPON_NAMES := ["fists", "spear", "axe", "sword", "bow"]

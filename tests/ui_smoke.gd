@@ -245,7 +245,7 @@ func check_card_box_is_fixed(ui) -> void:
 		{"type": CardData.EffectType.PLAYER_ARMOR_BONUS, "amount": 1},
 		{"type": CardData.EffectType.WAR_CRY, "amount": 1},
 		{"type": CardData.EffectType.GAIN_MOMENTUM, "amount": 3},
-		{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1},
+		{"type": CardData.EffectType.RIDER_PORT, "amount": 1},
 	]
 	var wordy := CardData.new("probe_wordy",
 			"A Card Whose Name Runs On Far Longer Than Any Real One", 3,
@@ -383,6 +383,10 @@ func _run() -> void:
 			if _has_label_containing(token, "BLK "):
 				block_shown = true
 	check(block_shown, "a raised guard shows as BLK on the token")
+
+	# The compass: the player is told which side is which, in so many words.
+	check(_has_label_containing(ui, "PORT"), "the port side is named on the table")
+	check(_has_label_containing(ui, "STARBOARD"), "the starboard side is named on the table")
 
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield

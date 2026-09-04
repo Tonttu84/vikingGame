@@ -38,6 +38,19 @@ static func engine_for(scenario: Dictionary, bot = null, seed_value := 7) -> Com
 ## leave him nowhere, and every assertion after a fixture like that is
 ## measuring a formation the test never meant to build. Trade two men with
 ## Formation.swap_positions; this only fills a free slot.
+## A man whose only job is standing in a front slot so the man behind him
+## counts as covered (the relative front line). Pinned hard, so nothing —
+## not even his own closing step — walks him off the slot. A pinned man
+## still swings, so station him over an EMPTY opposing column whenever the
+## damage sums matter.
+static func cover_at(eng: CombatEngine, side: Character.Side, col: int,
+		id := "cover") -> Character:
+	var c := grunt(side, id)
+	c.pinned = 99
+	station(eng.state.formation_of(side), c, Formation.FRONT, col)
+	return c
+
+
 static func station(formation: Formation, c: Character, line: int, col: int) -> void:
 	assert(c != null, "station(): nobody to station")
 	var occupant := formation.at(line, col)

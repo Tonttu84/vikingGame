@@ -68,7 +68,43 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the mechanics overhaul — block, patterns, the captain's word, the
+Done: **the battleline slice** (owner's playtest feedback, 2026-09-04; four
+commits). (1) **Larboard is "port" everywhere now** — effect id RIDER_PORT,
+tactic shift_port, all text; the player-facing word wins over the archaic
+one. (2) **Riders swap by default**: a rider step into an occupied slot
+trades the two men (Press rotates the front man back, Close trades through
+your own wall); only the board's edge and a pin refuse a rider — a packed
+grid no longer does, which was the rider gate's whole bite on the sim bot.
+The sim now permanently prints the retune's headline metric (refused
+proposals per affordable card + empty decision points), labeled as a
+bot-proposal rate since random targeting counts alongside the gate.
+(3) **The front line is relative**: a second-liner with nobody in the front
+slot of his own column counts as front — fights, closes (and pins), and
+the BOW NEEDS COVER: an uncovered archer is just a fighter (owner ruled
+this explicitly). Auras and shove/drive read real positions; being
+effectively front carries no boosts. Drive Him Back's edge changed and is
+test-recorded: it silences only a man whose column keeps a front man, and
+driving back a lone bowman arms nobody. TestHelpers.cover_at is the
+fixture for covered archers. (4) **UI**: the gold rail between the decks
+is the compass now — "◀ PORT ... STARBOARD ▶" named in so many words
+(canvas guard forced the table separation 6 -> 5 to pay for the taller
+rail); the man an open pick is ABOUT (trades with him, shoved which way)
+wears a WHITE rim while pick options wear gold — selected vs selectable.
+937 unit + 94 smoke checks. Sims (n=300, random bot) across the slice:
+skirmish 17.7% -> 14.0% win / 12.8 -> 12.6 turns, veteran 38.0% -> 26.3% /
+16.6 -> 15.7; refused proposals 41.3%/33.6%, empty decision points
+36.8%/38.6% — mostly the bot's blind targeting and thin early momentum
+now, not walled-in movement. The drop is relative front freeing swings on
+both sides and the deeper enemy roster cashing more of them; the bot
+never arranges cover. STILL UNTUNED BY DESIGN — the retune prices all of
+it.
+DEFERRED ruling recorded (owner, 2026-09-04, do not build yet): **all
+characters get a frontline ability-or-pattern AND a rearline
+ability-or-pattern, and the rearline one works only with somebody
+actually in front of the character.** The relative front line and the
+bow's cover requirement are the first installment of exactly this; the
+per-role ability split is content design that should follow the retune.
+Earlier: **the mechanics overhaul — block, patterns, the captain's word, the
 pin** (docs/block-and-patterns.md is the ruling record; combat-design.md
 carries the shipped tables). Four chunks, one commit each. (1) **Armor is
 guard now**: block = armor at battle start and at each side's turn start,
@@ -113,7 +149,7 @@ movement, and the movement's direction is printed on the card.** 15 tactics
 in three families: the rail pair plus the reaction save (their movement is
 the crossing), the *theirs* family (Break the Line, the new Drive Him Back,
 the new Taunt — the movement is forced on an enemy), and the riders. Five
-fixed rider movements — Close, Press, Larboard, Starboard, Give Ground —
+fixed rider movements — Close, Press, Port, Starboard, Give Ground —
 priced in registers: perks on the cheap cards, the coin-flip pair on the mid
 ones, Give Ground on the bombs. The player picks WHICH man steps, never which
 way, and a card that names an ally binds the rider to him so it asks nothing
@@ -128,7 +164,7 @@ are gone and there is no targeting override left in the engine at all; a duel
 is arranged by moving men. **A live bug fixed**: `HEAL` was missing from the
 fielded-only list, so Rally could be spent on a man safe on the ship, where
 its rider evaporated. Trade Places (was Swap) costs 2 and keeps its id.
-Larboard and starboard counts are equal in both decks, held there by a test.
+Port and starboard counts are equal in both decks, held there by a test.
 Sims (n=300, random bot) before → after: skirmish 46.3% → 31.0% win, 14.1 →
 14.1 turns, 1.12 → 1.09 dead in a win; veteran 58.7% → 51.3%, 16.7 → 17.3,
 0.81 → 1.14. A comparison, not a target — **the gate bites hard on a bot that
@@ -166,7 +202,7 @@ NOT verified: nobody has looked at the rebuilt web build in a browser — the
 fixes are proven by measurement and tests only. `make serve` to check.
 Earlier: **phase D chunk 3 — the closing rule** (ruling in
 docs/lines-redesign.md): a man whose column is empty forfeits his swing and
-steps one column toward the nearest column with someone in it (larboard on
+steps one column toward the nearest column with someone in it (port on
 a tie; he stays and swings at air only when his own line walls him in, and
 second-liners without reach never step). Diagnosis first: 44% of all melee
 swings were hitting an empty column, and sampled stalemates were twenty
@@ -240,7 +276,7 @@ wins bloodless; veteran 63% win / 0.88 / 53% bloodless (veteran slack
 stands until phase D retunes).
 Earlier: **the lines redesign phase C — enemy dynamics** (docs/lines-redesign.md,
 rulings recorded there): the four captain's calls as telegraphed tactics
-(fresh men forward, shift larboard/starboard with slide-what-can edge
+(fresh men forward, shift port/starboard with slide-what-can edge
 pinning, step up) via new Formation verbs (`swap_lines`/`shift`/`step_up`);
 enemy-only wind-ups on a visible 3-turn counter (`Character.windup`, ticked
 end of enemy turn) — the berserker's heavy cleave (2× blow, graze 4, wasted
@@ -316,8 +352,9 @@ Agreed next slices, in rough priority:
    4/5, everyone else 0-3), SHIELD_AURA_BLOCK 2, SUPPRESS_TURNS 2, the
    command's period 4 and amount 1. New questions it should read from the
    sims: does the command's escalation make the bot's late game hopeless
-   (18.0%/34.3% win rates say slow play now loses — a human should be
-   faster, but verify), and does the guarding wall stall the early game?
+   (14.0%/26.3% win rates after the battleline slice say slow play and
+   bare columns now lose — a human should be faster and keep cover, but
+   verify), and does the guarding wall stall the early game?
    Still-open rulings, PARKED until the owner has PLAYTESTED the new
    mechanism (owner's call 2026-08-30: do not decide these for him, ask
    after he has played): (a) deterministic vs seeded-random tactic

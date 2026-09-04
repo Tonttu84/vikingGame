@@ -58,7 +58,7 @@ func test_can_play_accepts_an_affordable_untargeted_card() -> void:
 	var card := _in_hand(eng, CardLibrary.war_cry())
 	TestHelpers.station(eng.state.player_formation, eng.state.player_formation.fielded()[1],
 			Formation.FRONT, 2)
-	assert_true(eng.can_play(card), "somebody can take its larboard step")
+	assert_true(eng.can_play(card), "somebody can take its port step")
 
 
 func test_can_play_rejects_a_target_for_an_untargeted_card() -> void:
@@ -134,17 +134,17 @@ func test_can_play_refuses_a_card_whose_rider_has_nowhere_to_go() -> void:
 
 func test_the_rider_gate_reads_the_whole_deck_when_no_ally_is_named() -> void:
 	var eng := _engine()
-	var probe := CardData.new("probe_larboard", "Probe", 0, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}] as Array[Dictionary])
+	var probe := CardData.new("probe_port", "Probe", 0, CardData.TargetType.NONE,
+			[{"type": CardData.EffectType.RIDER_PORT, "amount": 1}] as Array[Dictionary])
 	_in_hand(eng, probe)
 	var f := eng.state.player_formation
 	var crew1 := f.fielded()[0]
 	var crew2 := f.fielded()[1]
 	TestHelpers.station(f, crew2, Formation.FRONT, 2)
-	assert_true(eng.can_play(probe), "crew2 has an empty slot to larboard of him")
+	assert_true(eng.can_play(probe), "crew2 has an empty slot to port of him")
 	TestHelpers.station(f, crew2, Formation.BACK, 0)
 	TestHelpers.station(f, crew1, Formation.FRONT, 0)
-	assert_false(eng.can_play(probe), "both men are at the larboard rail: nobody can take the step")
+	assert_false(eng.can_play(probe), "both men are at the port rail: nobody can take the step")
 
 
 func test_a_refused_rider_costs_nothing_at_all() -> void:
@@ -341,7 +341,7 @@ func test_can_drive_back_reaches_the_rank_at_the_rail_only() -> void:
 			"and it is a card you play on them, not on your own line")
 
 
-func test_shove_directions_lists_larboard_before_starboard() -> void:
+func test_shove_directions_lists_port_before_starboard() -> void:
 	var eng := _engine()
 	var f := eng.state.enemy_formation
 	var foe := f.fielded()[0]
@@ -359,7 +359,7 @@ func test_shove_directions_drops_a_blocked_side() -> void:
 	TestHelpers.station(f, other, Formation.BACK, 0)
 	TestHelpers.station(f, foe, Formation.FRONT, 1)
 	TestHelpers.station(f, other, Formation.FRONT, 0)
-	assert_eq(eng.shove_directions(foe), [1] as Array[int], "larboard is taken")
+	assert_eq(eng.shove_directions(foe), [1] as Array[int], "port is taken")
 
 
 func test_shove_directions_of_a_second_liner_is_empty() -> void:

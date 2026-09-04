@@ -10,7 +10,7 @@ static func spear_volley() -> CardData:
 	# The shieldman answer, at the price of a step you did not choose.
 	return CardData.new("spear_volley", "Spear Volley", 2, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.DAMAGE_ENEMY_FRONT_LINE, "amount": 2},
-			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_PORT, "amount": 1}])
 
 
 static func concentrated_attack() -> CardData:
@@ -93,7 +93,7 @@ static func feint() -> CardData:
 static func war_cry() -> CardData:
 	return CardData.new("war_cry", "War Cry", 1, CardData.TargetType.NONE,
 			[{"type": CardData.EffectType.WAR_CRY, "amount": 1},
-			{"type": CardData.EffectType.RIDER_LARBOARD, "amount": 1}])
+			{"type": CardData.EffectType.RIDER_PORT, "amount": 1}])
 
 
 static func terrifying_bellow() -> CardData:
@@ -217,7 +217,7 @@ static func by_id(p_id: String) -> CardData:
 
 ## The v0 starter deck: 24 tactics + 3 pieces of loot clogging it. Crossing
 ## the rail lives in the deck, so Reinforce/Trade Places are well represented,
-## and the larboard and starboard riders are carried in equal numbers.
+## and the port and starboard riders are carried in equal numbers.
 static func starter_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
 	for i in 3:

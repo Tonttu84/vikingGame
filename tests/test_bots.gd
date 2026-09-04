@@ -24,26 +24,27 @@ func _bot_engine(seed_value := 5) -> CombatEngine:
 	return eng
 
 
-## Four men packed into the two larboard columns, enemies right across from
+## Four men packed into the two port columns, enemies right across from
 ## them: no sidestep, no press, no give-ground and nothing to close on.
+## Since riders swap by default, a packed grid no longer refuses anything —
+## only the board's edge and a pin do. The boxed-in crew is therefore two
+## men jammed against the port rail, the rear one pinned: port is off the
+## ship, Give Ground would trade with a pinned man, Press is pinned shut,
+## and the enemy stands in their own column so there is nothing to close on.
 func _boxed_in() -> CombatEngine:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	var bot := Bots.RandomBot.new(rng)
 	var eng := CombatEngine.new()
 	bot.engine = eng
-	var crew: Array[Character] = []
-	var foes: Array[Character] = []
-	for i in 4:
-		crew.append(TestHelpers.grunt(P, "crew%d" % i))
-		foes.append(TestHelpers.grunt(E, "foe%d" % i, 30))
-	eng.setup({"player_field": crew, "enemy_field": foes}, bot, 3)
-	for formation in [eng.state.player_formation, eng.state.enemy_formation]:
-		var men: Array[Character] = formation.fielded()
-		TestHelpers.station(formation, men[2], B, 2)
-		TestHelpers.station(formation, men[3], B, 3)
-		TestHelpers.station(formation, men[2], B, 0)
-		TestHelpers.station(formation, men[3], B, 1)
+	var front_man := TestHelpers.grunt(P, "front_man")
+	var pinned_man := TestHelpers.grunt(P, "pinned_man")
+	var foe_front := TestHelpers.grunt(E, "foe_front", 30)
+	var foe_back := TestHelpers.grunt(E, "foe_back", 30)
+	eng.setup({"player_field": [front_man], "enemy_field": [foe_front]}, bot, 3)
+	TestHelpers.station(eng.state.player_formation, pinned_man, B, 0)
+	TestHelpers.station(eng.state.enemy_formation, foe_back, B, 0)
+	pinned_man.pinned = 2
 	eng.state.momentum = BattleState.MOMENTUM_CAP
 	return eng
 

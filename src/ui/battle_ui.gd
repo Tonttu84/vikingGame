@@ -188,8 +188,11 @@ func _emit_maneuver(card: CardData) -> void:
 ## Ask for one choice off the board. A single option answers itself — there
 ## is nothing to choose — and an empty list means the caller had nothing to
 ## ask (an impossible rider never gets here; the engine skips it in silence).
+## `focus` is the man the question is ABOUT (who trades with HIM, which way
+## is HE shoved) — he wears the white rim while the pick is open, so the
+## player never loses track of what he selected.
 func _begin_pick(prompt: String, options: Array[Dictionary], cancellable: bool,
-		on_choice: Callable) -> void:
+		on_choice: Callable, focus: Character = null) -> void:
 	if options.is_empty():
 		return
 	if options.size() == 1:
@@ -197,7 +200,7 @@ func _begin_pick(prompt: String, options: Array[Dictionary], cancellable: bool,
 		_render()
 		return
 	_pick = {"prompt": prompt, "options": options, "cancellable": cancellable,
-			"on_choice": on_choice}
+			"on_choice": on_choice, "focus": focus}
 	_render()
 
 
@@ -260,6 +263,11 @@ func _pick_option_for_slot(side: Character.Side, line: int, col: int) -> Diction
 
 ## Is this man lit right now — one of the pending pick's options, or a legal
 ## landing place for the card in the air?
+## The man an open pick is about: marked "selected" on his token.
+func _pick_focused(c: Character) -> bool:
+	return not _pick.is_empty() and _pick.get("focus") == c
+
+
 func _highlighted(c: Character) -> bool:
 	if not _pick.is_empty():
 		return not _pick_option_for_character(c).is_empty()
@@ -343,7 +351,7 @@ func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 				options, true,
 				func(partner: Character) -> void:
 					action["second_target"] = partner
-					submit(action))
+					submit(action), target)
 		return
 	if _card_has(card, CardData.EffectType.TAUNT):
 		# The shout names two men: the defender it is aimed at (already the
@@ -357,19 +365,19 @@ func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 				options, true,
 				func(anchor: Character) -> void:
 					action["second_target"] = anchor
-					submit(action))
+					submit(action), target)
 		return
 	if _card_has(card, CardData.EffectType.SHOVE):
 		var options: Array[Dictionary] = []
 		var col := engine.state.enemy_formation.column_of(target)
 		for dir: int in engine.shove_directions(target):
 			options.append(_slot_option(Character.Side.ENEMY, Formation.FRONT, col + dir,
-					dir, "larboard" if dir < 0 else "starboard"))
+					dir, "port" if dir < 0 else "starboard"))
 		_begin_pick("%s — which way is %s shoved?" % [card.display_name, target.display_name],
 				options, true,
 				func(dir: int) -> void:
 					action["direction"] = dir
-					submit(action))
+					submit(action), target)
 		return
 	submit(action)
 
@@ -429,7 +437,7 @@ func _begin_commit(character: Character) -> void:
 	_begin_pick("%s comes over for %d momentum — into which slot?" %
 			[character.display_name, BattleState.RESERVE_COMMIT_COST], options, true,
 			func(index: int) -> void:
-				submit({"op": "commit", "character": character, "slot": index}))
+				submit({"op": "commit", "character": character, "slot": index}), character)
 
 
 ## The Swap in hand that would bring this waiting pair member across right
@@ -481,7 +489,7 @@ func _fill_line(row: HBoxContainer, formation: Formation, side: Character.Side,
 	for col in Formation.COLUMNS:
 		var c := formation.at(line, col)
 		if c != null:
-			var display := {"highlight": _highlighted(c)}
+			var display := {"highlight": _highlighted(c), "selected": _pick_focused(c)}
 			var token := CharacterToken.create(c, self, false, forecast.get(c, {}),
 					engine.state.archer_marks.values().has(c), display)
 			token.clicked.connect(_on_token_clicked)
@@ -505,7 +513,7 @@ func _fill_player_reserve(state: BattleState) -> void:
 	for child in _player_reserve_row.get_children():
 		child.queue_free()
 	for c in state.player_reserve:
-		var display := {"highlight": _highlighted(c)}
+		var display := {"highlight": _highlighted(c), "selected": _pick_focused(c)}
 		var counterpart := engine.pair_swap_counterpart(c)
 		if counterpart != null:
 			var ready := _pair_swap_card(c) != null
@@ -688,17 +696,15 @@ func _build_layout() -> void:
 
 	var table := VBoxContainer.new()
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	table.add_theme_constant_override("separation", 6)
+	# 5, not 6: the labeled rail is a text row now, and the canvas guard
+	# counts every pixel — four gaps at one less buy its extra height back.
+	table.add_theme_constant_override("separation", 5)
 	table.mouse_filter = Control.MOUSE_FILTER_PASS
 	main.add_child(table)
 
 	table.add_child(_build_top_bar())
 	table.add_child(_build_enemy_zone())
-	var rail := ColorRect.new()
-	rail.color = UIPalette.GOLD
-	rail.custom_minimum_size.y = 3
-	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	table.add_child(rail)
+	table.add_child(_build_rail())
 	table.add_child(_build_player_zone())
 	table.add_child(_build_bottom_strip())
 	main.add_child(_build_log_panel())
@@ -708,6 +714,29 @@ func _build_layout() -> void:
 	_build_maneuver_layer()
 	_debug_panel = DebugPanel.create(self)
 	add_child(_debug_panel)
+
+
+## The rail between the decks doubles as the compass: PORT is column 1's
+## side, STARBOARD column 4's, and the movement cards' words point along
+## it — the player should never have to guess which way a sidestep goes.
+func _build_rail() -> Control:
+	var rail := HBoxContainer.new()
+	rail.add_theme_constant_override("separation", 8)
+	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var port := UIPalette.label("◀ PORT", UIPalette.FONT_SMALL, UIPalette.GOLD)
+	port.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rail.add_child(port)
+	var line := ColorRect.new()
+	line.color = UIPalette.GOLD
+	line.custom_minimum_size.y = 3
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rail.add_child(line)
+	var starboard := UIPalette.label("STARBOARD ▶", UIPalette.FONT_SMALL, UIPalette.GOLD)
+	starboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rail.add_child(starboard)
+	return rail
 
 
 func _build_top_bar() -> Control:

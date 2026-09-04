@@ -40,6 +40,16 @@ class RandomBot:
 			moves: Array[Dictionary]) -> Dictionary:
 		return moves[rng.randi_range(0, moves.size() - 1)]
 
+	## The engine's bite on this bot, measured where it lands: of the cards it
+	## could AFFORD, how many were refused (the rider gate AND the bot's own
+	## random targeting — a Taunt proposed at a bad anchor counts), and how
+	## many decision points offered nothing at all. The retune's headline
+	## metric; read it as a bot-proposal rate, not a pure gate rate.
+	var affordable_seen := 0
+	var gate_refused := 0
+	var decision_points := 0
+	var empty_decision_points := 0
+
 	func choose_action(state: BattleState) -> Dictionary:
 		# Crossing men is the highest priority: play Reinforce whenever the
 		# grid has room, fall back to the momentum commit if the hand lacks one.
@@ -52,13 +62,17 @@ class RandomBot:
 			if state.player_formation.size() < 3 and state.momentum >= 2:
 				return {"op": "commit", "character": crosser, "slot": _random_free_slot(state)}
 		var playable: Array[CardData] = []
+		decision_points += 1
 		for card in state.hand:
 			if not card.playable or card.reaction_save or card.cost > state.momentum:
 				continue
+			affordable_seen += 1
 			if not _card_usable(card, state):
+				gate_refused += 1
 				continue
 			playable.append(card)
 		if playable.is_empty():
+			empty_decision_points += 1
 			return {"op": "end"}
 		if rng.randf() < 0.2:
 			return {"op": "end"}

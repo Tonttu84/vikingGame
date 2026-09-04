@@ -97,12 +97,14 @@ Owner rulings this document implements (recorded 2026-08-29/30):
 - **heavy**: the old wind-up blow — damage ×2, cleave graze ×2 — now on a
   fixed third beat instead of a ticking counter. Wasted whole on an empty
   column, as before.
-- **aim** (in the second line, with the bow): locks the mark — the weakest
-  fielded opponent — and looses nothing. The mark is public. **shoot**:
-  both arrows at the mark, then SUPPRESSED. A mark that died, routed or
-  left the field wastes the shot whole, as before. An archer standing in
-  the front line is just a fighter: any beat is a melee swing there, but
-  the beats still advance.
+- **aim** (in the second line, with the bow, COVERED — the relative front
+  line ruling, 2026-09-04: a man must hold the front slot of the archer's
+  column): locks the mark — the weakest fielded opponent — and looses
+  nothing. The mark is public. **shoot**: both arrows at the mark, then
+  SUPPRESSED. A mark that died, routed or left the field wastes the shot
+  whole, as before. An archer standing in the front line — actually or
+  relatively (his cover died, routed or walked away) — is just a fighter:
+  any beat is a melee swing there, but the beats still advance.
 - **guard**: no swing — he plants the shield and gains his `armor` in
   block AGAIN (on top of the turn-start guard), and his line-neighbors
   gain `SHIELD_AURA_BLOCK` each. Only the shieldman's guard beat shares;
