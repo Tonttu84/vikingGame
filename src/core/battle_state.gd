@@ -32,6 +32,13 @@ const PAIR_ENTRY_COST := 1
 const SHIELD_AURA_BLOCK := 2
 ## How many of the mark's own turn-ends the double shot's suppression lasts.
 const SUPPRESS_TURNS := 2
+## The press (docs/press-proposal.md): the win bonus pays PRESS_WIN_MOMENTUM
+## for having the press plus PRESS_MARGIN_MOMENTUM per column of margin; the
+## losing line takes PRESS_MORALE on every fielded man at PRESS_MORALE_MARGIN.
+const PRESS_WIN_MOMENTUM := 1
+const PRESS_MARGIN_MOMENTUM := 1
+const PRESS_MORALE := 1
+const PRESS_MORALE_MARGIN := 2
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the
@@ -86,6 +93,15 @@ var next_tactic := ""
 ## is bound to. Placed by the aim beat, spent by the shot; a mark that dies,
 ## routs or leaves the field wastes the shot.
 var archer_marks := {}
+
+## The press ledgers: blood each side dealt INTO each column this round
+## (only what reached flesh; nothing from a no-resolution weapon). Reset at
+## the player's turn start, judged after the enemy's beats.
+var player_column_blood: Array[int] = [0, 0, 0, 0]
+var enemy_column_blood: Array[int] = [0, 0, 0, 0]
+## Last round's verdict, for the table: {"columns": [4 x -1/0/1], "player_wins",
+## "enemy_wins", "margin", "holder": "player"/"enemy"/"none", "momentum"}.
+var last_press := {}
 
 var battle_log: Array[String] = []
 

@@ -178,6 +178,7 @@ func _player_turn() -> void:
 		state.shield_wall_active = false
 	state.war_cry_active = false
 	_raise_guard(Character.Side.PLAYER)
+	_reset_press()
 	_gain_momentum(1)
 	# A fresh hand every turn: everything not Retained is discarded, then the
 	# hand refills to size. Retained cards wait in hand and eat draw room.
@@ -210,6 +211,10 @@ func _enemy_turn() -> void:
 	await _fight_phase(Character.Side.ENEMY)
 	if outcome != Outcome.NONE:
 		return
+	_resolve_press()
+	if outcome != Outcome.NONE:
+		return
+	await _pace()
 	_reinforce()
 	await _pace()
 	_tick_statuses(Character.Side.ENEMY)
@@ -1055,6 +1060,7 @@ func _attack(attacker: Character, defender: Character) -> void:
 			if attacker.is_berserker else ([] as Array[Character])
 	var dmg := _melee_damage(attacker, defender)
 	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	_tally_blood(attacker, defender, wounded)
 	defender.hp -= wounded
 	if wounded < dmg:
 		state.log_event("%s hits %s for %d — %d dies on the guard (%d HP left)." %
@@ -1079,6 +1085,7 @@ func _cleave_graze(attacker: Character, victim: Character) -> void:
 		return
 	var dmg := _graze_damage(attacker, victim)
 	var wounded := _chew_block(attacker.weapon.kind, victim, dmg)
+	_tally_blood(attacker, victim, wounded)
 	victim.hp -= wounded
 	state.log_event("%s's cleave grazes %s for %d (%d HP left)." %
 			[attacker.display_name, victim.display_name, wounded, maxi(0, victim.hp)])
@@ -1118,6 +1125,7 @@ func _double_shot(archer: Character) -> void:
 func _snipe(attacker: Character, defender: Character) -> void:
 	var dmg := _snipe_damage(attacker, defender)
 	var wounded := _chew_block(attacker.weapon.kind, defender, dmg)
+	_tally_blood(attacker, defender, wounded)
 	defender.hp -= wounded
 	if wounded < dmg:
 		state.log_event("%s's arrow rattles off %s's guard%s." %
@@ -1483,6 +1491,99 @@ func _pair_exit(line: int, col: int) -> void:
 		state.player_formation.place_at_index(captain, state.player_formation.first_free_index())
 	captain.beat = 0
 	state.log_event("%s leaps the rail and takes the prow himself." % captain.display_name)
+
+
+# --- The press (docs/press-proposal.md) ---------------------------------------
+# Every column is a duel scored on the blood dealt into it this round; the
+# side winning more columns has the press. Judged once per round after both
+# sides' beats, before reinforcements. A verdict, never a shove.
+
+func _reset_press() -> void:
+	for col in Formation.COLUMNS:
+		state.player_column_blood[col] = 0
+		state.enemy_column_blood[col] = 0
+
+
+## Blood onto the ledger: what reached flesh, in the column the defender
+## stood in when the blow landed, unless the weapon is tagged out of the
+## press (the bow). Read before the blow lands — a dead man's column is
+## the one he died in.
+func _tally_blood(attacker: Character, defender: Character, wounded: int) -> void:
+	if wounded <= 0 or not attacker.weapon.resolves_columns:
+		return
+	var col := state.formation_of(defender.side).column_of(defender)
+	if col == -1:
+		return
+	if attacker.side == Character.Side.PLAYER:
+		state.player_column_blood[col] += wounded
+	else:
+		state.enemy_column_blood[col] += wounded
+
+
+## One column's verdict, where men stand now: +1 yours, -1 theirs, 0 none.
+## Presence comes first — a column held by one side only is that side's
+## (the man facing nobody already lost his swing; holding it is what he
+## contributes), and blood into a column you do not hold wins nothing.
+## Both present: more blood wins, equal is no result.
+func _column_verdict(col: int, player_blood: int, enemy_blood: int) -> int:
+	var yours := state.player_formation.at(Formation.FRONT, col) != null \
+			or state.player_formation.at(Formation.BACK, col) != null
+	var theirs := state.enemy_formation.at(Formation.FRONT, col) != null \
+			or state.enemy_formation.at(Formation.BACK, col) != null
+	if yours and not theirs:
+		return 1
+	if theirs and not yours:
+		return -1
+	if not yours and not theirs:
+		return 0
+	return signi(player_blood - enemy_blood)
+
+
+## The round's judgment and the win bonus (owner's ruling): the side with
+## more columns has the press; the player is paid PRESS_WIN_MOMENTUM for
+## having it plus PRESS_MARGIN_MOMENTUM per column of margin; at
+## PRESS_MORALE_MARGIN the losing line takes PRESS_MORALE on every fielded
+## man. The enemy has no momentum, so its press pays only your morale.
+func _resolve_press() -> void:
+	var columns: Array[int] = []
+	var player_wins := 0
+	var enemy_wins := 0
+	for col in Formation.COLUMNS:
+		var verdict := _column_verdict(col, state.player_column_blood[col],
+				state.enemy_column_blood[col])
+		columns.append(verdict)
+		if verdict > 0:
+			player_wins += 1
+		elif verdict < 0:
+			enemy_wins += 1
+	var margin := absi(player_wins - enemy_wins)
+	var holder := "none"
+	if player_wins > enemy_wins:
+		holder = "player"
+	elif enemy_wins > player_wins:
+		holder = "enemy"
+	var paid := 0
+	if holder == "player":
+		paid = BattleState.PRESS_WIN_MOMENTUM + margin * BattleState.PRESS_MARGIN_MOMENTUM
+		_gain_momentum(paid)
+	state.last_press = {"columns": columns, "player_wins": player_wins,
+			"enemy_wins": enemy_wins, "margin": margin, "holder": holder, "momentum": paid}
+	match holder:
+		"player":
+			state.log_event("The press is yours: %d columns to %d (+%d momentum)." %
+					[player_wins, enemy_wins, paid])
+		"enemy":
+			state.log_event("The press is theirs: %d columns to %d." % [enemy_wins, player_wins])
+		_:
+			state.log_event("The line holds even: %d columns each — no press." % player_wins)
+	if holder == "none" or margin < BattleState.PRESS_MORALE_MARGIN:
+		return
+	var losing := Character.Side.ENEMY if holder == "player" else Character.Side.PLAYER
+	for c in state.fielded(losing):
+		_deal_morale_damage(c, BattleState.PRESS_MORALE)
+	state.log_event("The %s line gives ground in its heart." %
+			("enemy" if losing == Character.Side.ENEMY else "boarding"))
+	_check_routs(losing)
 
 
 # --- Enemy tactics and reinforcements ----------------------------------------

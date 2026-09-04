@@ -14,6 +14,10 @@ var id: String
 var display_name: String
 var damage_bonus: int
 var kind: Weapon.Kind
+## The press tag (docs/press-proposal.md, owner's ruling): blood dealt by a
+## man carrying a weapon without this never wins a column — ranged or melee
+## alike. The bow is the one weapon tagged out; row never enters into it.
+var resolves_columns := true
 
 func _init(p_id: String = "fists", p_name: String = "Fists", p_bonus: int = 0, p_kind: Weapon.Kind = Kind.NONE) -> void:
 	id = p_id
@@ -39,4 +43,6 @@ static func sword() -> Weapon:
 
 
 static func bow() -> Weapon:
-	return Weapon.new("bow", "Bow", 1, Kind.BOW)
+	var w := Weapon.new("bow", "Bow", 1, Kind.BOW)
+	w.resolves_columns = false
+	return w
