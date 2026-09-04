@@ -6,9 +6,11 @@ extends TestCase
 ## only, so they never cross the rail and the prow pair's law is untouched.
 ##
 ## The five movements: Port (toward column 0), Starboard (toward column 3),
-## Press (second line into the empty front slot of his column), Give Ground
-## (front into the empty second-line slot of his column) and Close (one column
-## toward the nearest occupied enemy column — the closing rule's own direction).
+## Press (second line into the front of his column), Give Ground (front into
+## the second line of his column) and Close (one column toward the nearest
+## occupied enemy column). SWAPS BY DEFAULT (owner's playtest ruling,
+## 2026-09-04): a step into an occupied slot trades the two men — only the
+## board's edge and a pin refuse a rider now.
 
 const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
@@ -77,16 +79,29 @@ func test_port_rider_has_no_move_at_the_port_rail() -> void:
 			"the board edge is not a direction he may take")
 
 
-func test_port_rider_has_no_move_into_an_occupied_slot() -> void:
+func test_port_rider_into_an_occupied_slot_trades_the_two_men() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var eng := TestHelpers.engine_for({"player_field": [p1, p2],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, F, 0)
 	TestHelpers.station(eng.state.player_formation, p2, F, 1)
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_PORT,
+			CardData.TargetType.ALLY), p2)
+	assert_eq(eng.state.player_formation.at(F, 0), p2, "swaps by default: he takes the slot")
+	assert_eq(eng.state.player_formation.at(F, 1), p1, "and the man who held it takes his")
+	assert_true(_log_index(eng, "trade places") != -1, "the trade is in the saga")
+
+
+func test_a_rider_swap_with_a_pinned_man_is_not_offered() -> void:
+	var mover := TestHelpers.grunt(P, "mover")
+	var held := TestHelpers.grunt(P, "held")
+	var eng := TestHelpers.engine_for({"player_field": [held, mover],
+			"enemy_field": [TestHelpers.grunt(E, "e1")]})
+	held.pinned = 1
 	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_PORT,
-			CardData.TargetType.ALLY), p2).size(), 0,
-			"riders never displace: the destination must be empty")
+			CardData.TargetType.ALLY), mover).size(), 0,
+			"a trade moves both men, and nothing moves a pinned one")
 
 
 func test_starboard_rider_slides_toward_column_three() -> void:
@@ -127,15 +142,17 @@ func test_forward_rider_has_no_move_for_a_man_already_at_the_rail() -> void:
 			"forward from the front line is off the ship")
 
 
-func test_forward_rider_has_no_move_when_his_front_slot_is_held() -> void:
+func test_forward_rider_trades_with_the_man_holding_his_front_slot() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var eng := TestHelpers.engine_for({"player_field": [p1, p2],
 			"enemy_field": [TestHelpers.grunt(E, "e1")]})
 	TestHelpers.station(eng.state.player_formation, p1, B, 1)
 	TestHelpers.station(eng.state.player_formation, p2, F, 1)
-	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_FORWARD,
-			CardData.TargetType.ALLY), p1).size(), 0)
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_FORWARD,
+			CardData.TargetType.ALLY), p1)
+	assert_eq(eng.state.player_formation.at(F, 1), p1, "he presses forward regardless")
+	assert_eq(eng.state.player_formation.at(B, 1), p2, "the man in front rotates back")
 
 
 # --- Give Ground: backward into your own column ------------------------------
@@ -207,7 +224,7 @@ func test_close_rider_has_no_move_when_he_is_already_in_contact() -> void:
 			"nothing to close on: his column is the fighting")
 
 
-func test_close_rider_has_no_move_when_his_own_line_walls_him_in() -> void:
+func test_close_rider_trades_through_his_own_wall() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var e1 := TestHelpers.grunt(E, "e1")
@@ -215,9 +232,11 @@ func test_close_rider_has_no_move_when_his_own_line_walls_him_in() -> void:
 	TestHelpers.station(eng.state.player_formation, p1, F, 0)
 	TestHelpers.station(eng.state.player_formation, p2, F, 1)
 	TestHelpers.station(eng.state.enemy_formation, e1, F, 3)
-	assert_eq(_moves(eng, _rider_card(CardData.EffectType.RIDER_CLOSE,
-			CardData.TargetType.ALLY), p1).size(), 0,
-			"his fellow stands in the only way toward the fighting")
+	await _play(eng, _rider_card(CardData.EffectType.RIDER_CLOSE,
+			CardData.TargetType.ALLY), p1)
+	assert_eq(eng.state.player_formation.at(F, 1), p1,
+			"his fellow no longer walls him in: they trade and he is a column closer")
+	assert_eq(eng.state.player_formation.at(F, 0), p2, "")
 
 
 # --- Who moves: the card names him, or the player picks him ------------------

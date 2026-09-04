@@ -71,13 +71,30 @@ func test_push_them_back_blocks_one_reinforcement() -> void:
 ## The card's movement rider (phase D) must take the only move on the board:
 ## p3 sidesteps out of his empty column, and the focused column stands as it
 ## was — the rider is mandatory, not free.
+class PickP3Bot:
+	var mover: Character
+
+	func choose_action(_state: BattleState) -> Dictionary:
+		return {"op": "end"}
+
+	func choose_rider(_state: BattleState, _card: CardData,
+			moves: Array[Dictionary]) -> Dictionary:
+		for move in moves:
+			if move.get("character") == mover:
+				return move
+		return {}
+
+
 func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	var p1 := TestHelpers.grunt(P, "p1")
 	var p2 := TestHelpers.grunt(P, "p2")
 	var p3 := TestHelpers.grunt(P, "p3")
 	var e1 := TestHelpers.grunt(E, "e1", 30)
 	var e2 := TestHelpers.grunt(E, "e2", 30)
-	var eng := TestHelpers.engine_for({"player_field": [p1, p2, p3], "enemy_field": [e1, e2]})
+	var bot := PickP3Bot.new()
+	bot.mover = p3
+	var eng := TestHelpers.engine_for({"player_field": [p1, p2, p3], "enemy_field": [e1, e2]},
+			bot)
 	TestHelpers.station(eng.state.enemy_formation, e2, Formation.BACK, 1)
 	TestHelpers.station(eng.state.enemy_formation, e1, Formation.FRONT, 1)
 	var card := CardLibrary.concentrated_attack()
@@ -85,7 +102,7 @@ func test_concentrated_attack_focuses_everyone_in_reach() -> void:
 	eng.state.momentum = 2
 	await eng._play_card(card, e2)
 	assert_eq(eng.state.player_formation.at(Formation.FRONT, 1), p2,
-			"the rider's only legal move is in an idle column")
+			"the rider was steered to the idle column: the focusing attacker stands fast")
 	await eng._fight_phase(P)
 	assert_eq(e2.hp, 30 - 3, "his column's attacker strikes past the front man")
 	assert_eq(e1.hp, 30, "the shielding front-liner is bypassed")

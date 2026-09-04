@@ -625,7 +625,10 @@ func _rider_movers(card: CardData, target: Character) -> Array[Character]:
 
 
 ## This man's one move under this rider, or {} when the step is off the board,
-## into an occupied slot, or (Close) toward nothing. Riders never displace.
+## blocked by a pin, or (Close) toward nothing. Riders SWAP BY DEFAULT
+## (owner's playtest ruling, 2026-09-04): a step into an occupied slot
+## trades the two men, so only the board's edge and a pin — on either man,
+## a trade moves both — refuse a rider now.
 func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary:
 	var formation := state.player_formation
 	var line := formation.line_of(mover)
@@ -638,16 +641,18 @@ func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary
 		CardData.EffectType.RIDER_STARBOARD:
 			return _rider_slide_move(mover, line, col, 1)
 		CardData.EffectType.RIDER_CLOSE:
-			# The closing rule's own direction, and its own legality: it already
-			# refuses the board edge, an occupied slot and an empty enemy board.
-			var dir := _close_direction(mover)
-			return {} if dir == 0 else {"character": mover, "direction": dir}
+			# The closing rule's direction — but where the automatic step
+			# refuses an occupied slot, the card trades through it.
+			var manned := _nearest_manned_column(mover)
+			if manned == -1:
+				return {}
+			return _rider_slide_move(mover, line, col, -1 if manned < col else 1)
 		CardData.EffectType.RIDER_FORWARD:
-			if line != Formation.BACK or formation.at(Formation.FRONT, col) != null:
+			if line != Formation.BACK or _pin_blocks(formation.at(Formation.FRONT, col)):
 				return {}
 			return {"character": mover, "line": Formation.FRONT}
 		CardData.EffectType.RIDER_BACKWARD:
-			if line != Formation.FRONT or formation.at(Formation.BACK, col) != null:
+			if line != Formation.FRONT or _pin_blocks(formation.at(Formation.BACK, col)):
 				return {}
 			return {"character": mover, "line": Formation.BACK}
 	return {}
@@ -655,9 +660,15 @@ func _rider_move_for(rider: CardData.EffectType, mover: Character) -> Dictionary
 
 func _rider_slide_move(mover: Character, line: int, col: int, dir: int) -> Dictionary:
 	if not Formation.in_bounds(line, col + dir) \
-			or state.player_formation.at(line, col + dir) != null:
+			or _pin_blocks(state.player_formation.at(line, col + dir)):
 		return {}
 	return {"character": mover, "direction": dir}
+
+
+## An empty slot never blocks; an occupied one only blocks when its holder
+## is pinned — the trade would have to move him.
+static func _pin_blocks(occupant: Character) -> bool:
+	return occupant != null and occupant.pinned > 0
 
 
 ## Is the controller's answer one of the moves offered? Compared field by
@@ -677,16 +688,24 @@ func _rider_move_offered(moves: Array[Dictionary], answer: Dictionary) -> bool:
 func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 	var formation := state.player_formation
 	var mover: Character = move["character"]
+	var line: int = move["line"] if move.has("line") else formation.line_of(mover)
+	var step: int = move["direction"] if move.has("direction") else 0
+	var col := formation.column_of(mover) + step
+	var occupant := formation.at(line, col)
+	if occupant != null:
+		if formation.swap_positions(mover, occupant):
+			state.log_event("%s and %s trade places." %
+					[mover.display_name, occupant.display_name])
+		return
 	if move.has("direction"):
-		var dir: int = move["direction"]
-		if not formation.slide(mover, dir):
+		if not formation.slide(mover, move["direction"]):
 			return
 		if rider == CardData.EffectType.RIDER_CLOSE:
 			state.log_event("%s presses toward the fighting." % mover.display_name)
 		else:
 			state.log_event("%s sidesteps to %s." %
-					[mover.display_name, "port" if dir < 0 else "starboard"])
-	elif move["line"] == Formation.FRONT:
+					[mover.display_name, "port" if move["direction"] < 0 else "starboard"])
+	elif line == Formation.FRONT:
 		if formation.advance(mover):
 			state.log_event("%s steps up into the front line." % mover.display_name)
 	elif formation.retire(mover):

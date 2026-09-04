@@ -63,6 +63,10 @@ func _init() -> void:
 	var win_dead := 0
 	var win_fled := 0
 	var win_dead_counts := {}
+	var affordable_seen := 0
+	var gate_refused := 0
+	var decision_points := 0
+	var empty_decision_points := 0
 
 	for i in n:
 		var engine := CombatEngine.new()
@@ -81,6 +85,11 @@ func _init() -> void:
 			scenario["maneuvers"] = forced
 		engine.setup(scenario, bot, base_seed + i)
 		var result: Dictionary = await engine.run()
+		if bot is Bots.RandomBot:
+			affordable_seen += bot.affordable_seen
+			gate_refused += bot.gate_refused
+			decision_points += bot.decision_points
+			empty_decision_points += bot.empty_decision_points
 		if verbose and i == 0:
 			for line in engine.state.battle_log:
 				print(line)
@@ -107,6 +116,10 @@ func _init() -> void:
 	print("avg crew fled      %.2f" % (float(total_fled) / n))
 	print("avg enemies slain  %.2f" % (float(total_enemy_dead) / n))
 	print("avg enemies routed %.2f" % (float(total_enemy_routed) / n))
+	if affordable_seen > 0:
+		print("refused proposals: %.1f%% of affordable cards, %.1f%% of decision points empty" %
+				[100.0 * gate_refused / affordable_seen,
+				100.0 * empty_decision_points / maxi(1, decision_points)])
 	if wins > 0:
 		print("--- the cost of victory (crew losses are permanent between raids) ---")
 		print("avg dead in a win  %.2f   avg fled in a win  %.2f"
