@@ -202,7 +202,7 @@ func test_can_play_reads_the_prow_pair_law() -> void:
 			"never with ordinary crew")
 
 
-# --- Who may cross, who may be committed --------------------------------------
+# --- Who may cross ------------------------------------------------------------
 
 func test_crossing_candidates_skips_the_pair() -> void:
 	var eng := _pair_engine()
@@ -218,33 +218,23 @@ func test_crossing_candidates_lists_the_reserve_in_order() -> void:
 	assert_eq(eng.crossing_candidates()[0], eng.state.player_reserve[0])
 
 
-func test_can_commit_needs_the_momentum() -> void:
-	var eng := _engine(0)
-	assert_false(eng.can_commit(eng.state.player_reserve[0]), "unaffordable")
-	eng.state.momentum = BattleState.RESERVE_COMMIT_COST
-	assert_true(eng.can_commit(eng.state.player_reserve[0]))
-
-
-func test_can_commit_refuses_a_pair_member() -> void:
-	var eng := _pair_engine()
-	assert_false(eng.can_commit(eng.state.player_captain),
-			"the captain crosses only by trading with his prowman")
-	assert_true(eng.can_commit(eng.state.player_reserve[1]), "ordinary crew still cross")
-
-
-func test_can_commit_refuses_a_man_already_on_the_field() -> void:
+## The momentum commit is gone; what the table asks now is which openings are
+## on offer (see test_turn_choice for the mechanism itself).
+func test_the_opening_offers_the_free_crossing_only_when_it_is_possible() -> void:
 	var eng := _engine()
-	assert_false(eng.can_commit(eng.state.player_formation.fielded()[0]))
-	assert_false(eng.can_commit(null))
-
-
-func test_can_commit_refuses_when_the_grid_is_full() -> void:
-	var eng := _engine()
+	assert_true(eng.opening_options().has("reinforce"), "a man on the ship and a slot for him")
 	var f := eng.state.player_formation
 	for i in Formation.SLOT_COUNT:
 		if f.slots[i] == null:
 			f.slots[i] = TestHelpers.grunt(P, "filler%d" % i)
-	assert_false(eng.can_commit(eng.state.player_reserve[0]), "no room at the rail")
+	assert_false(eng.opening_options().has("reinforce"), "no room at the rail")
+
+
+func test_the_opening_offers_no_free_crossing_to_the_pair() -> void:
+	var eng := _pair_engine()
+	eng.state.player_reserve.erase(eng.state.player_reserve[1])
+	assert_false(eng.opening_options().has("reinforce"),
+			"only the captain is left ashore, and he crosses only by trading")
 
 
 # --- Swap partners and shove directions ---------------------------------------

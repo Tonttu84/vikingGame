@@ -82,3 +82,41 @@ func test_the_bot_agrees_with_the_engine_about_a_boxed_in_hand() -> void:
 		var card := CardLibrary.by_id(id)
 		eng.state.hand.append(card)
 		assert_false(eng.can_play(card), "%s has nowhere to move a man" % id)
+
+
+## The turn's opening is the bot's crossing priority now, and the same rule
+## holds as for cards: never propose what the engine will refuse. A refused
+## opening is not a wasted action but something worse — it silently becomes
+## the income, and the balance numbers would read as if the bot had chosen it.
+func _opening_is_legal(eng: CombatEngine, answer: Dictionary) -> bool:
+	var op: String = answer.get("op", "")
+	if not eng.opening_options().has(op):
+		return false
+	match op:
+		"reinforce":
+			return eng.crossing_candidates().has(answer.get("character"))
+		"swap":
+			return eng.swap_partners(answer.get("character")).has(answer.get("partner"))
+	return op == "income"
+
+
+func test_the_random_bots_opening_is_always_one_the_engine_accepts() -> void:
+	for seed_value in [2, 5, 9]:
+		var eng := _bot_engine(seed_value)
+		for turn in 12:
+			if eng.outcome != CombatEngine.Outcome.NONE:
+				break
+			eng.state.turn += 1
+			var answer: Dictionary = eng.controller.choose_opening(eng.state)
+			assert_true(_opening_is_legal(eng, answer),
+					"seed %d turn %d: the engine would refuse %s" % [seed_value, turn, str(answer)])
+			eng._apply_opening(answer, eng.opening_options())
+			await eng._enemy_turn()
+
+
+func test_the_bot_takes_the_income_when_nothing_else_is_open() -> void:
+	var eng := _boxed_in()
+	# Two men jammed against the port rail, nobody on the ship: no crossing,
+	# and the one unpinned man has no partner to trade with.
+	assert_eq(eng.opening_options(), ["income"] as Array[String], "nothing to move")
+	assert_eq(eng.controller.choose_opening(eng.state).get("op"), "income")

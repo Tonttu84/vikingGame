@@ -314,16 +314,16 @@ func test_swap_falls_back_to_the_deck_when_the_ship_is_empty() -> void:
 	assert_eq(eng.state.momentum, 0)
 
 
-func test_commit_refused_when_every_slot_is_taken() -> void:
+func test_the_free_crossing_is_refused_when_every_slot_is_taken() -> void:
 	var field: Array[Character] = []
 	for i in Formation.SLOT_COUNT:
 		field.append(TestHelpers.grunt(P, "p%d" % i))
 	var r1 := TestHelpers.grunt(P, "r1")
 	var eng := TestHelpers.engine_for({"player_field": field, "player_reserve": [r1]})
-	eng.state.momentum = 5
-	eng._commit_reserve(r1)
-	assert_true(eng.state.player_reserve.has(r1), "the slots themselves are the cap")
-	assert_eq(eng.state.momentum, 5)
+	assert_false(eng.opening_options().has("reinforce"), "the slots themselves are the cap")
+	eng._apply_opening({"op": "reinforce", "character": r1}, eng.opening_options())
+	assert_true(eng.state.player_reserve.has(r1), "he has nowhere to stand")
+	assert_eq(eng.state.momentum, 1, "the opening fell back to the income")
 
 
 func test_enemy_captain_is_the_final_reinforcement() -> void:

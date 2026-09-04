@@ -1,7 +1,8 @@
 class_name CharacterToken
 extends PanelContainer
 ## One fighter on the board: name, HP and morale bars, stats, engagement.
-## Also a drop target for cards and (in the reserve row) a commit button.
+## Also a drop target for cards and (in the reserve row) a click target for
+## the picks the board opens.
 
 signal clicked(character: Character)
 

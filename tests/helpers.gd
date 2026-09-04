@@ -60,3 +60,37 @@ static func station(formation: Formation, c: Character, line: int, col: int) -> 
 	formation.remove(c)
 	var placed := formation.place(c, line, col)
 	assert(placed, "station(): could not place %s on line %d col %d" % [c.id, line, col])
+
+
+## A controller that answers the turn's OPENING (docs/combat-design.md — the
+## forced three-way choice at the head of every player turn) from a scripted
+## queue, and remembers what it was asked. An exhausted queue answers with
+## the income, exactly as a controller without the hook would.
+## Holds the engine WEAKLY, like the sim bots do: the engine holds its
+## controller, so a strong link back would close a RefCounted cycle.
+class OpeningBot:
+	var openings: Array = []
+	var actions: Array = []
+	## One entry per time the engine asked: the options it was legal to give.
+	var asked: Array = []
+	var _engine_ref: WeakRef = null
+	var engine:
+		set(value):
+			_engine_ref = weakref(value) if value != null else null
+		get:
+			return _engine_ref.get_ref() if _engine_ref != null else null
+
+	func _init(p_openings: Array = [], p_actions: Array = []) -> void:
+		openings = p_openings.duplicate()
+		actions = p_actions.duplicate()
+
+	func choose_opening(_state: BattleState) -> Dictionary:
+		asked.append(engine.opening_options() if engine != null else [])
+		if openings.is_empty():
+			return {"op": "income"}
+		return openings.pop_front()
+
+	func choose_action(_state: BattleState) -> Dictionary:
+		if actions.is_empty():
+			return {"op": "end"}
+		return actions.pop_front()

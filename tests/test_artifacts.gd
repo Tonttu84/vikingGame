@@ -24,7 +24,7 @@ func test_chalice_grants_momentum_at_battle_start() -> void:
 	})
 	assert_eq(eng.state.momentum, 1, "+1 momentum before the first turn")
 	await eng._player_turn()
-	assert_eq(eng.state.momentum, 2, "turn income stacks on top")
+	assert_eq(eng.state.momentum, 3, "turn income and the opening's income stack on top")
 
 
 func test_serpent_prow_frightens_the_enemy_line() -> void:

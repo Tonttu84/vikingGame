@@ -10,6 +10,12 @@ var controller: HumanController
 var battle_seed := 1
 var roster_source := ""
 var _awaiting_action := false
+## The turn's opening (docs/combat-design.md): while true the engine is parked
+## on the forced three-way choice and NOTHING else on the table is playable —
+## the hand is not draggable, the turn buttons are dead. The bar in the banner
+## row is the only thing that answers it.
+var _awaiting_opening := false
+var _opening_options: Array[String] = []
 var _log_lines_shown := 0
 ## The banner line the top bar shows when the board is not asking for a pick.
 var _turn_text := "Turn 1"
@@ -65,6 +71,8 @@ var _outcome_again: Button
 var _maneuver_layer: Control
 var _maneuver_options: HBoxContainer
 var _pick_cancel_button: Button
+var _opening_bar: HBoxContainer
+var _opening_buttons := {}
 var _debug_panel: DebugPanel
 
 
@@ -88,6 +96,8 @@ func start_battle() -> void:
 	_log_lines_shown = 0
 	_log_text.clear()
 	_awaiting_action = false
+	_awaiting_opening = false
+	_opening_options = []
 	_pick = {}
 	_drag_card = null
 	engine = CombatEngine.new()
@@ -123,6 +133,18 @@ func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
 	for maneuver in options:
 		_maneuver_options.add_child(_maneuver_option(maneuver))
 	_maneuver_layer.visible = true
+
+
+## The turn opens on a question the player must answer before he may play
+## anything: send a man over the rail for free, snap two of your own men into
+## each other's places, or take the income (+1 momentum and +1 card on top of
+## the turn's own). The engine says which of the three are open; the bar
+## offers exactly those, and the hand stays locked until one is taken.
+func on_opening_prompt(state: BattleState) -> void:
+	_awaiting_opening = true
+	_opening_options = engine.opening_options()
+	_turn_text = "Turn %d — the opening: cross a man, snap two, or take the income" % state.turn
+	refresh(state)
 
 
 func on_player_decision_start(state: BattleState) -> void:
@@ -171,6 +193,80 @@ func submit(action: Dictionary) -> void:
 
 func _emit_action(action: Dictionary) -> void:
 	controller.action_submitted.emit(action)
+
+
+const _OPENING_TOOLTIPS := {
+	"reinforce": "Free: a man off your ship crosses into a slot you pick.",
+	"swap": "Free: two of your men trade places — on deck, or across the rail.",
+	"income": "+1 momentum AND +1 card, on top of the turn's own +1.",
+}
+
+
+func _choose_opening(op: String) -> void:
+	if not _awaiting_opening or not _pick.is_empty() or not _opening_options.has(op):
+		return
+	match op:
+		"reinforce":
+			_begin_opening_reinforce()
+		"swap":
+			_begin_opening_swap()
+		_:
+			submit_opening({"op": "income"})
+
+
+func submit_opening(answer: Dictionary) -> void:
+	if not _awaiting_opening:
+		return
+	_awaiting_opening = false
+	_opening_options = []
+	# Deferred so the engine resumes outside the button/click callback.
+	_emit_opening.call_deferred(answer)
+
+
+func _emit_opening(answer: Dictionary) -> void:
+	controller.opening_submitted.emit(answer)
+
+
+## The free crossing: who comes over, then which slot he takes. Both steps use
+## the board-pick mechanism, both may be backed out of (the bar comes straight
+## back), and a step with only one answer resolves itself.
+func _begin_opening_reinforce() -> void:
+	var options: Array[Dictionary] = []
+	for c in engine.crossing_candidates():
+		options.append(_token_option(c, c))
+	_begin_pick("The opening — who comes over the rail?", options, true,
+			func(c: Character) -> void: _begin_opening_slot(c))
+
+
+func _begin_opening_slot(character: Character) -> void:
+	var options: Array[Dictionary] = []
+	for index in engine.state.player_formation.free_indices():
+		options.append(_slot_option_at(Character.Side.PLAYER, index, index))
+	_begin_pick("%s crosses free — into which slot?" % character.display_name,
+			options, true,
+			func(index: int) -> void:
+				submit_opening({"op": "reinforce", "character": character, "slot": index}),
+			character)
+
+
+## The free trade: which of your men moves, then who he changes places with —
+## a fellow on deck or a man waiting on the ship.
+func _begin_opening_swap() -> void:
+	var options: Array[Dictionary] = []
+	for c in engine.opening_swappers():
+		options.append(_token_option(c, c))
+	_begin_pick("The opening — which man trades places?", options, true,
+			func(c: Character) -> void: _begin_opening_partner(c))
+
+
+func _begin_opening_partner(mover: Character) -> void:
+	var options: Array[Dictionary] = []
+	for c in engine.swap_partners(mover):
+		options.append(_token_option(c, c))
+	_begin_pick("%s trades places with whom?" % mover.display_name, options, true,
+			func(c: Character) -> void:
+				submit_opening({"op": "swap", "character": mover, "partner": c}),
+			mover)
 
 
 func _pick_maneuver(card: CardData) -> void:
@@ -458,20 +554,6 @@ func _on_token_clicked(character: Character) -> void:
 		submit({"op": "play", "card": swap_card,
 				"target": engine.pair_swap_counterpart(character),
 				"second_target": character})
-		return
-	if engine.can_commit(character):
-		_begin_commit(character)
-
-
-## Where a committed man takes his place: every free slot lights up.
-func _begin_commit(character: Character) -> void:
-	var options: Array[Dictionary] = []
-	for index in engine.state.player_formation.free_indices():
-		options.append(_slot_option_at(Character.Side.PLAYER, index, index))
-	_begin_pick("%s comes over for %d momentum — into which slot?" %
-			[character.display_name, BattleState.RESERVE_COMMIT_COST], options, true,
-			func(index: int) -> void:
-				submit({"op": "commit", "character": character, "slot": index}), character)
 
 
 ## The Swap in hand that would bring this waiting pair member across right
@@ -556,7 +638,10 @@ func _fill_player_reserve(state: BattleState) -> void:
 			display["hint"] = "click: swap" if ready else "swap only"
 			display["note"] = "Never crosses by himself: Swap trades him with %s." \
 					% counterpart.display_name
-		elif not engine.can_commit(c):
+		elif not (engine.opening_options().has("reinforce")
+				and engine.crossing_candidates().has(c)):
+			# Dimmed means the turn's free crossing could not take him — the
+			# grid is full, or the rules keep him aboard.
 			display["dim"] = true
 		var token := CharacterToken.create(c, self, true, {}, false, display)
 		token.clicked.connect(_on_token_clicked)
@@ -652,6 +737,11 @@ func _refresh_hud(state: BattleState) -> void:
 	_turn_label.add_theme_color_override("font_color",
 			UIPalette.GOLD if picking else UIPalette.PARCHMENT)
 	_pick_cancel_button.visible = picking and _pick.get("cancellable", false)
+	# The bar is the only live control while the opening is unanswered; a pick
+	# it started hides it, and cancelling that pick brings it straight back.
+	_opening_bar.visible = _awaiting_opening and not picking
+	for op: String in _opening_buttons:
+		(_opening_buttons[op] as Button).disabled = not _opening_options.has(op)
 	_momentum_label.text = "Momentum %d/%d" % [state.momentum, BattleState.MOMENTUM_CAP]
 	for i in _momentum_pips.get_child_count():
 		var pip: ColorRect = _momentum_pips.get_child(i)
@@ -808,6 +898,21 @@ func _build_top_bar() -> Control:
 	bar.add_child(_turn_label)
 	_status_label = UIPalette.label("", UIPalette.FONT_BODY, UIPalette.GOLD)
 	bar.add_child(_status_label)
+	# The opening's three buttons share the banner row with the pick prompt
+	# and its Cancel — the table already fits the 800px canvas with a few
+	# pixels to spare, so a bar of its own would push the hand off the bottom.
+	_opening_bar = HBoxContainer.new()
+	_opening_bar.add_theme_constant_override("separation", 4)
+	_opening_bar.visible = false
+	for entry in [["reinforce", "Reinforce"], ["swap", "Snap"], ["income", "+1 & draw"]]:
+		var op: String = entry[0]
+		var button := Button.new()
+		button.text = entry[1]
+		button.tooltip_text = _OPENING_TOOLTIPS[op]
+		button.pressed.connect(func() -> void: _choose_opening(op))
+		_opening_bar.add_child(button)
+		_opening_buttons[op] = button
+	bar.add_child(_opening_bar)
 	# Only card picks may be backed out of; a movement rider never shows this.
 	_pick_cancel_button = Button.new()
 	_pick_cancel_button.text = "Cancel"
@@ -900,8 +1005,8 @@ func _build_player_zone() -> Control:
 	reserve_bar.add_theme_constant_override("separation", 12)
 	reserve_bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	var hint := UIPalette.label(
-			"Your ship — click a man to commit him (%d momentum), then pick his slot. A dimmed man cannot cross. The reserve never fights, is never hit."
-			% BattleState.RESERVE_COMMIT_COST, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
+			"Your ship — a man crosses free with the turn's opening (Reinforce), or later by the card. A dimmed man cannot take the free crossing. The reserve never fights, is never hit.",
+			UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 	# Wrapped, not one long line: an unwrapped label here forces the whole
 	# table wider than the reference canvas and shoves the sidebar off it.
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -1,5 +1,5 @@
 extends TestCase
-## The momentum economy: income, kill rewards, cap, commits.
+## The momentum economy: income, kill rewards, the cap.
 
 const P := Character.Side.PLAYER
 const E := Character.Side.ENEMY
@@ -9,7 +9,9 @@ func test_turn_start_income() -> void:
 	var crew := TestHelpers.grunt(P, "crew")
 	var eng := TestHelpers.engine_for({"player_field": [crew]})
 	await eng._player_turn()
-	assert_eq(eng.state.momentum, 1, "+1 at the start of the player turn")
+	# +1 for the turn, +1 more because the opening had nothing else to offer
+	# a lone man with no ship behind him and took the income (test_turn_choice).
+	assert_eq(eng.state.momentum, 2, "+1 at the start of the player turn, +1 from the opening")
 
 
 func test_kill_grants_momentum() -> void:
@@ -35,12 +37,13 @@ func test_momentum_cap() -> void:
 	assert_eq(eng.state.momentum, 10, "capped at 10")
 
 
-func test_commit_reserve_costs_momentum() -> void:
+## The old momentum commit is gone: crossing a man is the turn's opening now
+## and costs no momentum at all — it costs the income you did not take
+## instead. The rest of that mechanism is tested in test_turn_choice.
+func test_the_opening_crossing_drains_no_momentum() -> void:
 	var crew := TestHelpers.grunt(P, "crew")
-	var eng := TestHelpers.engine_for({"player_reserve": [crew]})
-	eng._commit_reserve(crew)
-	assert_true(eng.state.player_reserve.has(crew), "no momentum, no commit")
-	eng.state.momentum = 1
-	eng._commit_reserve(crew)
-	assert_true(eng.state.player_formation.has(crew))
-	assert_eq(eng.state.momentum, 0)
+	var eng := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "held")],
+			"player_reserve": [crew]})
+	eng._apply_opening({"op": "reinforce", "character": crew}, eng.opening_options())
+	assert_true(eng.state.player_formation.has(crew), "he comes over for nothing")
+	assert_eq(eng.state.momentum, 0, "and the bank is untouched")
