@@ -177,7 +177,7 @@ func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
 
 
 ## The turn opens on a question the player must answer before he may play
-## anything: send a man over the rail for free, snap two of your own men into
+## anything: send a man over the rail for free, swap two of your own men into
 ## each other's places, or take the income (+1 momentum and +1 card on top of
 ## the turn's own). The engine says which of the three are open; the bar
 ## offers exactly those, and the hand stays locked until one is taken.
@@ -1028,7 +1028,7 @@ func _build_top_bar() -> Control:
 	var lead := UIPalette.label("Choose one:", UIPalette.FONT_BODY, UIPalette.GOLD)
 	lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_opening_bar.add_child(lead)
-	for entry in [["reinforce", "Reinforce"], ["swap", "Snap"], ["income", "+1 & draw"]]:
+	for entry in [["reinforce", "Reinforce"], ["swap", "Swap"], ["income", "+1M & draw"]]:
 		var op: String = entry[0]
 		var button := Button.new()
 		button.text = entry[1]

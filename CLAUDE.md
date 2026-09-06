@@ -96,7 +96,10 @@ tugs at a card that cannot move. Smoke boards the veteran raid with
 Careful Assault and asserts the chip, the sidebar and End Turn are all on
 the canvas; on the way it exposed that the maneuver picker's old options
 were only queue_freed, so a same-frame press found a stale button — they
-are detached at once now. 1501 unit + 262 smoke. The owner's screenshot
+are detached at once now. Then the owner relabeled the buttons from his
+first play: "Swap" (not Snap) and "+1M & draw" (the M says what the +1
+is); the engine op ids (`swap`, `income`) are unchanged. 1501 unit + 262
+smoke. The owner's screenshot
 was the first real-browser look: the build renders, scales, and boards.
 Earlier: **the playtest feedback slice** (owner's three asks, 2026-09-06; one
 UI commit + one docs commit). (a) **Scenario menu**: the scene boots on a

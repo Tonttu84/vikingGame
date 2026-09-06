@@ -124,8 +124,8 @@ static func card_shove(card: CardData, target: Character, directions: Array) -> 
 static func opening(turn: int, options: Array) -> String:
 	var text := ("Turn %d opens on one forced choice before any card may be played. " +
 			"REINFORCE: a man off your ship crosses free into a slot you pick. " +
-			"SNAP: two of your men trade places, on deck or across the rail. " +
-			"+1 & DRAW: the income, +1 momentum and +1 card on top of the turn's own. " +
+			"SWAP: two of your men trade places, on deck or across the rail. " +
+			"+1M & DRAW: the income, +1 momentum and +1 card on top of the turn's own. " +
 			"The two free moves cost you exactly that income. " +
 			"Press one of the three gold buttons in the top bar; the hand stays dimmed " +
 			"until you have.") % turn
@@ -133,7 +133,7 @@ static func opening(turn: int, options: Array) -> String:
 	if not options.has("reinforce"):
 		refused.append("Reinforce (the grid is full, or nobody on the ship may cross)")
 	if not options.has("swap"):
-		refused.append("Snap (no fielded man has anyone to trade with)")
+		refused.append("Swap (no fielded man has anyone to trade with)")
 	if not refused.is_empty():
 		text += " Greyed out this turn: %s." % "; ".join(refused)
 	return text
@@ -153,9 +153,9 @@ static func opening_slot(character: Character, free_slots: Array) -> String:
 
 
 static func opening_swapper(turn: int, swappers: Array) -> String:
-	return ("Turn %d, the opening — the free snap. Click the fielded man who moves; next you " +
+	return ("Turn %d, the opening — the free swap. Click the fielded man who moves; next you " +
 			"name who he changes places with, a fellow on deck or a man on the ship. " +
-			"Lit: %s. Taking the snap forfeits the income (+1 momentum and +1 card). " +
+			"Lit: %s. Taking the swap forfeits the income (+1 momentum and +1 card). " +
 			"Cancel goes back to the three choices.") % [turn, _names(swappers)]
 
 

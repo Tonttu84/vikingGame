@@ -534,7 +534,7 @@ func _run() -> void:
 				"the bar offers exactly what the engine allows: " + op)
 	# The three buttons are explained in full before anything is pressed.
 	await check_explained(ui, "the opening", ["Turn 1 opens on one forced choice",
-			"REINFORCE", "SNAP", "+1 & DRAW"])
+			"REINFORCE", "SWAP", "+1M & DRAW"])
 	var hand_before: int = ui.engine.state.hand.size()
 	var momentum_before: int = ui.engine.state.momentum
 	(ui._opening_buttons["income"] as Button).pressed.emit()
@@ -946,7 +946,7 @@ func _run() -> void:
 			await process_frame
 		if not ui._pick.is_empty():
 			var snapper: Character = ui._pick["options"][0]["value"]
-			await check_explained(ui, "the opening's snap pick", ["free snap",
+			await check_explained(ui, "the opening's swap pick", ["free swap",
 					snapper.display_name, "forfeits the income"])
 			ui.choose_pick(ui._pick["options"][0])
 			for i in 3:
