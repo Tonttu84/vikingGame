@@ -508,10 +508,24 @@ func _run() -> void:
 			and ui._opening_bar.get_global_rect().end.y <= CANVAS.y,
 			"the opening bar is inside the canvas")
 	var gated := true
+	var dimmed := true
 	for v in ui._hand_row.get_children():
 		if v.draggable:
 			gated = false
+		if v.bright:
+			dimmed = false
 	check(gated, "the hand is locked until the opening is answered")
+	check(dimmed, "and every face is dimmed while it is locked, so the lock is visible")
+	# The banner takes what the buttons leave; its text must never set the
+	# table's width (a long prompt beside a status chip once pushed the
+	# sidebar and both turn buttons past the canvas's right edge).
+	check(ui._turn_label.get_combined_minimum_size().x <= 1.0,
+			"the banner prompt claims no width of its own (min %.0f)"
+			% ui._turn_label.get_combined_minimum_size().x)
+	check(ui._status_label.get_combined_minimum_size().x <= ui.STATUS_MAX_WIDTH,
+			"the status chips are capped at %d wide" % int(ui.STATUS_MAX_WIDTH))
+	check(_has_label_containing(ui._opening_bar, "Choose one:"),
+			"the opening bar says it is the turn's question")
 	check(ui._end_turn_button.disabled, "the turn cannot be ended before the opening")
 	check(not ui._awaiting_action, "and the engine has not asked for an action yet")
 	for op in ["reinforce", "swap", "income"]:
@@ -988,11 +1002,21 @@ func _run() -> void:
 				% (ui.engine.state.enemy_captain.display_name if ui.engine.state.enemy_captain else "nobody"))
 		check(ui.roster_source.contains("Eirik"),
 				"the debug panel's setup follows the menu's choice")
-		_press_maneuver(ui, "dawn_raid")
+		# Careful Assault this time: its lasting effect puts a status chip in
+		# the banner beside the opening's buttons — the exact state in which
+		# the owner's browser showed the sidebar and both turn buttons pushed
+		# off the canvas.
+		_press_maneuver(ui, "careful_assault")
 		await _await_until(func() -> bool:
 			return ui.engine.state.turn == 1 and ui._awaiting_opening,
 			"the veteran raid runs to its first opening")
-		await check_fits_canvas(ui, "the veteran raid's turn 1")
+		check(ui._status_label.text.contains("Careful advance"),
+				"the status chip is up beside the opening bar (saw '%s')" % ui._status_label.text)
+		await check_fits_canvas(ui, "the veteran raid's turn 1, status chip and opening bar together")
+		check(ui._sidebar_column.get_global_rect().end.x <= CANVAS.x,
+				"the sidebar is on the canvas (ends at %.0f)" % ui._sidebar_column.get_global_rect().end.x)
+		check(ui._end_turn_button.get_global_rect().end.x <= CANVAS.x,
+				"and so is the End Turn button")
 
 	ui.queue_free()
 	for i in 3:

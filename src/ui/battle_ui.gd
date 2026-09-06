@@ -58,6 +58,9 @@ var _player_back_row: HBoxContainer
 var _player_reserve_row: HBoxContainer
 const SIDEBAR_WIDTH := 285
 const HAND_SEPARATION := 8
+## The most the banner's status chips may claim before they ellipsize; the
+## full line lives on their tooltip. Text never sets the table's width.
+const STATUS_MAX_WIDTH := 240.0
 ## What the board column is given once the margins and the sidebar have taken
 ## their share of the 1280-wide canvas: 1280 - 2*10 margin - 285 - 10 gap.
 const TABLE_WIDTH := 965.0
@@ -163,7 +166,10 @@ func _exit_tree() -> void:
 func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
 	_turn_text = "The boarding — how do you come over the rail?"
 	refresh(state)
+	# Detached at once, not merely queued: a stale option from the last battle
+	# must not be found beside the fresh ones for the rest of this frame.
 	for child in _maneuver_options.get_children():
+		_maneuver_options.remove_child(child)
 		child.queue_free()
 	for maneuver in options:
 		_maneuver_options.add_child(_maneuver_option(maneuver))
@@ -178,7 +184,7 @@ func on_maneuver_prompt(state: BattleState, options: Array[CardData]) -> void:
 func on_opening_prompt(state: BattleState) -> void:
 	_awaiting_opening = true
 	_opening_options = engine.opening_options()
-	_turn_text = "Turn %d — the opening: cross a man, snap two, or take the income" % state.turn
+	_turn_text = "Turn %d — the opening" % state.turn
 	refresh(state)
 
 
@@ -769,7 +775,10 @@ func _refresh_hand(state: BattleState) -> void:
 	for card in state.hand:
 		var affordable := _affordable(card)
 		var draggable := _awaiting_action and _pick.is_empty() and affordable
-		var view := CardView.create(card, self, draggable, affordable, card_width)
+		# A face is bright exactly when it can be picked up: a hand locked
+		# behind the opening (or a pick) is dimmed as one, so nobody tugs at a
+		# card wondering why nothing happens.
+		var view := CardView.create(card, self, draggable, draggable, card_width)
 		_hand_row.add_child(view)
 
 
@@ -799,8 +808,21 @@ func _refresh_hud(state: BattleState) -> void:
 	_piles_label.text = "Deck %d · Discard %d" % [state.deck.size(), state.discard.size()]
 	_end_turn_button.disabled = not _awaiting_action or picking
 	_retreat_button.disabled = not _awaiting_action or picking
-	_status_label.text = " · ".join(_active_effects(state))
+	_set_status(" · ".join(_active_effects(state)))
 	_refresh_explanation()
+
+
+## The status chips claim their own width up to STATUS_MAX_WIDTH and ellipsize
+## past it (full text on the tooltip). A label that demands its whole text
+## width once pushed the sidebar and both turn buttons off the canvas —
+## "Careful advance — hits softened" beside the opening's three buttons.
+func _set_status(text: String) -> void:
+	_status_label.text = text
+	_status_label.tooltip_text = text
+	var font := ThemeDB.fallback_font
+	var natural := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			UIPalette.FONT_BODY).x if font != null else STATUS_MAX_WIDTH
+	_status_label.custom_minimum_size.x = minf(natural, STATUS_MAX_WIDTH)
 
 
 # --- The explanation overlay: what is happening, in so many words ------------
@@ -985,19 +1007,32 @@ func _build_top_bar() -> Control:
 	bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	_turn_label = UIPalette.label("Turn 1", UIPalette.FONT_TITLE, UIPalette.PARCHMENT)
 	_turn_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# The banner takes what the buttons leave and ellipsizes past it: the
+	# prompt must never set the table's width (the full words are on the
+	# explanation panel anyway). A label sized from its own text is how the
+	# sidebar ended up past the canvas's right edge.
+	_turn_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	bar.add_child(_turn_label)
 	_status_label = UIPalette.label("", UIPalette.FONT_BODY, UIPalette.GOLD)
+	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_status_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	bar.add_child(_status_label)
 	# The opening's three buttons share the banner row with the pick prompt
 	# and its Cancel — the table already fits the 800px canvas with a few
 	# pixels to spare, so a bar of its own would push the hand off the bottom.
+	# They wear gold, with a lead-in, so they read as the turn's question and
+	# not as three more utilities beside "How it works".
 	_opening_bar = HBoxContainer.new()
 	_opening_bar.add_theme_constant_override("separation", 4)
 	_opening_bar.visible = false
+	var lead := UIPalette.label("Choose one:", UIPalette.FONT_BODY, UIPalette.GOLD)
+	lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_opening_bar.add_child(lead)
 	for entry in [["reinforce", "Reinforce"], ["swap", "Snap"], ["income", "+1 & draw"]]:
 		var op: String = entry[0]
 		var button := Button.new()
 		button.text = entry[1]
+		UIPalette.style_choice_button(button)
 		button.tooltip_text = _OPENING_TOOLTIPS[op]
 		button.pressed.connect(func() -> void: _choose_opening(op))
 		_opening_bar.add_child(button)

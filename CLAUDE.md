@@ -80,7 +80,25 @@ question still stay in the main conversation regardless of model.
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the playtest feedback slice** (owner's three asks, 2026-09-06; one
+Done: **the browser fit fix** (owner's first look at the web build,
+2026-09-06). The banner row's labels claimed their full text width, so
+"Turn 1 — the opening: cross a man, snap two, or take the income" beside
+Careful Assault's status chip and the three opening buttons made the
+table 1141 wide and pushed the sidebar, End Turn and Retreat off the
+1280 canvas — smoke never saw it because it boarded with Dawn Raid,
+which has no chip. Now the prompt ellipsizes (min width 0), the status
+chips cap at STATUS_MAX_WIDTH 240 with the full line on their tooltip,
+the opening prompt is just "Turn N — the opening", the three buttons
+wear gold behind a "Choose one:" lead-in (`UIPalette.style_choice_button`)
+so they read as the turn's question rather than utilities beside "How it
+works", and a locked hand renders DIM (bright == draggable) so nobody
+tugs at a card that cannot move. Smoke boards the veteran raid with
+Careful Assault and asserts the chip, the sidebar and End Turn are all on
+the canvas; on the way it exposed that the maneuver picker's old options
+were only queue_freed, so a same-frame press found a stale button — they
+are detached at once now. 1501 unit + 262 smoke. The owner's screenshot
+was the first real-browser look: the build renders, scales, and boards.
+Earlier: **the playtest feedback slice** (owner's three asks, 2026-09-06; one
 UI commit + one docs commit). (a) **Scenario menu**: the scene boots on a
 menu layer (title, one entry per `Scenarios.scenario_ids()` with the new
 `Scenarios.title(id)` / `Scenarios.blurb(id)`, tested in
@@ -114,8 +132,7 @@ retune's brief: read human play"): fight length is already where the
 owner wants it for a human; the cost of victory is the missing pressure;
 sims are the regression guard, never the judge. 1501 unit + 255 smoke
 (no skips). Screenshots taken under xvfb confirmed the menu, the opening
-overlay, the slot pick and the rider pick render as designed; the WEB
-BUILD IN A BROWSER IS STILL UNVERIFIED.
+overlay, the slot pick and the rider pick render as designed.
 Earlier: **classes and names** (owner's ruling 2026-09-06). Every man has a
 class derived from what the rules already know — `Character.role_label()`:
 Captain / Prowman / Berserker / Shieldman by flag (flags first), then
@@ -337,8 +354,7 @@ no visible control escapes the canvas (clipping-aware), both turn buttons are
 on screen, every card keeps the fixed box, and the board does not move when a
 card is picked up. Layout regressions from new card text are now caught by a
 test instead of by playing. 747 unit + 90 smoke.
-NOT verified: nobody has looked at the rebuilt web build in a browser — the
-fixes are proven by measurement and tests only. `make serve` to check.
+(Since verified in a browser by the owner on 2026-09-06.)
 Earlier: **phase D chunk 3 — the closing rule** (ruling in
 docs/lines-redesign.md): a man whose column is empty forfeits his swing and
 steps one column toward the nearest column with someone in it (port on
@@ -495,7 +511,7 @@ Agreed next slices, in rough priority:
    after he has played): (a) deterministic vs seeded-random tactic
    rotation — the command already fires on a fixed beat either way;
    (b) content for later captains' commands. Playtest entry point:
-   `make serve` (also still unverified in a real browser since the
+   `make serve` (verified in a real browser by the owner, 2026-09-06, after the
    fixed-box UI rework).
 2. Officer system, rest of it (first slice — the prow pair — shipped;
    remaining: event rolls, further officer roles).

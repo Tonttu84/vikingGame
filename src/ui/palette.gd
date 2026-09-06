@@ -37,6 +37,32 @@ static func bar_style(fill: Color) -> StyleBoxFlat:
 	return style
 
 
+## A button that IS the question on the table — the opening's three — dressed
+## apart from the utility buttons: gold rim and gold text, sea behind it.
+static func style_choice_button(button: Button) -> void:
+	var normal := panel(SEA_LIGHT, GOLD, 2, 4)
+	normal.set_content_margin_all(4)
+	normal.content_margin_left = 10
+	normal.content_margin_right = 10
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = SEA_LIGHT.lightened(0.15)
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = GOLD.darkened(0.4)
+	var disabled := normal.duplicate() as StyleBoxFlat
+	disabled.bg_color = SEA
+	disabled.border_color = IRON
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", hover)
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_color_override("font_color", GOLD)
+	button.add_theme_color_override("font_hover_color", PARCHMENT)
+	button.add_theme_color_override("font_pressed_color", PARCHMENT)
+	button.add_theme_color_override("font_focus_color", GOLD)
+	button.add_theme_color_override("font_disabled_color", IRON)
+
+
 static func label(text: String, size := FONT_BODY, color := PARCHMENT) -> Label:
 	var l := Label.new()
 	l.text = text

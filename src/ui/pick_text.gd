@@ -126,7 +126,9 @@ static func opening(turn: int, options: Array) -> String:
 			"REINFORCE: a man off your ship crosses free into a slot you pick. " +
 			"SNAP: two of your men trade places, on deck or across the rail. " +
 			"+1 & DRAW: the income, +1 momentum and +1 card on top of the turn's own. " +
-			"The two free moves cost you exactly that income.") % turn
+			"The two free moves cost you exactly that income. " +
+			"Press one of the three gold buttons in the top bar; the hand stays dimmed " +
+			"until you have.") % turn
 	var refused: Array[String] = []
 	if not options.has("reinforce"):
 		refused.append("Reinforce (the grid is full, or nobody on the ship may cross)")
