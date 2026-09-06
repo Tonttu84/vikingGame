@@ -87,6 +87,11 @@ func sync_seed(value: int) -> void:
 	_seed_spin.value = value
 
 
+## The boot menu picked a scenario: the editor shows the setup now in play.
+func sync_roster(text: String) -> void:
+	_roster_edit.text = text
+
+
 func show_errors(errors: Array[String]) -> void:
 	visible = true
 	_errors_label.text = "\n".join(errors)

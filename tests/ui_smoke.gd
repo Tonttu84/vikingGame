@@ -91,6 +91,55 @@ func _press_maneuver(ui, maneuver_id: String) -> void:
 	failures.append("maneuver option not found: " + maneuver_id)
 
 
+## Press the Board button on the boot menu's entry for the given scenario id.
+func _press_menu(ui, scenario_id: String) -> void:
+	for option in ui._menu_options.get_children():
+		if option.get_meta("scenario_id", "") == scenario_id:
+			(option.get_meta("button") as Button).pressed.emit()
+			return
+	failures.append("menu option not found: " + scenario_id)
+
+
+## The explanation overlay (owner's ask: say what is happening at EVERY pick)
+## is up and says this, in so many words.
+func _explanation_says(ui, needle: String) -> bool:
+	return ui._explain_panel != null and ui._explain_panel.is_visible_in_tree() \
+			and _has_label_containing(ui._explain_panel, needle)
+
+
+## One explanation check per pick kind: the overlay is up, carries the words,
+## fits the canvas, and never covers a single thing the pick asks the player
+## to click — a lit token or a lit slot.
+func check_explained(ui, stage: String, needles: Array) -> void:
+	await process_frame
+	check(ui._explain_panel != null and ui._explain_panel.is_visible_in_tree(),
+			"%s: the explanation overlay is up" % stage)
+	for needle: String in needles:
+		check(_explanation_says(ui, needle),
+				"%s: the explanation says \"%s\"" % [stage, needle])
+	if ui._explain_panel == null:
+		return
+	var panel_rect: Rect2 = ui._explain_panel.get_global_rect()
+	check(panel_rect.size.y > 0.0 and panel_rect.end.y <= CANVAS.y + 0.5
+			and panel_rect.end.x <= CANVAS.x + 0.5,
+			"%s: the explanation fits the canvas (%.0f,%.0f %.0fx%.0f)" % [
+					stage, panel_rect.position.x, panel_rect.position.y,
+					panel_rect.size.x, panel_rect.size.y])
+	var covered: Array[String] = []
+	for row in [ui._player_front_row, ui._player_back_row, ui._player_reserve_row,
+			ui._enemy_front_row, ui._enemy_back_row]:
+		for t in _tokens_in(row):
+			if t.highlighted() and panel_rect.intersects(t.get_global_rect()):
+				covered.append(t.character.display_name)
+	for slot in _all_slots(ui):
+		if not slot.pick_option.is_empty() and panel_rect.intersects(slot.get_global_rect()):
+			covered.append("slot %d-%d" % [slot.line, slot.col])
+	check(covered.is_empty(),
+			"%s: the explanation covers nothing it asks you to click (%s)" % [
+					stage, ", ".join(covered)])
+	await check_fits_canvas(ui, stage + " explained")
+
+
 ## The engine paces itself for animations (0.3s beats), so the smoke test
 ## waits on conditions, never on fixed frame counts.
 func _await_until(predicate: Callable, what: String, max_frames := 300) -> void:
@@ -337,9 +386,12 @@ func check_card_hover_preview(ui) -> void:
 	ui.show_card_preview(view)
 	ui.on_card_drag_started(card)
 	check(not ui._card_preview_layer.visible, "starting a drag hides the preview")
+	# ... and explains, while the card is in the air, what it will light and why.
+	await check_explained(ui, "a card in the air", [card.display_name, "Drop it"])
 	ui._drag_card = null
 	ui._render()
 	await process_frame
+	check(ui._explain_panel == null, "dropping the card takes its explanation down")
 
 	# Every card in the library gets a preview that fits the canvas — however
 	# wordy — because the guarantee "clipped on the face, full on the preview"
@@ -392,6 +444,15 @@ func check_a_full_hand_fits(ui) -> void:
 	await process_frame
 
 
+func _all_buttons(node: Node) -> Array:
+	var out: Array = []
+	if node is Button:
+		out.append(node)
+	for c in node.get_children():
+		out.append_array(_all_buttons(c))
+	return out
+
+
 func _all_slots(node: Node) -> Array:
 	var out: Array = []
 	if node is SlotPanel:
@@ -407,10 +468,25 @@ func _run() -> void:
 	var ui = scene.instantiate()
 	root.add_child(ui)
 
+	# The boot menu first: no battle runs until a scenario is chosen.
+	await _await_until(func() -> bool: return ui._menu_layer.visible, "boot menu shown")
+	check(ui.engine == null, "no battle before the menu is answered")
+	await check_fits_canvas(ui, "the boot menu")
+	check(ui._menu_options.get_child_count() == Scenarios.scenario_ids().size(),
+			"one menu entry per registered scenario, saw %d" % ui._menu_options.get_child_count())
+	for id in Scenarios.scenario_ids():
+		check(_has_label_containing(ui._menu_layer, Scenarios.title(id)),
+				"the menu names " + Scenarios.title(id))
+		check(_has_label_containing(ui._menu_layer, Scenarios.blurb(id)),
+				"and carries its blurb")
+	check(ui._explain_panel == null, "nothing to explain while the menu is up")
+	_press_menu(ui, "skirmish")
+
 	# The battle parks on the maneuver picker before turn 1.
 	await _await_until(func() -> bool:
 		return ui.engine != null and ui._maneuver_layer.visible,
 		"maneuver picker shown")
+	check(not ui._menu_layer.visible, "the menu is gone once a scenario is chosen")
 	check(ui.engine != null, "engine created")
 	check(ui.engine.state.boarding_maneuver == null, "nothing auto-played before the pick")
 	await check_fits_canvas(ui, "the maneuver picker")
@@ -442,6 +518,9 @@ func _run() -> void:
 		check((ui._opening_buttons[op] as Button).disabled
 				== not ui._opening_options.has(op),
 				"the bar offers exactly what the engine allows: " + op)
+	# The three buttons are explained in full before anything is pressed.
+	await check_explained(ui, "the opening", ["Turn 1 opens on one forced choice",
+			"REINFORCE", "SNAP", "+1 & DRAW"])
 	var hand_before: int = ui.engine.state.hand.size()
 	var momentum_before: int = ui.engine.state.momentum
 	(ui._opening_buttons["income"] as Button).pressed.emit()
@@ -451,6 +530,8 @@ func _run() -> void:
 			"the income drew its card (%d -> %d)" % [hand_before, ui.engine.state.hand.size()])
 	check(ui.engine.state.momentum == momentum_before + 1, "and paid its momentum")
 	check(not ui._opening_bar.visible, "the bar is gone once the opening is spent")
+	await process_frame
+	check(ui._explain_panel == null, "and its explanation with it — nothing is being asked")
 	var unlocked := false
 	for v in ui._hand_row.get_children():
 		if v.draggable:
@@ -531,6 +612,8 @@ func _run() -> void:
 			"the prompt names the card and the fixed movement, saw: %s"
 			% ui._pick.get("prompt", ""))
 	check(not ui._pick_cancel_button.visible, "a mandatory rider offers no cancel")
+	await check_explained(ui, "the rider pick", ["Shield Wall has resolved",
+			"give ground", "What each step would do", "no cancel"])
 	check(ui._end_turn_button.disabled, "the turn cannot be ended out from under a pick")
 	var lit := 0
 	for t in _tokens_in(ui._player_front_row) + _tokens_in(ui._player_back_row):
@@ -575,6 +658,9 @@ func _run() -> void:
 			await _drag(view.get_global_rect().get_center(),
 					target_slot.get_global_rect().get_center())
 			check(not ui._pick.is_empty(), "dropping Reinforce asks who comes over")
+			await check_explained(ui, "the Reinforce crosser pick", ["Reinforce",
+					"second crossing", PickText.slot_name_at(index),
+					"Cancel puts the card back"])
 			var crosser: Character = ui._pick["options"][0]["value"]
 			check(ui._pick_cancel_button.visible, "a card pick can still be backed out of")
 			ui.choose_pick(ui._pick["options"][0])
@@ -601,9 +687,14 @@ func _run() -> void:
 		if not ui._pick.is_empty() and ui._pick["options"][0].get("character") != null:
 			crosser = ui._pick["options"][0]["value"]
 			check(ui._pick_cancel_button.visible, "the opening's pick can be backed out of")
+			await check_explained(ui, "the opening's crosser pick", ["free crossing",
+					crosser.display_name, "forfeits the income"])
 			ui.choose_pick(ui._pick["options"][0])
 			for i in 3:
 				await process_frame
+			if not ui._pick.is_empty():
+				await check_explained(ui, "the opening's slot pick",
+						[crosser.display_name + " crosses free", "Front slots fight"])
 		var lit_slot = null
 		for row in [ui._player_front_row, ui._player_back_row]:
 			for child in row.get_children():
@@ -740,11 +831,168 @@ func _run() -> void:
 	else:
 		skipped.append("the prow-pair reserve row (battle already decided)")
 
+	# Every other pick kind explains itself too: the Trade Places partner, the
+	# Taunt anchor, the Break the Line direction, and the opening's snap. Each
+	# is opened for real off a card and backed out of. After the prow pair,
+	# because the snap ends a turn and a decided battle would skip that check.
+	await _settle(ui)
+	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
+		var trade := CardLibrary.swap()
+		_put_in_hand(ui, trade)
+		ui.engine.state.momentum = maxi(ui.engine.state.momentum, trade.cost)
+		ui.refresh(ui.engine.state)
+		var mover: Character = null
+		for ch: Character in ui.engine.state.player_formation.fielded():
+			if mover == null and ui.engine.swap_partners(ch).size() >= 2:
+				mover = ch
+		if mover != null:
+			ui.play_card(trade, mover)
+			check(not ui._pick.is_empty(), "Trade Places asks for the partner")
+			await check_explained(ui, "the Trade Places partner pick",
+					[trade.display_name, mover.display_name + " will change places",
+					"Cancel puts the card back"])
+			ui.cancel_pick()
+			check(ui._pick.is_empty() and ui.engine.state.hand.has(trade),
+					"backing out leaves the card in hand")
+		else:
+			skipped.append("the Trade Places partner pick (nobody with two partners)")
+
+		var taunt := CardLibrary.taunt()
+		_put_in_hand(ui, taunt)
+		ui.engine.state.momentum = maxi(ui.engine.state.momentum, taunt.cost)
+		ui.refresh(ui.engine.state)
+		var called_out: Character = null
+		for e: Character in ui.engine.state.enemy_formation.fielded():
+			var anchors := 0
+			for ch: Character in ui.engine.state.player_formation.fielded():
+				if ui.engine.taunt_targets(ch).has(e):
+					anchors += 1
+			if called_out == null and anchors >= 2 and ui.engine.can_play(taunt, e):
+				called_out = e
+		if called_out != null:
+			ui.play_card(taunt, called_out)
+			check(not ui._pick.is_empty(), "Taunt asks who he answers to")
+			await check_explained(ui, "the Taunt anchor pick",
+					[taunt.display_name, called_out.display_name + " is called out",
+					"front slot of that man's column"])
+			ui.cancel_pick()
+		else:
+			skipped.append("the Taunt anchor pick (no defender with two anchors)")
+
+		var shove := CardLibrary.break_the_line()
+		_put_in_hand(ui, shove)
+		ui.engine.state.momentum = maxi(ui.engine.state.momentum, shove.cost)
+		ui.refresh(ui.engine.state)
+		var shoved: Character = null
+		for e: Character in ui.engine.state.enemy_formation.fielded():
+			if shoved == null and ui.engine.shove_directions(e).size() == 2 \
+					and ui.engine.can_play(shove, e):
+				shoved = e
+		if shoved == null:
+			# A defender free on BOTH sides is rare in a packed rail, and a pick
+			# with one answer resolves itself. Arrange one: an unpinned front man
+			# is stood in column 2 and his front-line neighbours sent back to
+			# their reserve. This is the last battle state the run inspects, so
+			# the surgery costs nothing downstream.
+			var ef: Formation = ui.engine.state.enemy_formation
+			var subject: Character = null
+			for col in Formation.COLUMNS:
+				var e := ef.at(Formation.FRONT, col)
+				if subject == null and e != null and e.pinned == 0:
+					subject = e
+			if subject != null:
+				for col in [0, 1, 2]:
+					var other := ef.at(Formation.FRONT, col)
+					if other != null and other != subject:
+						ef.remove(other)
+						ui.engine.state.enemy_reserve.append(other)
+				if ef.column_of(subject) != 1:
+					ef.remove(subject)
+					ef.place(subject, Formation.FRONT, 1)
+				ui.refresh(ui.engine.state)
+				if ui.engine.shove_directions(subject).size() == 2 \
+						and ui.engine.can_play(shove, subject):
+					shoved = subject
+		if shoved != null:
+			ui.play_card(shove, shoved)
+			check(not ui._pick.is_empty(), "Break the Line asks which way")
+			await check_explained(ui, "the Break the Line direction pick",
+					[shove.display_name, shoved.display_name + " is shoved", "port or starboard"])
+			ui.cancel_pick()
+		else:
+			skipped.append("the Break the Line direction pick (no defender free both ways)")
+		ui.refresh(ui.engine.state)
+
+	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
+		ui.submit({"op": "end"})
+		await _await_opening(ui)
+	if ui._awaiting_opening and ui._opening_options.has("swap"):
+		(ui._opening_buttons["swap"] as Button).pressed.emit()
+		for i in 3:
+			await process_frame
+		if not ui._pick.is_empty():
+			var snapper: Character = ui._pick["options"][0]["value"]
+			await check_explained(ui, "the opening's snap pick", ["free snap",
+					snapper.display_name, "forfeits the income"])
+			ui.choose_pick(ui._pick["options"][0])
+			for i in 3:
+				await process_frame
+			# One partner and the pick answers itself — the snap is taken; more
+			# than one and the partner pick explains itself and can be backed out.
+			if not ui._pick.is_empty():
+				await check_explained(ui, "the opening's snap partner pick",
+						[snapper.display_name + " changes places", "takes his exact slot"])
+				ui.cancel_pick()
+				for i in 3:
+					await process_frame
+				check(ui._awaiting_opening and ui._opening_bar.visible,
+						"backing out of the snap brings the three choices back")
+	else:
+		skipped.append("the opening's snap pick (battle already decided)")
+	await _await_player(ui)
+
 	# Last look, with the board as full and as lit as this run ever got it.
 	await check_fits_canvas(ui, "late battle")
 	# Kept to the end: this one fakes a card pick-up, and a faked drag would
 	# disturb the real drag-and-drop checks above.
 	await check_lighting_does_not_move_the_board(ui)
+
+	# The way back: the outcome screen offers "Choose scenario", which returns
+	# to the boot menu, and the menu boards the OTHER scenario for real.
+	await _settle(ui)
+	ui._show_outcome({"outcome": "RETREAT", "turns": ui.engine.state.turn,
+			"player_dead": 0, "player_fled": 0, "player_survivors": 0,
+			"enemy_dead": 0, "enemy_routed": 0})
+	await process_frame
+	check(ui._outcome_layer.visible, "an outcome is on screen")
+	var choose_button: Button = null
+	for node in _all_buttons(ui._outcome_layer):
+		if node.text == "Choose scenario":
+			choose_button = node
+	check(choose_button != null, "the outcome screen offers Choose scenario")
+	await check_fits_canvas(ui, "the outcome screen")
+	if choose_button != null:
+		choose_button.pressed.emit()
+		await process_frame
+		check(ui._menu_layer.visible, "Choose scenario brings the boot menu back")
+		check(not ui._outcome_layer.visible, "and takes the outcome down")
+		var skirmish_engine = ui.engine
+		_press_menu(ui, "veteran")
+		await _await_until(func() -> bool:
+			return ui.engine != skirmish_engine and ui._maneuver_layer.visible,
+			"the veteran raid offers its maneuver picker")
+		check(ui.engine != skirmish_engine, "boarding from the menu builds a fresh engine")
+		check(ui.engine.state.enemy_captain != null
+				and ui.engine.state.enemy_captain.display_name.contains("Eirik"),
+				"and it is the veteran raid: the jarl is Eirik, saw %s"
+				% (ui.engine.state.enemy_captain.display_name if ui.engine.state.enemy_captain else "nobody"))
+		check(ui.roster_source.contains("Eirik"),
+				"the debug panel's setup follows the menu's choice")
+		_press_maneuver(ui, "dawn_raid")
+		await _await_until(func() -> bool:
+			return ui.engine.state.turn == 1 and ui._awaiting_opening,
+			"the veteran raid runs to its first opening")
+		await check_fits_canvas(ui, "the veteran raid's turn 1")
 
 	ui.queue_free()
 	for i in 3:

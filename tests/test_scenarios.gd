@@ -152,3 +152,24 @@ func test_no_two_crewmen_share_a_first_name_and_nobody_doubles_a_unique() -> voi
 				assert_false(reserved.has(c.given_name),
 						"%s: %s doubles a unique's name" % [id, c.given_name])
 				seen[c.given_name] = true
+
+
+## The boot menu prints the registry: every scenario carries a title and a
+## one-line blurb the menu can show, and asking about an unknown id is empty
+## rather than a crash — the menu never invents a battle.
+func test_every_scenario_has_a_title_and_a_blurb() -> void:
+	for id in Scenarios.scenario_ids():
+		assert_true(Scenarios.title(id) != "", "%s has a title" % id)
+		assert_true(Scenarios.blurb(id).length() > 20, "%s has a real blurb" % id)
+		assert_true(Scenarios.blurb(id).ends_with("."), "%s's blurb is a sentence" % id)
+	assert_eq(Scenarios.title("no_such_battle"), "")
+	assert_eq(Scenarios.blurb("no_such_battle"), "")
+
+
+func test_titles_are_distinct_and_not_bare_ids() -> void:
+	var seen: Array[String] = []
+	for id in Scenarios.scenario_ids():
+		var title := Scenarios.title(id)
+		assert_false(seen.has(title), "title %s is unique" % title)
+		assert_true(title != id, "a title is more than the id: %s" % title)
+		seen.append(title)

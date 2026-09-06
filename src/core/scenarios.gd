@@ -47,6 +47,28 @@ static func by_id(p_id: String) -> Dictionary:
 	return {}
 
 
+## What the boot menu prints for each anchor: a title and one line saying
+## what kind of fight it is. Empty for an id the registry does not know —
+## the menu offers scenario_ids() and nothing else.
+static func title(p_id: String) -> String:
+	match p_id:
+		"skirmish": return "The Skirmish"
+		"veteran": return "The Veteran Raid"
+	return ""
+
+
+static func blurb(p_id: String) -> String:
+	match p_id:
+		"skirmish":
+			return ("Day one. A green crew with the starter deck boards a surprised " +
+					"but larger deck watch under Jarl Sigvard. The balance baseline.")
+		"veteran":
+			return ("A summer later. A bigger, blooded crew armored in plunder, with a " +
+					"fatter deck and loot clogging it, hits Jarl Eirik Iron-Hand's warship. " +
+					"Wins are graded by the butcher's bill.")
+	return ""
+
+
 ## Fixed seeds: the anchors' crews are generated, but the same crew every
 ## time — sims, tests and the saga all speak of the same men.
 const SKIRMISH_NAME_SEED := 793

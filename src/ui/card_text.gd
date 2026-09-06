@@ -33,6 +33,25 @@ static func summarize(card: CardData) -> String:
 	return "\n".join(lines)
 
 
+## The card's effects WITHOUT its movement rider, one short line each — what
+## the card has already done by the time the board asks who takes its step.
+static func summarize_effects(card: CardData) -> String:
+	var lines: Array[String] = []
+	for effect in card.effects:
+		if not is_rider(effect):
+			lines.append(_effect_short(effect))
+	return " ".join(lines)
+
+
+static func is_rider(effect: Dictionary) -> bool:
+	match effect.get("type"):
+		CardData.EffectType.RIDER_PORT, CardData.EffectType.RIDER_STARBOARD, \
+		CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
+		CardData.EffectType.RIDER_CLOSE:
+			return true
+	return false
+
+
 static func _effect_short(effect: Dictionary) -> String:
 	var amount: int = effect.get("amount", 0)
 	match effect.get("type"):

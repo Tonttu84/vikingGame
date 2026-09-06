@@ -35,6 +35,13 @@ var _drag_card: CardData = null
 ## An overlay above the table (never a layout child), so showing and hiding
 ## it cannot move the board by a pixel.
 var _card_preview_layer: Control
+## The words for whatever the board is asking right now (a pick, a card in
+## the air, the turn's opening), drawn OVER the sidebar so they consume no
+## layout space — the canvas has ~5px to spare. Rebuilt only when the text
+## changes; see _refresh_explanation.
+var _explain_panel: Control
+var _explain_key := ""
+var _sidebar_column: Control
 
 var _turn_label: Label
 var _intent_title: Label
@@ -74,11 +81,39 @@ var _pick_cancel_button: Button
 var _opening_bar: HBoxContainer
 var _opening_buttons := {}
 var _debug_panel: DebugPanel
+var _menu_layer: Control
+var _menu_options: VBoxContainer
 
 
 func _ready() -> void:
 	roster_source = RosterText.serialize(Scenarios.default_skirmish())
 	_build_layout()
+	show_menu()
+
+
+## The boot menu: one entry per registered scenario. Also the way back from a
+## finished battle ("Choose scenario" on the outcome screen), so a running or
+## finished battle is unwound first, exactly as a restart would.
+func show_menu() -> void:
+	if controller != null:
+		controller.abort()
+	_outcome_layer.visible = false
+	_maneuver_layer.visible = false
+	_pick = {}
+	_drag_card = null
+	_awaiting_action = false
+	_awaiting_opening = false
+	_menu_layer.visible = true
+	_refresh_explanation()
+
+
+func choose_scenario(id: String) -> void:
+	var scenario := Scenarios.by_id(id)
+	if scenario.is_empty():
+		return
+	roster_source = RosterText.serialize(scenario)
+	_debug_panel.sync_roster(roster_source)
+	_menu_layer.visible = false
 	start_battle()
 
 
@@ -171,6 +206,7 @@ func on_rider_prompt(state: BattleState, card: CardData, moves: Array[Dictionary
 	for move in moves:
 		options.append(_token_option(move["character"], move))
 	_begin_pick("%s — %s: which man?" % [card.display_name, CardText.rider_kind(card)],
+			PickText.rider(card, moves, state.player_formation),
 			options, false, func(move: Dictionary) -> void: _submit_rider(move))
 
 
@@ -231,19 +267,22 @@ func _emit_opening(answer: Dictionary) -> void:
 ## the board-pick mechanism, both may be backed out of (the bar comes straight
 ## back), and a step with only one answer resolves itself.
 func _begin_opening_reinforce() -> void:
+	var candidates := engine.crossing_candidates()
 	var options: Array[Dictionary] = []
-	for c in engine.crossing_candidates():
+	for c in candidates:
 		options.append(_token_option(c, c))
-	_begin_pick("The opening — who comes over the rail?", options, true,
+	_begin_pick("The opening — who comes over the rail?",
+			PickText.opening_crosser(engine.state.turn, candidates), options, true,
 			func(c: Character) -> void: _begin_opening_slot(c))
 
 
 func _begin_opening_slot(character: Character) -> void:
+	var free := engine.state.player_formation.free_indices()
 	var options: Array[Dictionary] = []
-	for index in engine.state.player_formation.free_indices():
+	for index in free:
 		options.append(_slot_option_at(Character.Side.PLAYER, index, index))
 	_begin_pick("%s crosses free — into which slot?" % character.display_name,
-			options, true,
+			PickText.opening_slot(character, free), options, true,
 			func(index: int) -> void:
 				submit_opening({"op": "reinforce", "character": character, "slot": index}),
 			character)
@@ -252,18 +291,22 @@ func _begin_opening_slot(character: Character) -> void:
 ## The free trade: which of your men moves, then who he changes places with —
 ## a fellow on deck or a man waiting on the ship.
 func _begin_opening_swap() -> void:
+	var swappers := engine.opening_swappers()
 	var options: Array[Dictionary] = []
-	for c in engine.opening_swappers():
+	for c in swappers:
 		options.append(_token_option(c, c))
-	_begin_pick("The opening — which man trades places?", options, true,
+	_begin_pick("The opening — which man trades places?",
+			PickText.opening_swapper(engine.state.turn, swappers), options, true,
 			func(c: Character) -> void: _begin_opening_partner(c))
 
 
 func _begin_opening_partner(mover: Character) -> void:
+	var partners := engine.swap_partners(mover)
 	var options: Array[Dictionary] = []
-	for c in engine.swap_partners(mover):
+	for c in partners:
 		options.append(_token_option(c, c))
-	_begin_pick("%s trades places with whom?" % mover.display_name, options, true,
+	_begin_pick("%s trades places with whom?" % mover.display_name,
+			PickText.opening_partner(mover, partners), options, true,
 			func(c: Character) -> void:
 				submit_opening({"op": "swap", "character": mover, "partner": c}),
 			mover)
@@ -289,19 +332,23 @@ func _emit_maneuver(card: CardData) -> void:
 ## Ask for one choice off the board. A single option answers itself — there
 ## is nothing to choose — and an empty list means the caller had nothing to
 ## ask (an impossible rider never gets here; the engine skips it in silence).
+## `prompt` is the banner's one line; `explanation` is the full account
+## (PickText: what just happened, what is asked, what the click does) shown
+## on the overlay — REQUIRED, so no pick site can leave the player guessing.
 ## `focus` is the man the question is ABOUT (who trades with HIM, which way
 ## is HE shoved) — he wears the white rim while the pick is open, so the
 ## player never loses track of what he selected.
-func _begin_pick(prompt: String, options: Array[Dictionary], cancellable: bool,
-		on_choice: Callable, focus: Character = null) -> void:
+func _begin_pick(prompt: String, explanation: String, options: Array[Dictionary],
+		cancellable: bool, on_choice: Callable, focus: Character = null) -> void:
+	assert(explanation != "", "every pick explains itself")
 	if options.is_empty():
 		return
 	if options.size() == 1:
 		on_choice.call(options[0]["value"])
 		_render()
 		return
-	_pick = {"prompt": prompt, "options": options, "cancellable": cancellable,
-			"on_choice": on_choice, "focus": focus}
+	_pick = {"prompt": prompt, "explanation": explanation, "options": options,
+			"cancellable": cancellable, "on_choice": on_choice, "focus": focus}
 	_render()
 
 
@@ -436,20 +483,23 @@ func play_card_on_slot(card: CardData, slot: int) -> void:
 func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 	var action := {"op": "play", "card": card, "target": target, "slot": slot}
 	if _card_has(card, CardData.EffectType.REINFORCE):
+		var candidates := engine.crossing_candidates()
 		var options: Array[Dictionary] = []
-		for c in engine.crossing_candidates():
+		for c in candidates:
 			options.append(_token_option(c, c))
-		_begin_pick("%s — who comes over the rail?" % card.display_name, options, true,
+		_begin_pick("%s — who comes over the rail?" % card.display_name,
+				PickText.card_crossing(card, slot, candidates), options, true,
 				func(crosser: Character) -> void:
 					action["target"] = crosser
 					submit(action))
 		return
 	if _card_has(card, CardData.EffectType.SWAP):
+		var partners := engine.swap_partners(target)
 		var options: Array[Dictionary] = []
-		for c in engine.swap_partners(target):
+		for c in partners:
 			options.append(_token_option(c, c))
 		_begin_pick("%s — who trades places with %s?" % [card.display_name, target.display_name],
-				options, true,
+				PickText.card_trade(card, target, partners), options, true,
 				func(partner: Character) -> void:
 					action["second_target"] = partner
 					submit(action), target)
@@ -458,24 +508,28 @@ func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 		# The shout names two men: the defender it is aimed at (already the
 		# drop target) and the man of yours he is dragged across to. The engine
 		# says which of your men that could be — never this scene.
-		var options: Array[Dictionary] = []
+		var anchors: Array[Character] = []
 		for c in engine.state.player_formation.fielded():
 			if engine.taunt_targets(c).has(target):
-				options.append(_token_option(c, c))
+				anchors.append(c)
+		var options: Array[Dictionary] = []
+		for c in anchors:
+			options.append(_token_option(c, c))
 		_begin_pick("%s — who does %s answer to?" % [card.display_name, target.display_name],
-				options, true,
+				PickText.card_taunt(card, target, anchors), options, true,
 				func(anchor: Character) -> void:
 					action["second_target"] = anchor
 					submit(action), target)
 		return
 	if _card_has(card, CardData.EffectType.SHOVE):
+		var directions := engine.shove_directions(target)
 		var options: Array[Dictionary] = []
 		var col := engine.state.enemy_formation.column_of(target)
-		for dir: int in engine.shove_directions(target):
+		for dir: int in directions:
 			options.append(_slot_option(Character.Side.ENEMY, Formation.FRONT, col + dir,
 					dir, "port" if dir < 0 else "starboard"))
 		_begin_pick("%s — which way is %s shoved?" % [card.display_name, target.display_name],
-				options, true,
+				PickText.card_shove(card, target, directions), options, true,
 				func(dir: int) -> void:
 					action["direction"] = dir
 					submit(action), target)
@@ -746,6 +800,44 @@ func _refresh_hud(state: BattleState) -> void:
 	_end_turn_button.disabled = not _awaiting_action or picking
 	_retreat_button.disabled = not _awaiting_action or picking
 	_status_label.text = " · ".join(_active_effects(state))
+	_refresh_explanation()
+
+
+# --- The explanation overlay: what is happening, in so many words ------------
+
+## The account of whatever the board is waiting on: an open pick's own words,
+## the card in the air, or the turn's opening. {} when nothing is asked.
+func _explanation() -> Dictionary:
+	if _menu_layer.visible or engine == null:
+		return {}
+	if not _pick.is_empty():
+		return {"title": _pick["prompt"], "body": _pick["explanation"]}
+	if _drag_card != null:
+		return {"title": "%s — where to?" % _drag_card.display_name,
+				"body": PickText.drag(_drag_card)}
+	if _awaiting_opening:
+		return {"title": "Turn %d — the opening" % engine.state.turn,
+				"body": PickText.opening(engine.state.turn, _opening_options)}
+	return {}
+
+
+## Drawn over the top of the sidebar — a plain Control that lays nothing out,
+## so the panel can sit on the enemy-reserve list without moving a pixel of
+## the table — and clipped by it. Rebuilt only when the words change; the
+## pace timer refreshes the board several times a second.
+func _refresh_explanation() -> void:
+	var words := _explanation()
+	var key: String = "" if words.is_empty() else words["title"] + "\n" + words["body"]
+	if key == _explain_key:
+		return
+	_explain_key = key
+	if _explain_panel != null:
+		_explain_panel.queue_free()
+		_explain_panel = null
+	if words.is_empty():
+		return
+	_explain_panel = PickText.build_panel(words["title"], words["body"], SIDEBAR_WIDTH)
+	_sidebar_column.add_child(_explain_panel)
 
 
 func _active_effects(state: BattleState) -> Array[String]:
@@ -846,7 +938,8 @@ func _build_layout() -> void:
 	table.add_child(_build_rail())
 	table.add_child(_build_player_zone())
 	table.add_child(_build_bottom_strip())
-	main.add_child(_build_log_panel())
+	_sidebar_column = _build_log_panel()
+	main.add_child(_sidebar_column)
 
 	# Above the table, below the modal layers: the hover preview may cover
 	# the board, but an outcome or the maneuver picker still covers IT.
@@ -859,6 +952,7 @@ func _build_layout() -> void:
 	_build_dialogs()
 	_build_outcome_layer()
 	_build_maneuver_layer()
+	_build_menu_layer()
 	_debug_panel = DebugPanel.create(self)
 	add_child(_debug_panel)
 
@@ -1007,6 +1101,11 @@ func _build_player_zone() -> Control:
 	# table wider than the reference canvas and shoves the sidebar off it.
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size.x = 180
+	# A seven-man reserve (the veteran raid) squeezes this label into a
+	# narrow column, and a wrapped label grows the row by every extra line —
+	# 34px past the canvas there. Three lines fit inside the compact token's
+	# height; whatever does not fit is clipped, never paid for by the hand.
+	hint.max_lines_visible = 3
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	reserve_bar.add_child(hint)
@@ -1172,7 +1271,76 @@ func _build_outcome_layer() -> void:
 		_debug_panel.sync_seed(battle_seed)
 		start_battle())
 	buttons.add_child(new_seed)
+	var choose := Button.new()
+	choose.text = "Choose scenario"
+	choose.pressed.connect(show_menu)
+	buttons.add_child(choose)
 	box.add_child(buttons)
+
+
+## The boot menu: the registry printed as a list — title, blurb, one button
+## each — over the empty table. Options come from Scenarios.scenario_ids(),
+## so a scenario added to the registry appears here with no UI work.
+func _build_menu_layer() -> void:
+	_menu_layer = Control.new()
+	_menu_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_layer.visible = false
+	add_child(_menu_layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_menu_layer.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIPalette.panel(UIPalette.SEA, UIPalette.GOLD, 2, 10))
+	panel.custom_minimum_size = Vector2(600, 0)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := UIPalette.label("SONS OF THE NORTH", 26, UIPalette.GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var subtitle := UIPalette.label("Choose the raid. The seed and the crew are fixed; the fight is yours.",
+			UIPalette.FONT_BODY, UIPalette.PARCHMENT_DIM)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(subtitle)
+	_menu_options = VBoxContainer.new()
+	_menu_options.add_theme_constant_override("separation", 8)
+	box.add_child(_menu_options)
+	for id in Scenarios.scenario_ids():
+		_menu_options.add_child(_menu_option(id))
+
+
+func _menu_option(id: String) -> Control:
+	var option := PanelContainer.new()
+	var style := UIPalette.panel(UIPalette.PARCHMENT, UIPalette.GOLD, 2, 8)
+	style.set_content_margin_all(10)
+	option.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	option.add_child(row)
+	var words := VBoxContainer.new()
+	words.add_theme_constant_override("separation", 4)
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(words)
+	words.add_child(UIPalette.label(Scenarios.title(id), UIPalette.FONT_TITLE, UIPalette.SEA_DARK))
+	var blurb := UIPalette.label(Scenarios.blurb(id), UIPalette.FONT_SMALL,
+			UIPalette.SEA_DARK.lightened(0.12))
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.custom_minimum_size.x = 440
+	words.add_child(blurb)
+	var choose := Button.new()
+	choose.text = "Board"
+	choose.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	choose.pressed.connect(func() -> void: choose_scenario(id))
+	row.add_child(choose)
+	# The smoke test finds options by id and presses their button.
+	option.set_meta("scenario_id", id)
+	option.set_meta("button", choose)
+	return option
 
 
 ## The boarding maneuver is chosen before turn 1 on a modal layer: one panel
