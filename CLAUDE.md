@@ -80,7 +80,43 @@ question still stay in the main conversation regardless of model.
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **classes and names** (owner's ruling 2026-09-06). Every man has a
+Done: **the playtest feedback slice** (owner's three asks, 2026-09-06; one
+UI commit + one docs commit). (a) **Scenario menu**: the scene boots on a
+menu layer (title, one entry per `Scenarios.scenario_ids()` with the new
+`Scenarios.title(id)` / `Scenarios.blurb(id)`, tested in
+`test_scenarios`) and the outcome screen has a "Choose scenario" route
+beside "Fight again"/"New seed"; `show_menu()` aborts the running battle
+exactly as a restart does, `choose_scenario(id)` sets the roster source
+(the debug panel's editor follows it via `sync_roster`) and starts. (b)
+**Every pick explains itself**: new `PickText` (src/ui/pick_text.gd) words
+each pick kind in full sentences from engine facts — the rider mover with
+a per-man "what each step would do" list (empty slot vs. "trades places
+with X"), the Reinforce crosser with the dropped slot's name, the Trade
+Places partner, the Taunt anchor, the Break the Line direction, the
+opening's three buttons (naming which are greyed and why) and its sub-
+picks, and a card in the air (where it lands, why dark men are dark, the
+rider gate). `_begin_pick` now takes the explanation as a REQUIRED
+argument (asserted non-empty), so no pick site can forget it; the words
+are drawn on a parchment panel OVER the sidebar (a child of the fixed
+sidebar column, a plain Control that lays nothing out, clipped by it, mouse
+ignored), rebuilt only when the text changes — zero layout cost, the
+canvas guard stays green. Smoke drives through the menu, checks the
+explanation at every pick kind (overlay up, says the words, fits the
+canvas, and INTERSECTS NO LIT TOKEN OR SLOT — it never covers what it asks
+you to click), backs out of each card pick, and finishes by pressing
+"Choose scenario" and boarding the veteran raid for real. A real bug that
+surfaced on the way: **the veteran raid escaped the canvas by 34px** — its
+seven-man reserve squeezed the rail hint label into a narrow column and
+the wrapped label grew the row; the hint is capped at 3 lines now
+(`max_lines_visible`), the first time smoke has ever reached that
+scenario. (c) **Retune brief recorded** in docs/combat-design.md ("The
+retune's brief: read human play"): fight length is already where the
+owner wants it for a human; the cost of victory is the missing pressure;
+sims are the regression guard, never the judge. 1501 unit + 255 smoke
+(no skips). Screenshots taken under xvfb confirmed the menu, the opening
+overlay, the slot pick and the rider pick render as designed; the WEB
+BUILD IN A BROWSER IS STILL UNVERIFIED.
+Earlier: **classes and names** (owner's ruling 2026-09-06). Every man has a
 class derived from what the rules already know — `Character.role_label()`:
 Captain / Prowman / Berserker / Shieldman by flag (flags first), then
 Spearman / Axeman / Swordsman / Archer by weapon, Karl bare-handed — and the
@@ -415,38 +451,10 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
-00. **Playtest feedback slice — NEXT (owner, 2026-09-06, after winning the
-   skirmish from the web build: 9 turns, 0 dead, 0 fled, 8 standing, 5
-   slain, 6 routed).** Three asks, nothing built yet:
-   (a) **Scenario menu.** `make serve` drops straight into the skirmish:
-   `battle_ui._ready()` hard-codes `Scenarios.default_skirmish()` before
-   `start_battle()`. Add a boot menu (title, one button per
-   `Scenarios.scenario_ids()` with a one-line blurb — the debug panel
-   already iterates that registry, reuse it) and a "Choose scenario"
-   route from the outcome layer next to "Fight again"/"New seed". Smoke
-   must drive through the menu and keep the canvas guard green.
-   (b) **Say what is happening at EVERY pick.** The owner's words: "print
-   out what is happening in all cases where the player needs to select
-   something or move something or whatever." Today the banner prompt is
-   one terse line ("<card> — <effect>: which man?"). Every pick must
-   explain, in full sentences, what the card/rule did, what is being
-   asked, and what the click will do — the rider mover (effect + the
-   fixed direction + "a held slot means the two trade"), the reinforce
-   crosser and slot, the Trade Places partner, the Taunt anchor, the
-   Break the Line direction, the opening's three buttons and its sub-
-   picks (which man crosses / which slot / who snaps with whom), and a
-   card being dragged (what it will light and why). Suggested shape: an
-   explanation overlay that consumes no layout space (the card hover
-   preview is the precedent — the canvas has ~5px to spare, so nothing
-   may grow the table), fed from `_begin_pick` so no pick site can forget
-   it. Legality stays in the engine; the UI only words it. Smoke checks
-   per pick kind.
-   (c) **Retune note — human speed.** The random bot's 12–15 turn averages
-   are NOT the target; the owner already fights inside the 6–10 turn goal
-   with no losses. The retune (item 1) must read human play — a bloodless
-   9-turn win says the cost of victory, not fight length, is where the
-   pressure is missing. Record that in the retune's brief; do not move
-   numbers off bot averages alone.
+00. ~~**Playtest feedback slice**~~ — BUILT 2026-09-06 (see the Done block
+   above): the scenario menu, the explanation at every pick, and the
+   retune brief in docs/combat-design.md. What it leaves for the retune:
+   read that brief first — human play, cost of victory.
 0. ~~**The turn choice**~~ — RULED and BUILT 2026-09-05 (see the Done block
    above; combat-design.md's turn structure carries the shipped rule). The
    Reinforce and Trade Places prices, and the momentum-at-cap question it

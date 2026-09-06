@@ -580,6 +580,30 @@ bloodless — the veteran crew overpowers even the bigger ship, which is
 acceptable slack until phase D retunes prices. Both scenarios' no-card
 baselines collapse to a repulsed boarding, as designed.
 
+### The retune's brief: read human play, not bot averages (owner, 2026-09-06)
+
+The random bot's numbers are a floor, not the target. The owner, fighting
+the skirmish from the web build with the opening, the press and the class
+captions in place, won in **9 turns with 0 dead, 0 fled, 8 standing, 5
+slain and 6 routed** — inside the 6–10 turn goal the bot has never reached
+(its 12–15 turn averages are the bot crossing men into a grid it never
+arranges), and bloodless. So the retune reads two things together and
+weighs the second more:
+
+- **Fight length** is already where the design wants it for a human. Do
+  not shorten fights by number; the bot's averages say nothing about it.
+- **The cost of victory** is where the pressure is missing. A bloodless
+  win at day one means the skirmish is not yet asking the player to spend
+  men, and the campaign's permanent losses (the ruling above) have
+  nothing to bite on. That is the lever: the enemy's punch, the
+  command's escalation, the reserve's depth, the prices of the free
+  moves' second copies — whatever makes a human win *cost* something.
+
+Method: every proposed number change is played by hand at least once in
+both anchors before it is judged, and the sims are the regression guard
+(before/after in the commit message), never the judge. Bot numbers are
+cited only to show a change did not break the floor.
+
 ## Playtest watchlist (decided, but on probation)
 
 Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
