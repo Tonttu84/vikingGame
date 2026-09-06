@@ -403,6 +403,38 @@ and the web build (`scripts/export_web.sh`; CI uploads `web-build`).
 rough until C–D retune it.
 
 Agreed next slices, in rough priority:
+00. **Playtest feedback slice — NEXT (owner, 2026-09-06, after winning the
+   skirmish from the web build: 9 turns, 0 dead, 0 fled, 8 standing, 5
+   slain, 6 routed).** Three asks, nothing built yet:
+   (a) **Scenario menu.** `make serve` drops straight into the skirmish:
+   `battle_ui._ready()` hard-codes `Scenarios.default_skirmish()` before
+   `start_battle()`. Add a boot menu (title, one button per
+   `Scenarios.scenario_ids()` with a one-line blurb — the debug panel
+   already iterates that registry, reuse it) and a "Choose scenario"
+   route from the outcome layer next to "Fight again"/"New seed". Smoke
+   must drive through the menu and keep the canvas guard green.
+   (b) **Say what is happening at EVERY pick.** The owner's words: "print
+   out what is happening in all cases where the player needs to select
+   something or move something or whatever." Today the banner prompt is
+   one terse line ("<card> — <effect>: which man?"). Every pick must
+   explain, in full sentences, what the card/rule did, what is being
+   asked, and what the click will do — the rider mover (effect + the
+   fixed direction + "a held slot means the two trade"), the reinforce
+   crosser and slot, the Trade Places partner, the Taunt anchor, the
+   Break the Line direction, the opening's three buttons and its sub-
+   picks (which man crosses / which slot / who snaps with whom), and a
+   card being dragged (what it will light and why). Suggested shape: an
+   explanation overlay that consumes no layout space (the card hover
+   preview is the precedent — the canvas has ~5px to spare, so nothing
+   may grow the table), fed from `_begin_pick` so no pick site can forget
+   it. Legality stays in the engine; the UI only words it. Smoke checks
+   per pick kind.
+   (c) **Retune note — human speed.** The random bot's 12–15 turn averages
+   are NOT the target; the owner already fights inside the 6–10 turn goal
+   with no losses. The retune (item 1) must read human play — a bloodless
+   9-turn win says the cost of victory, not fight length, is where the
+   pressure is missing. Record that in the retune's brief; do not move
+   numbers off bot averages alone.
 0. ~~**The turn choice**~~ — RULED and BUILT 2026-09-05 (see the Done block
    above; combat-design.md's turn structure carries the shipped rule). The
    Reinforce and Trade Places prices, and the momentum-at-cap question it
