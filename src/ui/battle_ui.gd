@@ -657,10 +657,6 @@ func _fill_enemy_reserve(state: BattleState) -> void:
 		return
 	for c in state.enemy_reserve:
 		var chip := "%s — %d HP · %s" % [c.display_name, c.hp, c.weapon.display_name]
-		if c.is_berserker:
-			chip += " · berserker"
-		if c.is_shieldman:
-			chip += " · shieldman"
 		var chip_label := UIPalette.label(chip, UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 		# Ellipsize instead of widening the sidebar past the canvas edge.
 		chip_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS

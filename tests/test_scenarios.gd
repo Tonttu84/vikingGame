@@ -97,3 +97,58 @@ func test_veteran_same_seed_same_battle() -> void:
 	await a.run()
 	await b.run()
 	assert_eq(a.state.battle_log, b.state.battle_log, "same seed, same veteran battle")
+
+
+# --- Classes and names (owner's ruling 2026-09-06) --------------------------------
+
+func _uniques_of(scenario: Dictionary) -> Array[Character]:
+	var out: Array[Character] = []
+	for key in ["player_field", "player_reserve", "enemy_field", "enemy_reserve"]:
+		for c: Character in scenario[key]:
+			if c.is_captain or c.is_prowman:
+				out.append(c)
+	out.append(scenario["enemy_captain"])
+	return out
+
+
+func test_every_crewman_is_titled_by_his_role() -> void:
+	for id in Scenarios.scenario_ids():
+		var scenario := Scenarios.by_id(id)
+		for key in ["player_field", "player_reserve", "enemy_field", "enemy_reserve"]:
+			for c: Character in scenario[key]:
+				if c.is_captain or c.is_prowman:
+					continue
+				assert_true(c.is_titled_by_role(),
+						"%s: %s should read '<Role> <first name>'" % [id, c.display_name])
+				assert_eq(c.display_name, "%s %s" % [c.role_label(), c.given_name],
+						"%s: the name is the class and the first name, nothing else" % id)
+				assert_false(c.given_name.contains(" "), "%s: %s carries just a first name" % [id, c.display_name])
+
+
+func test_the_uniques_keep_their_full_names() -> void:
+	for id in Scenarios.scenario_ids():
+		var scenario := Scenarios.by_id(id)
+		for c in _uniques_of(scenario):
+			assert_false(c.is_titled_by_role(), "%s: %s keeps a name of his own" % [id, c.display_name])
+		var prow: Character = scenario["player_field"][0]
+		assert_eq(prow.display_name, "Prowman Sten", "%s: the prowman is named" % id)
+		var jarl: Character = scenario["enemy_captain"]
+		assert_true(jarl.display_name.begins_with("Jarl "), "%s: the enemy captain is named" % id)
+
+
+func test_no_two_crewmen_share_a_first_name_and_nobody_doubles_a_unique() -> void:
+	for id in Scenarios.scenario_ids():
+		var scenario := Scenarios.by_id(id)
+		var seen := {}
+		var reserved := {}
+		for c in _uniques_of(scenario):
+			for word in c.display_name.split(" "):
+				reserved[word] = true
+		for key in ["player_field", "player_reserve", "enemy_field", "enemy_reserve"]:
+			for c: Character in scenario[key]:
+				if c.is_captain or c.is_prowman:
+					continue
+				assert_false(seen.has(c.given_name), "%s: two men called %s" % [id, c.given_name])
+				assert_false(reserved.has(c.given_name),
+						"%s: %s doubles a unique's name" % [id, c.given_name])
+				seen[c.given_name] = true

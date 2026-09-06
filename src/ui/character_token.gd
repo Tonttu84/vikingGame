@@ -91,12 +91,23 @@ func _build() -> void:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(box)
 
+	# The class first, as a gold caption, then the man: "SPEARMAN Orm",
+	# "CAPTAIN Jarl Sigvard". Every token on both decks reads the same way.
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 4)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var role_label := UIPalette.label(character.role_label().to_upper(), UIPalette.FONT_SMALL,
+			UIPalette.GOLD if is_player else UIPalette.GOLD.darkened(0.25))
+	role_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_child(role_label)
 	var name_size := UIPalette.FONT_SMALL if compact else UIPalette.FONT_BODY
-	var name_label := UIPalette.label(character.display_name, name_size,
+	var name_label := UIPalette.label(character.short_name(), name_size,
 			UIPalette.PARCHMENT if is_player else UIPalette.PARCHMENT_DIM)
 	name_label.clip_text = true
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(name_label)
+	name_row.add_child(name_label)
+	box.add_child(name_row)
 
 	box.add_child(_bar(character.hp, character.max_hp, UIPalette.BLOOD, "HP"))
 	if character.morale_immune():
@@ -199,10 +210,7 @@ func _bar(value: int, max_value: int, color: Color, tag: String) -> Control:
 
 func _tooltip() -> String:
 	var lines := [
-		"%s — %s" % [character.display_name, "captain" if character.is_captain else
-				("prowman" if character.is_prowman else
-				("berserker" if character.is_berserker else
-				("shieldman" if character.is_shieldman else "fighter")))],
+		"%s — %s" % [character.display_name, character.role_label()],
 		"HP %d/%d · Morale %s · STR %d · SPD %d" % [
 			maxi(0, character.hp), character.max_hp,
 			"immune" if character.morale_immune() else "%d/%d" % [character.morale, character.max_morale],

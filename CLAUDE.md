@@ -68,7 +68,25 @@ system → new file. Runner discovers `tests/test_*.gd`; suites extend
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the turn choice — THE OPENING** (owner's ruling 2026-09-05; three
+Done: **classes and names** (owner's ruling 2026-09-06). Every man has a
+class derived from what the rules already know — `Character.role_label()`:
+Captain / Prowman / Berserker / Shieldman by flag (flags first), then
+Spearman / Axeman / Swordsman / Archer by weapon, Karl bare-handed — and the
+token prints it as a gold caption before the name (`short_name()`), both
+decks alike; the tooltip and the enemy hold's chips use it too. Naming
+convention: the uniques (Captain Aslak, Prowman Sten, Jarl …) keep their
+own names; everyone else is "<Class> <first name>" via `given_name` +
+`title_by_role()` (`is_titled_by_role()` tells the two apart). New
+`NameForge` (src/core/name_forge.gd): seeded, non-repeating Old Norse
+first names, male and female pools, `reserve()` for the uniques, younger
+namesakes past the pool — the recruiting office for the raid loop. Both
+anchor rosters now draw their non-uniques from it under fixed seeds
+(SKIRMISH_NAME_SEED 793, VETERAN_NAME_SEED 1066) through `Scenarios._man`,
+so the crews are generated but identical every run; RosterText is
+untouched (typed names stay typed). Suites `test_roles` (6 tests),
+`test_names` (6), plus roster-convention and no-duplicate checks in
+`test_scenarios`; smoke checks the SPEARMAN / PROWMAN captions.
+Earlier: **the turn choice — THE OPENING** (owner's ruling 2026-09-05; three
 commits). The momentum commit is DELETED (`RESERVE_COMMIT_COST`,
 `can_commit`, `_commit_reserve`, the reserve click-to-commit flow). In its
 place every player turn opens, after the guard/income/deal and before a

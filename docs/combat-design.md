@@ -113,6 +113,23 @@ before reinforcements**, where men stand at that moment:
 
 Constants are placeholders for the retune, like everything else.
 
+## Classes and names (shipped, 2026-09-06)
+
+Every man on both decks has a **class**, derived from the kit flags and the
+weapon he carries (`Character.role_label()`; no second source of truth):
+Captain, Prowman, Berserker, Shieldman — flags first, so a shieldman with a
+sword is a Shieldman — then Spearman / Axeman / Swordsman / Archer by weapon,
+and Karl for bare hands. The table prints the class as a gold caption on
+every token, with the man's name beside it.
+
+Names follow the owner's convention: the **uniques** — your captain, the
+prowman, the enemy captain — have names of their own (Captain Aslak,
+Prowman Sten, Jarl Sigvard); **everyone else is "<Class> <first name>"**,
+Spearman Olaf, drawn from `NameForge`, a seeded, non-repeating well of Old
+Norse first names (the anchor rosters use fixed seeds, so the same crew
+every time; the uniques' names are reserved so nobody doubles them). The
+forge is the recruiting office the raid loop will draw from.
+
 ## Role kits (shipped, phase B)
 
 The sheet stays small; a kit is one or two positional hooks riding the

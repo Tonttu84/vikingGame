@@ -509,6 +509,10 @@ func _run() -> void:
 	check(_has_label_containing(ui, "STARBOARD"), "the starboard side is named on the table")
 	check(_has_label_containing(ui, "Press if nothing changes"),
 			"the projected press is on the table before the player commits a card")
+	check(_has_label_containing(ui._player_front_row, "SPEARMAN"),
+			"the class is a caption on the token: the first wave's spearman reads SPEARMAN")
+	check(_has_label_containing(ui._player_front_row, "PROWMAN"),
+			"and the uniques wear their class the same way")
 
 	# A card with a movement rider: the punch lands, then the board asks
 	# which man moves — never which way, that is printed on the card. Shield

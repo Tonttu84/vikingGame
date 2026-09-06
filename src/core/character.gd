@@ -7,6 +7,10 @@ enum Side { PLAYER, ENEMY }
 
 var id: String
 var display_name: String
+## The name he was built with. Non-uniques are titled by role on top of it
+## ("Spearman Olaf" — title_by_role); the uniques keep display_name as
+## their own and given_name is simply the same string.
+var given_name: String
 var side: Character.Side
 var max_hp: int
 var hp: int
@@ -57,6 +61,7 @@ func _init(p_id: String, p_name: String, p_side: Character.Side, p_hp: int, p_mo
 		p_strength: int, p_speed: int, p_weapon: Weapon = null, p_armor: int = 0) -> void:
 	id = p_id
 	display_name = p_name
+	given_name = p_name
 	side = p_side
 	max_hp = p_hp
 	hp = p_hp
@@ -70,6 +75,47 @@ func _init(p_id: String, p_name: String, p_side: Character.Side, p_hp: int, p_mo
 
 func is_alive() -> bool:
 	return hp > 0
+
+
+## His class (owner's ruling 2026-09-06): derived from the same kit flags and
+## weapon kind the rules already ride, so there is no second source of truth
+## to drift. Flags first — a shieldman with a sword is a Shieldman — then the
+## weapon names the plain fighters; bare hands make a Karl.
+func role_label() -> String:
+	if is_captain:
+		return "Captain"
+	if is_prowman:
+		return "Prowman"
+	if is_berserker:
+		return "Berserker"
+	if is_shieldman:
+		return "Shieldman"
+	match weapon.kind:
+		Weapon.Kind.SPEAR:
+			return "Spearman"
+		Weapon.Kind.AXE:
+			return "Axeman"
+		Weapon.Kind.SWORD:
+			return "Swordsman"
+		Weapon.Kind.BOW:
+			return "Archer"
+	return "Karl"
+
+
+## The naming convention for everyone who is not a unique: class, then a
+## first name — "Spearman Olaf". Call after the kit flags are set.
+func title_by_role() -> void:
+	display_name = "%s %s" % [role_label(), given_name]
+
+
+func is_titled_by_role() -> bool:
+	return display_name == "%s %s" % [role_label(), given_name]
+
+
+## What the table prints under the class caption: the first name alone for a
+## man titled by role, the whole name for a unique (Jarl Eirik Iron-Hand).
+func short_name() -> String:
+	return given_name if is_titled_by_role() else display_name
 
 
 ## The role's rhythm. The berserker builds to the heavy blow, the bow aims

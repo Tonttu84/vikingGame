@@ -19,6 +19,23 @@ extends RefCounted
 ## berserker waiting among them.
 
 
+## A crewman named by the owner's convention (2026-09-06): his class and a
+## first name forged by NameForge — "Spearman Olaf". The kit flag is set
+## before the title is drawn, so a shieldman with a sword reads Shieldman.
+## The uniques (captain, prowman, the enemy captain) are built by name and
+## never come through here; the forge has their names reserved.
+static func _man(id: String, given: String, side: Character.Side, hp: int, morale: int,
+		strength: int, speed: int, weapon: Weapon, armor: int, kit := "") -> Character:
+	var c := Character.new(id, given, side, hp, morale, strength, speed, weapon, armor)
+	match kit:
+		"shieldman":
+			c.is_shieldman = true
+		"berserker":
+			c.is_berserker = true
+	c.title_by_role()
+	return c
+
+
 static func scenario_ids() -> Array[String]:
 	return ["skirmish", "veteran"]
 
@@ -30,57 +47,62 @@ static func by_id(p_id: String) -> Dictionary:
 	return {}
 
 
+## Fixed seeds: the anchors' crews are generated, but the same crew every
+## time — sims, tests and the saga all speak of the same men.
+const SKIRMISH_NAME_SEED := 793
+const VETERAN_NAME_SEED := 1066
+
+
 static func default_skirmish() -> Dictionary:
 	var P := Character.Side.PLAYER
 	var E := Character.Side.ENEMY
+	var names := NameForge.new(SKIRMISH_NAME_SEED)
+	for unique in ["Aslak", "Sten", "Sigvard"]:
+		names.reserve(unique)
 
 	var captain := Character.new("p_captain", "Captain Aslak", P, 20, 10, 4, 4, Weapon.sword(), 2)
 	captain.is_captain = true
 
 	# The prowman leads the default first wave; the captain waits on your own
 	# ship (safe until sent across). First in reserve crosses first by default.
-	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 14, 7, 2, 2, Weapon.sword(), 4)
-	shieldman.is_shieldman = true
+	var shieldman := _man("p_shield1", names.given(), P, 14, 7, 2, 2, Weapon.sword(), 4, "shieldman")
 	var prowman := Character.new("p_prow", "Prowman Sten", P, 14, 8, 4, 3, Weapon.axe(), 1)
 	prowman.is_prowman = true
 	var player_field: Array[Character] = [
 		prowman,
 		shieldman,
-		Character.new("p_spear1", "Spearman Orm", P, 12, 6, 3, 3, Weapon.spear(), 1),
+		_man("p_spear1", names.given(), P, 12, 6, 3, 3, Weapon.spear(), 1),
 	]
 	var player_reserve: Array[Character] = [
-		Character.new("p_axe1", "Axeman Grim", P, 12, 6, 3, 3, Weapon.axe(), 1),
-		Character.new("p_sword1", "Swordsman Kari", P, 12, 6, 3, 3, Weapon.sword(), 0),
+		_man("p_axe1", names.given(), P, 12, 6, 3, 3, Weapon.axe(), 1),
+		_man("p_sword1", names.given(), P, 12, 6, 3, 3, Weapon.sword(), 0),
 		captain,
-		Character.new("p_bow1", "Archer Sigrid", P, 10, 5, 2, 3, Weapon.bow(), 0),
-		Character.new("p_young1", "Young Halfdan", P, 10, 4, 3, 3, Weapon.sword(), 0),
+		_man("p_bow1", names.given_female(), P, 10, 5, 2, 3, Weapon.bow(), 0),
+		_man("p_young1", names.given(), P, 10, 4, 3, 3, Weapon.sword(), 0),
 	]
 
 	var enemy_captain := Character.new("e_captain", "Jarl Sigvard", E, 30, 10, 5, 3, Weapon.sword(), 2)
 	enemy_captain.is_captain = true
 
 	# The watch auto-places front left to right, then the second line: the
-	# shieldmen anchor f1/f2, the bowman lands b1 behind them and snipes.
-	var wall1 := Character.new("e_shield1", "Housecarl Bran", E, 14, 7, 2, 3, Weapon.sword(), 4)
-	wall1.is_shieldman = true
-	var wall2 := Character.new("e_shield2", "Housecarl Eyvind", E, 14, 7, 2, 2, Weapon.sword(), 4)
-	wall2.is_shieldman = true
+	# shieldmen anchor f1/f2, the archer lands b1 behind them, covered.
+	var wall1 := _man("e_shield1", names.given(), E, 14, 7, 2, 3, Weapon.sword(), 4, "shieldman")
+	var wall2 := _man("e_shield2", names.given(), E, 14, 7, 2, 2, Weapon.sword(), 4, "shieldman")
 	var enemy_field: Array[Character] = [
 		wall1,
 		wall2,
-		Character.new("e_grunt1", "Housecarl Snorri", E, 12, 7, 3, 3, Weapon.spear(), 1),
-		Character.new("e_grunt2", "Housecarl Vagn", E, 12, 7, 3, 2, Weapon.axe(), 1),
-		Character.new("e_bow1", "Bowman Kalf", E, 10, 6, 2, 3, Weapon.bow(), 0),
+		_man("e_grunt1", names.given(), E, 12, 7, 3, 3, Weapon.spear(), 1),
+		_man("e_grunt2", names.given(), E, 12, 7, 3, 2, Weapon.axe(), 1),
+		_man("e_bow1", names.given(), E, 10, 6, 2, 3, Weapon.bow(), 0),
 	]
-	var berserker := Character.new("e_berserk", "Berserker Glum", E, 10, 1, 5, 4, Weapon.axe(), 0)
-	berserker.is_berserker = true
+	var berserker := _man("e_berserk", names.given(), E, 10, 1, 5, 4, Weapon.axe(), 0, "berserker")
 	var enemy_reserve: Array[Character] = [
-		Character.new("e_karl1", "Karl Hauk", E, 10, 4, 3, 3, Weapon.spear(), 0),
-		Character.new("e_karl2", "Karl Geir", E, 10, 4, 3, 3, Weapon.sword(), 0),
-		Character.new("e_karl3", "Karl Bodvar", E, 10, 4, 3, 3, Weapon.axe(), 0),
-		Character.new("e_karl4", "Karl Steinn", E, 10, 4, 3, 3, Weapon.spear(), 0),
+		_man("e_karl1", names.given(), E, 10, 4, 3, 3, Weapon.spear(), 0),
+		_man("e_karl2", names.given(), E, 10, 4, 3, 3, Weapon.sword(), 0),
+		_man("e_karl3", names.given(), E, 10, 4, 3, 3, Weapon.axe(), 0),
+		_man("e_karl4", names.given(), E, 10, 4, 3, 3, Weapon.spear(), 0),
 		berserker,
-		Character.new("e_old1", "Old Ketil", E, 10, 5, 2, 2, Weapon.sword(), 1),
+		_man("e_old1", names.given(), E, 10, 5, 2, 2, Weapon.sword(), 1),
 	]
 
 	return {
@@ -109,55 +131,53 @@ static func default_skirmish() -> Dictionary:
 static func veteran_raid() -> Dictionary:
 	var P := Character.Side.PLAYER
 	var E := Character.Side.ENEMY
+	var names := NameForge.new(VETERAN_NAME_SEED)
+	for unique in ["Aslak", "Sten", "Eirik"]:
+		names.reserve(unique)
 
 	var captain := Character.new("p_captain", "Captain Aslak", P, 22, 11, 5, 4, Weapon.sword(), 3)
 	captain.is_captain = true
 
-	var shieldman := Character.new("p_shield1", "Shield-bearer Ulf", P, 16, 8, 3, 2, Weapon.sword(), 5)
-	shieldman.is_shieldman = true
+	var shieldman := _man("p_shield1", names.given(), P, 16, 8, 3, 2, Weapon.sword(), 5, "shieldman")
 	var prowman := Character.new("p_prow", "Prowman Sten", P, 16, 9, 5, 3, Weapon.axe(), 2)
 	prowman.is_prowman = true
 	var player_field: Array[Character] = [
 		prowman,
 		shieldman,
-		Character.new("p_spear1", "Spearman Orm", P, 14, 7, 4, 3, Weapon.spear(), 2),
+		_man("p_spear1", names.given(), P, 14, 7, 4, 3, Weapon.spear(), 2),
 	]
-	var shieldman2 := Character.new("p_shield2", "Shield-bearer Halla", P, 14, 7, 2, 2, Weapon.sword(), 5)
-	shieldman2.is_shieldman = true
+	var shieldman2 := _man("p_shield2", names.given_female(), P, 14, 7, 2, 2, Weapon.sword(), 5, "shieldman")
 	var player_reserve: Array[Character] = [
-		Character.new("p_axe1", "Axeman Grim", P, 14, 7, 4, 3, Weapon.axe(), 2),
+		_man("p_axe1", names.given(), P, 14, 7, 4, 3, Weapon.axe(), 2),
 		shieldman2,
-		Character.new("p_sword1", "Swordsman Kari", P, 14, 7, 4, 3, Weapon.sword(), 1),
+		_man("p_sword1", names.given(), P, 14, 7, 4, 3, Weapon.sword(), 1),
 		captain,
-		Character.new("p_bow1", "Archer Sigrid", P, 12, 6, 3, 3, Weapon.bow(), 1),
-		Character.new("p_bow2", "Archer Runa", P, 10, 5, 2, 3, Weapon.bow(), 0),
-		Character.new("p_young1", "Halfdan the Blooded", P, 12, 5, 3, 3, Weapon.sword(), 1),
+		_man("p_bow1", names.given_female(), P, 12, 6, 3, 3, Weapon.bow(), 1),
+		_man("p_bow2", names.given_female(), P, 10, 5, 2, 3, Weapon.bow(), 0),
+		_man("p_young1", names.given(), P, 12, 5, 3, 3, Weapon.sword(), 1),
 	]
 
 	var enemy_captain := Character.new("e_captain", "Jarl Eirik Iron-Hand", E, 36, 11, 6, 3, Weapon.sword(), 3)
 	enemy_captain.is_captain = true
 
-	var wall1 := Character.new("e_shield1", "Huskarl Arnbjorn", E, 16, 8, 3, 3, Weapon.sword(), 5)
-	wall1.is_shieldman = true
-	var wall2 := Character.new("e_shield2", "Huskarl Thorgil", E, 16, 8, 3, 2, Weapon.sword(), 5)
-	wall2.is_shieldman = true
+	var wall1 := _man("e_shield1", names.given(), E, 16, 8, 3, 3, Weapon.sword(), 5, "shieldman")
+	var wall2 := _man("e_shield2", names.given(), E, 16, 8, 3, 2, Weapon.sword(), 5, "shieldman")
 	var enemy_field: Array[Character] = [
 		wall1,
 		wall2,
-		Character.new("e_grunt1", "Huskarl Svein", E, 14, 8, 4, 3, Weapon.spear(), 2),
-		Character.new("e_grunt2", "Huskarl Ozur", E, 14, 8, 4, 2, Weapon.axe(), 2),
-		Character.new("e_bow1", "Bowman Gest", E, 12, 7, 3, 3, Weapon.bow(), 1),
+		_man("e_grunt1", names.given(), E, 14, 8, 4, 3, Weapon.spear(), 2),
+		_man("e_grunt2", names.given(), E, 14, 8, 4, 2, Weapon.axe(), 2),
+		_man("e_bow1", names.given(), E, 12, 7, 3, 3, Weapon.bow(), 1),
 	]
-	var berserker := Character.new("e_berserk", "Berserker Kolgrim", E, 12, 1, 6, 4, Weapon.axe(), 0)
-	berserker.is_berserker = true
+	var berserker := _man("e_berserk", names.given(), E, 12, 1, 6, 4, Weapon.axe(), 0, "berserker")
 	var enemy_reserve: Array[Character] = [
-		Character.new("e_karl1", "Levyman Toki", E, 11, 5, 3, 3, Weapon.spear(), 1),
-		Character.new("e_karl2", "Levyman Gauk", E, 11, 5, 3, 3, Weapon.sword(), 1),
-		Character.new("e_karl3", "Levyman Hrapp", E, 11, 5, 3, 3, Weapon.axe(), 0),
-		Character.new("e_karl4", "Levyman Solvi", E, 11, 5, 3, 3, Weapon.spear(), 0),
+		_man("e_karl1", names.given(), E, 11, 5, 3, 3, Weapon.spear(), 1),
+		_man("e_karl2", names.given(), E, 11, 5, 3, 3, Weapon.sword(), 1),
+		_man("e_karl3", names.given(), E, 11, 5, 3, 3, Weapon.axe(), 0),
+		_man("e_karl4", names.given(), E, 11, 5, 3, 3, Weapon.spear(), 0),
 		berserker,
-		Character.new("e_bow2", "Bowman Frodi", E, 10, 6, 2, 3, Weapon.bow(), 0),
-		Character.new("e_old1", "Steersman Onund", E, 12, 6, 3, 2, Weapon.sword(), 2),
+		_man("e_bow2", names.given(), E, 10, 6, 2, 3, Weapon.bow(), 0),
+		_man("e_old1", names.given(), E, 12, 6, 3, 2, Weapon.sword(), 2),
 	]
 
 	return {
