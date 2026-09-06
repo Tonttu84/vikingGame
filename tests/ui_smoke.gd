@@ -765,8 +765,11 @@ func _run() -> void:
 	await _await_player(ui)
 	check(ui._awaiting_action, "awaiting input before the hand-cycle test")
 	var old_cyclers: Array = []
+	var held_over := 0
 	for card: CardData in ui.engine.state.hand:
-		if not card.retained:
+		if card.retained:
+			held_over += 1
+		else:
 			old_cyclers.append(card)
 	check(old_cyclers.size() > 0, "some non-retained cards in hand to cycle")
 	ui._end_turn_button.pressed.emit()
@@ -775,8 +778,13 @@ func _run() -> void:
 		for card: CardData in old_cyclers:
 			check(not ui.engine.state.hand.has(card),
 					"non-retained card cycled out of hand: " + card.id)
-		check(ui.engine.state.hand.size() == 6,
-				"hand refilled to 5, plus the opening's income card")
+		# The end of the turn draws a fixed five on top of whatever Retained
+		# cards were held (a held one costs no draw); the income adds one more
+		# at the head of the next turn; the seven-card ceiling caps the lot.
+		var expected := mini(BattleState.MAX_HAND_SIZE, 5 + held_over + 1)
+		check(ui.engine.state.hand.size() == expected,
+				"a fresh five plus %d held Retained plus the income card = %d, saw %d"
+				% [held_over, expected, ui.engine.state.hand.size()])
 
 	# Drag a targeted card onto a token (heal an ally).
 	await _await_player(ui)

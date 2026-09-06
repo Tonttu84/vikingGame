@@ -238,8 +238,9 @@ officer system with event rolls comes later.
 ```
 BOARDING (once)
   0. Choose and resolve a boarding maneuver (free card from its own deck).
+     Deal the first hand of 5.
 PLAYER TURN
-  1. Gain +1 momentum. Discard the hand (Retained cards stay), draw to 5.
+  1. Gain +1 momentum.
   2. THE OPENING — one forced choice, nothing else is playable until it is
      made: (a) a FREE reinforcement, one man off your ship into a slot you
      pick; (b) a FREE swap ("snap"), two of your men trade places,
@@ -249,13 +250,17 @@ PLAYER TURN
      SECOND crossing, Trade Places its second snap — both still priced.
   4. Fight: every fielded man performs his beat — axes first, then by
      speed (see character control); guard resets to armor at turn start.
+  5. The hand cycles: discard everything not Retained, then DRAW 5 — a
+     fixed draw, not a top-up, so a Retained card costs no draw; only the
+     7-card ceiling stops it (the undrawn cards stay in the deck). This is
+     the hand you hold through the enemy turn.
 ENEMY TURN
-  5. Enemy tactic resolves (was telegraphed as an intent last turn) —
+  6. Enemy tactic resolves (was telegraphed as an intent last turn) —
      a damage tactic, a captain's call re-arranging their line, or the
      captain's command itself every 4th turn; their guard resets first.
-  6. Enemy characters perform their beats (heavy blows, aimed arrows,
+  7. Enemy characters perform their beats (heavy blows, aimed arrows,
      planted shields).
-  7. Reinforce from below decks (the captain last); statuses tick
+  8. Reinforce from below decks (the captain last); statuses tick
      (suppression and pins work loose); reveal next tactic.
 ```
 
@@ -278,9 +283,14 @@ fight rich and act from strength, exactly as a boarder should.
   morale system instead (next section). Momentum stays pure tempo: kills and
   turns feed it, nothing drains it.
 
-The hand cycles: at the start of every turn the old hand is discarded and a
-fresh 5 drawn — except **Retained** cards (Reinforce, Swap, Drag Him Back!),
-which wait in hand for their moment and occupy draw room while they do.
+The hand cycles at the END of every player turn (owner's ruling
+2026-09-06; the first hand is dealt with the boarding): the old hand is
+discarded and a fresh 5 drawn — except **Retained** cards (Reinforce, Trade
+Places, Drag Him Back!), which wait in hand for their moment. The draw is a
+fixed five, never a top-up, so a Retained card costs no draw; the only limit
+is the 7-card ceiling, and a draw that would pass it leaves the card in the
+deck. (It used to be a start-of-turn top-up to 5, so every Retained card
+quietly cost a draw — the owner felt it as a bug in play, and it was.)
 Drag Him Back! **fires automatically** when a killing blow lands on a
 non-captain crew member and its cost is affordable — no prompt; holding it
 (and the momentum for it) IS the decision. Scrapping (discard-for-momentum)

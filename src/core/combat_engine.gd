@@ -154,6 +154,10 @@ func _apply_battle_start_artifacts() -> void:
 
 func run() -> Dictionary:
 	await _boarding_phase()
+	# The first hand comes with the boarding; every later one is dealt at the
+	# end of the turn before (_cycle_hand).
+	if outcome == Outcome.NONE:
+		_draw(BattleState.HAND_SIZE)
 	while outcome == Outcome.NONE and state.turn < MAX_TURNS:
 		state.turn += 1
 		await _player_turn()
@@ -198,15 +202,9 @@ func _player_turn() -> void:
 	_raise_guard(Character.Side.PLAYER)
 	_reset_press()
 	_gain_momentum(1)
-	# A fresh hand every turn: everything not Retained is discarded, then the
-	# hand refills to size. Retained cards wait in hand and eat draw room.
-	for card in state.hand.duplicate():
-		if not card.retained:
-			state.hand.erase(card)
-			state.discard.append(card)
-	_draw_to_hand_size()
-	# The hand is dealt BEFORE the opening — you choose knowing what you hold
-	# — but nothing in it may be played until the opening has been answered.
+	# The hand was dealt at the END of the last turn (the boarding, for turn
+	# 1) — you choose the opening knowing what you hold — but nothing in it
+	# may be played until the opening has been answered.
 	await _opening_choice()
 	var actions := 0
 	while outcome == Outcome.NONE and actions < MAX_ACTIONS_PER_TURN:
@@ -221,6 +219,22 @@ func _player_turn() -> void:
 	for c in state.fielded(Character.Side.PLAYER) + state.player_reserve:
 		c.bonus_attacks = 0
 	_tick_statuses(Character.Side.PLAYER)
+	if outcome == Outcome.NONE:
+		_cycle_hand()
+
+
+## The hand cycles at the END of the player's turn (owner's ruling
+## 2026-09-06): everything not Retained goes to the discard, then HAND_SIZE
+## fresh cards are drawn. A fixed draw, never a top-up — a Retained card
+## waiting in hand costs no draw; only the MAX_HAND_SIZE ceiling stops the
+## deal, and it leaves the undrawn cards in the deck. The new hand is what
+## you hold through the enemy's turn, so a save drawn now guards it.
+func _cycle_hand() -> void:
+	for card in state.hand.duplicate():
+		if not card.retained:
+			state.hand.erase(card)
+			state.discard.append(card)
+	_draw(BattleState.HAND_SIZE)
 
 
 # --- The opening: one forced choice at the head of every player turn ---------
@@ -1860,12 +1874,6 @@ func _pace() -> void:
 
 func _gain_momentum(amount: int) -> void:
 	state.momentum = mini(BattleState.MOMENTUM_CAP, state.momentum + amount)
-
-
-func _draw_to_hand_size() -> void:
-	while state.hand.size() < BattleState.HAND_SIZE:
-		if not _draw(1):
-			break
 
 
 func _draw(amount: int) -> bool:

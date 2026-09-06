@@ -75,15 +75,16 @@ func test_the_opening_comes_before_the_cards() -> void:
 	# is playable until the opening is answered: the engine resolves it before
 	# it ever calls choose_action.
 	var eng := _engine()
-	var seen := {"hand": -1, "momentum": -1}
 	var bot: TestHelpers.OpeningBot = eng.controller
 	bot.openings = [{"op": "income"}]
 	bot.actions = []
+	# A hand as the boarding would have dealt it: the test drives _player_turn
+	# directly, and the deal itself belongs to the turn before.
+	eng._draw(BattleState.HAND_SIZE)
 	await eng._player_turn()
-	seen["hand"] = eng.state.hand.size()
-	seen["momentum"] = eng.state.momentum
-	assert_eq(seen["hand"], 6, "the opening's card is in hand before the first play")
-	assert_eq(seen["momentum"], 2, "and its momentum is banked")
+	assert_eq(bot.hands_seen, [6] as Array[int],
+			"the opening's card is in hand before the first play")
+	assert_eq(eng.state.momentum, 2, "and its momentum is banked")
 
 
 func test_only_income_legal_never_asks() -> void:
@@ -120,9 +121,11 @@ func test_an_unknown_op_takes_the_income() -> void:
 
 func test_income_pays_a_momentum_and_a_card() -> void:
 	var eng := _engine([{"op": "income"}])
+	eng._draw(BattleState.HAND_SIZE)
 	await eng._player_turn()
 	assert_eq(eng.state.momentum, 2, "+1 turn income, +1 for the opening")
-	assert_eq(eng.state.hand.size(), 6, "the refilled five plus the opening's card")
+	var bot: TestHelpers.OpeningBot = eng.controller
+	assert_eq(bot.hands_seen, [6] as Array[int], "the dealt five plus the opening's card, in hand for the turn")
 
 
 func test_income_still_obeys_the_momentum_cap() -> void:

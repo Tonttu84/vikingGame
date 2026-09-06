@@ -80,7 +80,32 @@ question still stay in the main conversation regardless of model.
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the browser fit fix** (owner's first look at the web build,
+Done: **the hand cycles at the end of the turn** (owner's bug report from
+play, 2026-09-06: "retained cards seem to reduce the draw"). The refill
+was a start-of-turn TOP-UP to 5, so every Retained card in hand quietly
+cost a draw. Now: at the END of the player turn (after the fight phase,
+`_cycle_hand`) everything not Retained is discarded and a FIXED five is
+drawn; only the MAX_HAND_SIZE 7 ceiling stops the deal and it leaves the
+undrawn cards in the deck; the first hand is dealt in `run()` right after
+the boarding; the opening's income still adds its card at the turn's
+head. So a turn opens on 5 + held Retained (+1 income), never fewer, and
+the hand you hold through the enemy turn is the fresh one. Tests that
+drove `_player_turn()` directly used to read the hand AFTER the turn and
+so measured the refill; they now deal a hand first (`eng._draw(5)`) and
+read it mid-turn through `OpeningBot.hands_seen` / `HandWatcher`.
+`test_hand` rewritten around the ruling (fixed draw, ceiling, end-not-
+start timing, boarding deal, held-over Retained rides on top). Turn
+structure and hand rule updated in combat-design.md and the in-game
+rules text. 1513 unit + 262 smoke. Sims (n=300, random bot), before → after:
+skirmish 24.7% → 37.0% win / 12.2 → 12.7 turns / 0.96 → 0.97 dead in a
+win; veteran 38.0% → 47.7% / 14.9 → 14.9 / 0.81 → 0.73; empty decision
+points 27.3% → 22.7% and 32.0% → 26.0%. The rule alone lifted the bot
+ten points on both anchors: the starter decks carry three Retained cards,
+so every one it held over used to shrink the next hand, and now the hand
+is a full five beside them — fewer dead turns, more cards to spend.
+RETUNE NOTE: the player's card flow just grew; the retune reads it
+together with the income (+1 card) and the press payout.
+Earlier: **the browser fit fix** (owner's first look at the web build,
 2026-09-06). The banner row's labels claimed their full text width, so
 "Turn 1 — the opening: cross a man, snap two, or take the income" beside
 Careful Assault's status chip and the three opening buttons made the

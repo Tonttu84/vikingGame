@@ -73,6 +73,9 @@ class OpeningBot:
 	var actions: Array = []
 	## One entry per time the engine asked: the options it was legal to give.
 	var asked: Array = []
+	## The hand's size each time the engine asked for a play — the hand as it
+	## stood DURING the turn, before the turn's end cycled it.
+	var hands_seen: Array[int] = []
 	var _engine_ref: WeakRef = null
 	var engine:
 		set(value):
@@ -90,7 +93,8 @@ class OpeningBot:
 			return {"op": "income"}
 		return openings.pop_front()
 
-	func choose_action(_state: BattleState) -> Dictionary:
+	func choose_action(state: BattleState) -> Dictionary:
+		hands_seen.append(state.hand.size())
 		if actions.is_empty():
 			return {"op": "end"}
 		return actions.pop_front()

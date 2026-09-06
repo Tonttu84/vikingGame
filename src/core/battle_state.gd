@@ -3,11 +3,13 @@ extends RefCounted
 ## All mutable state of one boarding action. Pure data + queries; the rules
 ## that change it live in CombatEngine.
 
+## Dealt at the end of every player turn (and with the boarding): a fixed
+## draw, not a top-up, so Retained cards waiting in hand cost no draw.
 const HAND_SIZE := 5
-## The turn refill deals HAND_SIZE, but cards that draw (Feint) push past it
-## mid-turn, so the hand needs a ceiling of its own — both as a rule and so
-## the table can be laid out for a known worst case. Room for a full refill
-## plus the biggest draw in the set.
+## The only thing that stops that draw: a hand needs a ceiling of its own,
+## both as a rule and so the table can be laid out for a known worst case.
+## Room for the deal plus two Retained cards, or plus the biggest draw in
+## the set (Feint) mid-turn; an overflowing draw leaves the card in the deck.
 const MAX_HAND_SIZE := 7
 const MOMENTUM_CAP := 10
 const REINFORCE_RATE := 2
