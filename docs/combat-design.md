@@ -587,8 +587,12 @@ the skirmish from the web build with the opening, the press and the class
 captions in place, won in **9 turns with 0 dead, 0 fled, 8 standing, 5
 slain and 6 routed** — inside the 6–10 turn goal the bot has never reached
 (its 12–15 turn averages are the bot crossing men into a grid it never
-arranges), and bloodless. So the retune reads two things together and
-weighs the second more:
+arranges), and bloodless. His second skirmish, on the browser-fit build
+the same day: **11 turns, 1 dead (Swordsman Bard), 0 fled, 7 standing, 4
+slain and 7 routed** — the length holds at the goal's upper edge, and the
+one loss says the cost of victory is not zero, only thin. Two fights are
+a reading, not a curve; every further hand-played result belongs in this
+list. So the retune reads two things together and weighs the second more:
 
 - **Fight length** is already where the design wants it for a human. Do
   not shorten fights by number; the bot's averages say nothing about it.
