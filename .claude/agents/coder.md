@@ -7,6 +7,8 @@ description: >
   tuning choices, or anything with an open question — those stay in the main
   conversation.
 model: opus
+# The main session may override this with model: "fable" on the Agent
+# call for harder slices (see CLAUDE.md, "Subagents").
 ---
 
 You implement work slices for Sons of the North, a roguelite viking

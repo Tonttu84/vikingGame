@@ -48,6 +48,18 @@ Test suites: one file per system (`test_damage`, `test_morale`,
 system → new file. Runner discovers `tests/test_*.gd`; suites extend
 `TestCase`, fixtures come from `tests/helpers.gd`.
 
+## Subagents
+
+`.claude/agents/coder.md` is the implementation specialist for settled,
+well-specified work (tests + code for an agreed design, mechanical refactors,
+UI wiring). It defaults to Opus; the main session MAY run it on Fable
+(`model: "fable"` on the Agent call) when a task is harder than routine
+wiring — a multi-file slice with tricky invariants, a layout change under the
+canvas guard, an engine change whose tests are subtle. Use judgment: Fable
+costs more, so reserve it for tasks where a first-pass mistake would cost a
+whole red-green cycle. Design forks, tuning, and anything with an open
+question still stay in the main conversation regardless of model.
+
 ## Conventions and gotchas
 
 - **Determinism is a hard invariant.** All randomness flows through the
