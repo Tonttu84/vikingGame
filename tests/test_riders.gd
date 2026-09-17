@@ -459,7 +459,7 @@ func test_battle_fury_presses_its_target_forward() -> void:
 
 
 func test_the_rail_cards_carry_no_rider_at_all() -> void:
-	for card in [CardLibrary.reinforce(), CardLibrary.swap(), CardLibrary.drag_him_back(),
+	for card in [CardLibrary.swap(), CardLibrary.drag_him_back(),
 			CardLibrary.break_the_line()]:
 		for effect in card.effects:
 			var text := CardText._effect_line(effect)

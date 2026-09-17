@@ -138,7 +138,7 @@ func test_income_still_obeys_the_momentum_cap() -> void:
 func test_income_at_a_full_hand_leaves_the_card_in_the_deck() -> void:
 	var eng := _engine([{"op": "income"}])
 	for i in BattleState.MAX_HAND_SIZE:
-		eng.state.hand.append(CardLibrary.reinforce())  # Retained: survives the cycle
+		eng.state.hand.append(CardLibrary.swap())  # Retained: survives the cycle
 	var deck_before := eng.state.deck.size()
 	await eng._player_turn()
 	assert_eq(eng.state.hand.size(), BattleState.MAX_HAND_SIZE, "seven is the ceiling")
@@ -342,21 +342,21 @@ func test_the_momentum_commit_is_gone() -> void:
 
 # --- The paid versions still exist --------------------------------------------
 
-func test_the_reinforce_card_is_still_a_second_crossing() -> void:
+## The Reinforce card is gone (2026-09-17): the opening IS the crossing, and
+## a turn crosses one man, never two.
+func test_the_opening_is_the_turns_only_crossing() -> void:
 	var eng := _engine()
 	var first: Character = eng.state.player_reserve[0]
 	var second := TestHelpers.grunt(P, "crew4")
 	eng._register(second)
 	eng.state.player_reserve.append(second)
-	var card := CardLibrary.reinforce()
 	var bot: TestHelpers.OpeningBot = eng.controller
 	bot.openings = [{"op": "reinforce", "character": first}]
-	bot.actions = [{"op": "play", "card": card, "target": second}]
-	eng.state.hand.append(card)
 	eng.state.momentum = 5
 	await eng._player_turn()
 	assert_true(eng.state.player_formation.has(first), "the free crossing")
-	assert_true(eng.state.player_formation.has(second), "and the card's paid one, same turn")
+	assert_true(eng.state.player_reserve.has(second), "and nobody else came over: no card does that any more")
+	assert_true(CardLibrary.by_id("reinforce") == null, "there is no Reinforce card to play")
 
 
 func test_trade_places_is_still_a_second_snap() -> void:

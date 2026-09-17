@@ -436,8 +436,8 @@ func can_drop_card_on(card: CardData, target: Character) -> bool:
 	if not _ready_for_a_card(card):
 		return false
 	if card.target_type == CardData.TargetType.NONE:
-		# The untargeted cards land on anyone — except those that name a slot.
-		return not _card_has(card, CardData.EffectType.REINFORCE) and engine.can_play(card)
+		# The untargeted cards land on anyone.
+		return engine.can_play(card)
 	if _card_has(card, CardData.EffectType.SWAP):
 		# Swap always leaves here with a partner named, so ask about the play
 		# that will actually be submitted rather than the engine's default.
@@ -446,17 +446,6 @@ func can_drop_card_on(card: CardData, target: Character) -> bool:
 				return true
 		return false
 	return engine.can_play(card, target)
-
-
-## Reinforce names the slot its man lands in, so it drops on empty ground.
-func can_drop_card_on_slot(card: CardData, side: Character.Side, line: int, col: int) -> bool:
-	if not _ready_for_a_card(card):
-		return false
-	if side != Character.Side.PLAYER or not _card_has(card, CardData.EffectType.REINFORCE):
-		return false
-	if engine.state.player_formation.at(line, col) != null:
-		return false
-	return engine.can_play(card)
 
 
 func _ready_for_a_card(card: CardData) -> bool:
@@ -478,27 +467,12 @@ func play_card(card: CardData, target: Character) -> void:
 	_begin_card_play(card, target, -1)
 
 
-func play_card_on_slot(card: CardData, slot: int) -> void:
-	_begin_card_play(card, null, slot)
-
-
 ## Some cards want one more thing off the board before they are played: who
-## comes over the rail, who trades places, which way a man is shoved. Each
-## step lights up the engine's own list, and the action is submitted only
-## once every pick is in — so cancelling costs nothing.
+## trades places, which way a man is shoved. Each step lights up the engine's
+## own list, and the action is submitted only once every pick is in — so
+## cancelling costs nothing.
 func _begin_card_play(card: CardData, target: Character, slot: int) -> void:
 	var action := {"op": "play", "card": card, "target": target, "slot": slot}
-	if _card_has(card, CardData.EffectType.REINFORCE):
-		var candidates := engine.crossing_candidates()
-		var options: Array[Dictionary] = []
-		for c in candidates:
-			options.append(_token_option(c, c))
-		_begin_pick("%s — who comes over the rail?" % card.display_name,
-				PickText.card_crossing(card, slot, candidates), options, true,
-				func(crosser: Character) -> void:
-					action["target"] = crosser
-					submit(action))
-		return
 	if _card_has(card, CardData.EffectType.SWAP):
 		var partners := engine.swap_partners(target)
 		var options: Array[Dictionary] = []
@@ -549,7 +523,6 @@ func _can_drop_data(_at: Vector2, data: Variant) -> bool:
 		return false
 	var card: CardData = data["card"]
 	return card.target_type == CardData.TargetType.NONE \
-			and not _card_has(card, CardData.EffectType.REINFORCE) \
 			and _ready_for_a_card(card) and engine.can_play(card)
 
 
@@ -675,9 +648,7 @@ func _fill_line(row: HBoxContainer, formation: Formation, side: Character.Side,
 
 
 func _empty_slot(side: Character.Side, line: int, col: int) -> Control:
-	var droppable := _drag_card != null and can_drop_card_on_slot(_drag_card, side, line, col)
-	return SlotPanel.create(self, side, line, col, _pick_option_for_slot(side, line, col),
-			droppable)
+	return SlotPanel.create(self, side, line, col, _pick_option_for_slot(side, line, col))
 
 
 ## Your own ship's rail. A man who can be sent over is bright and clickable;
@@ -1130,7 +1101,7 @@ func _build_player_zone() -> Control:
 	reserve_bar.add_theme_constant_override("separation", 12)
 	reserve_bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	var hint := UIPalette.label(
-			"Your ship — a man crosses free with the turn's opening (Reinforce), or later by the card. A dimmed man cannot take the free crossing. The reserve never fights, is never hit.",
+			"Your ship — a man crosses free with the turn's opening (Reinforce). A dimmed man cannot take the free crossing. The reserve never fights, is never hit.",
 			UIPalette.FONT_SMALL, UIPalette.PARCHMENT_DIM)
 	# Wrapped, not one long line: an unwrapped label here forces the whole
 	# table wider than the reference canvas and shoves the sidebar off it.

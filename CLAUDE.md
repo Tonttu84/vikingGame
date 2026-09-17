@@ -80,7 +80,34 @@ question still stay in the main conversation regardless of model.
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the hand cycles at the end of the turn** (owner's bug report from
+Done: **the Reinforce card is gone** (owner's call 2026-09-17: "remove all
+of the reinforce cards"). The opening's free crossing IS the crossing now;
+a paid second one on a card was the old rail toll in a new coat. Deleted:
+`CardLibrary.reinforce()`, the `REINFORCE` effect type and both engine
+branches (precondition + apply), the card's 3 copies in the starter deck
+(now 21 tactics + 3 loot) and 4 in the veteran deck (32 + 5), the UI's
+drop-a-card-on-a-slot path (`can_drop_card_on_slot`, `play_card_on_slot`,
+SlotPanel's `droppable` and drag hooks — slots light only for picks now),
+`PickText.card_crossing`, the bot's reinforce-card play, and the card's
+tests in test_boarding / test_officers / test_turn_choice / smoke. KEPT:
+the opening op `reinforce`, `_cross_reserve`, `crossing_candidates`,
+`_default_crosser` (Trade Places' default partner still reads it), and
+the slot pick for the opening. `test_cards` guards the absence (no id,
+no by_id, no constructor, no effect type, no deck copy). Also fixed on the
+way: test_bots still called the deleted `_draw_to_hand_size` and the
+runner swallowed the script error — the suite now runs whole, which is
+why the unit count jumped to 1557. 1557 unit + 246 smoke (the Reinforce slot-drag block left the smoke
+suite). Sims (n=300, random bot), before → after: skirmish 37.0% → 39.0%
+win / 12.7 → 13.0 turns / 0.97 → 0.93 dead in a win; veteran 47.7% →
+57.7% / 14.9 → 15.4 / 0.73 → 0.60; refused proposals 62.2% → 38.3% and
+62.6% → 37.0%, empty decision points 22.7% → 16.0% and 26.0% → 18.3%.
+Read the refusal drop with care: the Reinforce card was the one the bot
+proposed most and the engine refused most (grid full, nobody legal to
+cross), so removing it deflated the metric more than it freed the hand.
+The veteran lift is a 37-card deck that now cycles its punch cards
+faster. RETUNE NOTE: deck sizes are 24 and 37 now; the retune prices
+the decks as they are.
+Earlier: **the hand cycles at the end of the turn** (owner's bug report from
 play, 2026-09-06: "retained cards seem to reduce the draw"). The refill
 was a start-of-turn TOP-UP to 5, so every Retained card in hand quietly
 cost a draw. Now: at the END of the player turn (after the fight phase,

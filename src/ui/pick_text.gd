@@ -84,15 +84,6 @@ static func _rider_move_words(move: Dictionary, formation: Formation) -> String:
 
 # --- Card picks: a card wants one more thing off the board -------------------
 
-static func card_crossing(card: CardData, slot: int, candidates: Array) -> String:
-	var slot_words := "the slot you dropped it on, %s" % slot_name_at(slot) if slot >= 0 \
-			else "the first free slot"
-	return ("%s (cost %d) is a second crossing this turn, on top of the opening's. " +
-			"Click the man on your ship who comes over the rail into %s. " +
-			"Lit and ready: %s. %s Cancel puts the card back in your hand, unpaid.") % [
-			card.display_name, card.cost, slot_words, _names(candidates), _LINES_RULE]
-
-
 static func card_trade(card: CardData, target: Character, partners: Array) -> String:
 	return ("%s (cost %d): %s will change places with the man you click. %s " +
 			"Lit: %s. Cancel puts the card back in your hand, unpaid.") % [
@@ -172,28 +163,22 @@ static func drag(card: CardData) -> String:
 	var text := "%s (cost %d): %s" % [card.display_name, card.cost, CardText.describe(card).replace("\n", " ")]
 	if not text.ends_with("."):
 		text += "."
-	var has_reinforce := false
 	var has_rider := false
 	for effect in card.effects:
 		match effect.get("type"):
-			CardData.EffectType.REINFORCE:
-				has_reinforce = true
 			CardData.EffectType.RIDER_PORT, CardData.EffectType.RIDER_STARBOARD, \
 			CardData.EffectType.RIDER_FORWARD, CardData.EffectType.RIDER_BACKWARD, \
 			CardData.EffectType.RIDER_CLOSE:
 				has_rider = true
-	if has_reinforce:
-		text += " Drop it on a lit empty slot of your own grid: that is where the man you name next will land."
-	else:
-		match card.target_type:
-			CardData.TargetType.ENEMY:
-				text += " Drop it on a lit enemy. A defender left dark is out of the card's reach: on the ship, in the wrong line for it, or pinned."
-			CardData.TargetType.ALLY:
-				text += " Drop it on a lit man of yours. A man left dark cannot take it: he is on the ship"
-				text += ", or the step the card forces (%s) has nowhere to go from his slot." % CardText.rider_kind(card) \
-						if has_rider else "."
-			_:
-				text += " Drop it anywhere on the table."
+	match card.target_type:
+		CardData.TargetType.ENEMY:
+			text += " Drop it on a lit enemy. A defender left dark is out of the card's reach: on the ship, in the wrong line for it, or pinned."
+		CardData.TargetType.ALLY:
+			text += " Drop it on a lit man of yours. A man left dark cannot take it: he is on the ship"
+			text += ", or the step the card forces (%s) has nowhere to go from his slot." % CardText.rider_kind(card) \
+					if has_rider else "."
+		_:
+			text += " Drop it anywhere on the table."
 	if has_rider:
 		text += " After the effect, one of your men must %s; the board asks which. A card whose step nobody could take is refused before it is paid for." \
 				% CardText.rider_kind(card)

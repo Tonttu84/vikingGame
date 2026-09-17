@@ -1,9 +1,9 @@
 class_name SlotPanel
 extends PanelContainer
 ## One empty slot on a formation grid. Normally a dim placeholder that only
-## marks the column, so misses read spatially; when the board wants a pick —
-## a card being dragged that names a slot, or a pending choice — it lights up
-## and becomes the target of the click or the drop.
+## marks the column, so misses read spatially; when the board wants a pick
+## (the opening's free crossing names its slot here) it lights up and
+## becomes the target of the click.
 ##
 ## It never decides anything: the option it answers is handed to it by
 ## BattleUI, which got it from the engine.
@@ -17,26 +17,23 @@ var line: int
 var col: int
 ## The pending pick this slot would answer ({} when the board is not asking).
 var pick_option := {}
-## A card is being dragged right now and this slot is a legal place for it.
-var droppable := false
 
 
 static func create(p_ui: Control, p_side: Character.Side, p_line: int, p_col: int,
-		p_pick_option := {}, p_droppable := false) -> SlotPanel:
+		p_pick_option := {}) -> SlotPanel:
 	var slot := SlotPanel.new()
 	slot.battle_ui = p_ui
 	slot.side = p_side
 	slot.line = p_line
 	slot.col = p_col
 	slot.pick_option = p_pick_option
-	slot.droppable = p_droppable
 	slot._build()
 	return slot
 
 
 func _build() -> void:
 	custom_minimum_size = SLOT_SIZE
-	var lit := droppable or not pick_option.is_empty()
+	var lit := not pick_option.is_empty()
 	if lit:
 		add_theme_stylebox_override("panel",
 				UIPalette.panel(Color(0.79, 0.64, 0.15, 0.18), UIPalette.GOLD, 2))
@@ -47,9 +44,9 @@ func _build() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# A fixed box, lit or not. The label a lit slot gains names a man, and
-	# letting that name set the slot's size moved the whole formation row
-	# sideways the instant a card was picked up — so the drop landed in the
-	# gap beside the slot it was aimed at. Plain Controls do not take their
+	# letting that name set the slot's size once moved the whole formation
+	# row sideways the instant the board lit up — so a drop landed in the gap
+	# beside the slot it was aimed at. Plain Controls do not take their
 	# size from their children, so nothing written here can move the board.
 	var holder := Control.new()
 	holder.custom_minimum_size = SLOT_SIZE - Vector2(2 * PAD, 2 * PAD)
@@ -82,11 +79,3 @@ func _gui_input(event: InputEvent) -> void:
 			and event.button_index == MOUSE_BUTTON_LEFT:
 		battle_ui.choose_pick(pick_option)
 
-
-func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-	return data is Dictionary and data.has("card") \
-			and battle_ui.can_drop_card_on_slot(data["card"], side, line, col)
-
-
-func _drop_data(_at: Vector2, data: Variant) -> void:
-	battle_ui.play_card_on_slot(data["card"], Formation.slot_index(line, col))

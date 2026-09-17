@@ -102,13 +102,6 @@ static func terrifying_bellow() -> CardData:
 			{"type": CardData.EffectType.RIDER_STARBOARD, "amount": 1}])
 
 
-static func reinforce() -> CardData:
-	var card := CardData.new("reinforce", "Reinforce", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.REINFORCE, "amount": 1}])
-	card.retained = true
-	return card
-
-
 static func swap() -> CardData:
 	# The set's strongest positional tool: any two of your men trade slots,
 	# on deck or over the rail. Priced as an effect, not smuggled in as a
@@ -184,7 +177,7 @@ static func card_ids() -> Array[String]:
 		"drag_him_back", "break_the_line", "taunt", "drive_him_back",
 		"push_them_back",
 		"battle_fury", "feint", "war_cry", "terrifying_bellow",
-		"reinforce", "swap",
+		"swap",
 		"loot_silver_a", "loot_silver_b", "loot_cauldron",
 		"loot_arm_ring", "loot_tapestry",
 	]
@@ -205,7 +198,6 @@ static func by_id(p_id: String) -> CardData:
 		"feint": return feint()
 		"war_cry": return war_cry()
 		"terrifying_bellow": return terrifying_bellow()
-		"reinforce": return reinforce()
 		"swap": return swap()
 		"loot_silver_a": return loot("loot_silver_a", "Plundered Silver")
 		"loot_silver_b": return loot("loot_silver_b", "Plundered Silver")
@@ -215,13 +207,12 @@ static func by_id(p_id: String) -> CardData:
 	return null
 
 
-## The v0 starter deck: 24 tactics + 3 pieces of loot clogging it. Crossing
-## the rail lives in the deck, so Reinforce/Trade Places are well represented,
-## and the port and starboard riders are carried in equal numbers.
+## The v0 starter deck: 21 tactics + 3 pieces of loot clogging it. The rail
+## crossing is the turn's opening now, not a card (the Reinforce card was
+## removed 2026-09-17); Trade Places stays in the deck, and the port and
+## starboard riders are carried in equal numbers.
 static func starter_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
-	for i in 3:
-		deck.append(reinforce())
 	for i in 2:
 		deck.append(spear_volley())
 		deck.append(concentrated_attack())
@@ -244,12 +235,10 @@ static func starter_deck() -> Array[CardData]:
 
 
 ## The veteran raid's deck: the starter vocabulary a summer of raiding later.
-## 36 tactics — deeper on the rail (Reinforce/Trade Places) and the punch cards — and
-## 5 pieces of loot: success clogs the deck, that's the roguelite bargain.
+## 32 tactics — deeper on Trade Places and the punch cards — and 5 pieces of
+## loot: success clogs the deck, that's the roguelite bargain.
 static func veteran_deck() -> Array[CardData]:
 	var deck: Array[CardData] = []
-	for i in 4:
-		deck.append(reinforce())
 	for i in 3:
 		deck.append(swap())
 		deck.append(spear_volley())

@@ -52,7 +52,7 @@ func _boxed_in() -> CombatEngine:
 func test_the_random_bot_only_proposes_plays_the_engine_accepts() -> void:
 	var eng := _bot_engine()
 	eng.state.momentum = BattleState.MOMENTUM_CAP
-	eng._draw_to_hand_size()
+	eng._draw(BattleState.HAND_SIZE)
 	for i in 30:
 		if eng.outcome != CombatEngine.Outcome.NONE:
 			break

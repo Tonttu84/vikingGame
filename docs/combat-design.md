@@ -23,7 +23,7 @@ some momentum-related reward. Permadeath needs a coward's exit to be fair.
 Each side fields **4 columns × 2 lines** of slots, plus an untouchable
 reserve (their hold, your ship). Any slot may be empty; the slots themselves
 are the fielded cap. The rail bottleneck is the crossing **rate** (the
-turn's opening, plus Reinforce/Trade Places per turn), not a standing limit.
+turn's opening, plus Trade Places per turn), not a standing limit.
 
 - **Placement is targeting.** A fighter attacks the nearest occupied enemy
   slot in his own column — their front first, then their second line. A
@@ -72,12 +72,13 @@ turn's opening, plus Reinforce/Trade Places per turn), not a standing limit.
   he steps in himself, and then he stands in the formation like anyone:
   reach him through his column, snipe him, shove his line apart. All the
   old exposure rules are gone.
-- Your reinforcements flow through **the turn's opening** and **the deck**:
-  the opening crosses one man free every turn (below), and on top of it
-  `Reinforce` fields a man from your ship **into a slot you choose** while
-  `Trade Places` trades any two of your men (fielded↔fielded or
-  fielded↔reserve — also how the captain trades places with his prowman).
-  A bad hand can never strand the first wave: the opening is always there.
+- Your reinforcements flow through **the turn's opening**: it crosses one
+  man free every turn into a slot you choose (below), and that is the only
+  crossing there is — the Reinforce card was removed on 2026-09-17 as the
+  old rail toll in a new coat. `Trade Places` trades any two of your men
+  (fielded↔fielded or fielded↔reserve — also how the captain trades places
+  with his prowman). A bad hand can never strand the first wave: the
+  opening is always there.
 
 ## The press (shipped, 2026-09-05)
 
@@ -215,8 +216,8 @@ captain's alternate, not his subordinate. Rulings (2026-08-28):
   wave; the captain waits at his own rail. They are never fielded together.
 - **They trade places only with each other.** `Swap` played on the fielded
   one — or the turn's free opening trade — brings the other across into his
-  exact slot. Neither can swap with ordinary crew, cross by `Reinforce`, or
-  take the opening's free crossing — and once the captain is the last of the
+  exact slot. Neither can swap with ordinary crew or take the opening's
+  free crossing — and once the captain is the last of the
   pair, he cannot leave.
 - **If the prowman leaves the field for good** — slain or broken — **the
   captain leaps the rail himself, immediately, for 1 momentum**
@@ -246,8 +247,8 @@ PLAYER TURN
      pick; (b) a FREE swap ("snap"), two of your men trade places,
      fielded<->fielded or fielded<->reserve; or (c) +1 momentum AND +1 card,
      on top of step 1's own +1.
-  3. Play any number of cards (pay momentum). Reinforce is the turn's
-     SECOND crossing, Trade Places its second snap — both still priced.
+  3. Play any number of cards (pay momentum). Trade Places is the turn's
+     second swap, still priced; there is no second crossing.
   4. Fight: every fielded man performs his beat — axes first, then by
      speed (see character control); guard resets to armor at turn start.
   5. The hand cycles: discard everything not Retained, then DRAW 5 — a
@@ -285,8 +286,8 @@ fight rich and act from strength, exactly as a boarder should.
 
 The hand cycles at the END of every player turn (owner's ruling
 2026-09-06; the first hand is dealt with the boarding): the old hand is
-discarded and a fresh 5 drawn — except **Retained** cards (Reinforce, Trade
-Places, Drag Him Back!), which wait in hand for their moment. The draw is a
+discarded and a fresh 5 drawn — except **Retained** cards (Trade Places,
+Drag Him Back!), which wait in hand for their moment. The draw is a
 fixed five, never a top-up, so a Retained card costs no draw; the only limit
 is the 7-card ceiling, and a draw that would pass it leaves the card in the
 deck. (It used to be a start-of-turn top-up to 5, so every Retained card
@@ -339,7 +340,7 @@ built on, and it partitions cleanly into three families:
 
 | Family | The movement is | Cards |
 | --- | --- | --- |
-| **Rail** | a crossing, field ↔ reserve | Reinforce, Trade Places, Drag Him Back! |
+| **Rail** | a crossing, field ↔ reserve | Trade Places, Drag Him Back! (the free crossing itself is the turn's opening, not a card) |
 | **Theirs** | forced on an enemy — the effect itself | Break the Line, Drive Him Back, Taunt |
 | **Riders** | a fixed step by one of your own men | everything else |
 
@@ -362,7 +363,6 @@ flavour, it is a silent drift of the whole crew toward one rail.
 
 | Card | Cost | Effect | Movement |
 | --- | --- | --- | --- |
-| Reinforce | 1 | Retained. Field a man from your ship into a slot you choose | the crossing |
 | Trade Places | 2 | Retained. Any two of your men trade slots (fielded↔fielded or fielded↔reserve) | the trade |
 | Drag Him Back! | 1 | Retained, reaction. Fires automatically when a killing blow lands on a crew member: cancels it, pulls him to the ship at 1 HP (the permadeath safety valve — holding it and its momentum IS the play) | the pull |
 | Break the Line | 1 | Shove an enemy front-liner one column sideways — you re-aim THEIR formation | theirs, your chosen direction |
@@ -393,7 +393,7 @@ real, which is what this set is.
 - **Riders never displace** — the destination must be empty. A swap is a
   strong effect worth a card of its own (Trade Places), not a rider.
 - **A card whose rider has no legal move is refused before payment**, card
-  kept, nothing paid, exactly as a Reinforce with nowhere to land is. The
+  kept, nothing paid, exactly as a Trade Places with nobody to trade is. The
   movement is part of the price, so it cannot be engineered away by packing
   your grid. Battle Fury cannot be played on a front-liner; Rally cannot be
   played on a second-liner or on a man whose slot behind is taken; Shield
@@ -625,7 +625,7 @@ Rulings made deliberately, to be re-examined with the M1/M2 prototype in hand:
 - **Cards-only control** — no manual retargeting. Fallback if fights feel
   like spectating: a generic `Order` (1 momentum: retarget one character).
 - **Hand model (RESOLVED)** — full draw-play-discard each turn, with the
-  Retained keyword (Reinforce, Swap, Drag Him Back!) and the automatic
+  Retained keyword (Trade Places, Drag Him Back!) and the automatic
   death-save. Scrapping removed with it.
 - **Morale cascade tuning** — avalanche routs should be a dramatic
   occasional payoff, not the default way every fight ends.

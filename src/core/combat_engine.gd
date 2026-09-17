@@ -241,8 +241,9 @@ func _cycle_hand() -> void:
 # Owner's ruling 2026-09-05 (docs/combat-design.md, turn structure). It
 # replaces the old momentum commit: the crossing is free now, and the price
 # is the tempo you did not take instead — because the third option pays a
-# momentum and a card. Reinforce and Trade Places remain as the PAID second
-# crossing and second trade in the same turn.
+# momentum and a card. Trade Places remains as the PAID second trade in the
+# same turn; the Reinforce card is gone (2026-09-17) — the opening IS the
+# crossing.
 
 func _opening_choice() -> void:
 	var options := opening_options()
@@ -366,18 +367,11 @@ func _play_card(card: CardData, target: Character, second_target: Character = nu
 
 
 ## Cards are refused outright (card kept, nothing paid) when they cannot do
-## their job — a fizzled Reinforce or Challenge would feel like theft.
+## their job — a fizzled Trade Places or Taunt would feel like theft.
 func _effect_preconditions_met(card: CardData, target: Character,
 		second_target: Character = null) -> bool:
 	for effect in card.effects:
 		match effect.get("type"):
-			CardData.EffectType.REINFORCE:
-				if state.player_formation.is_full():
-					return false
-				if target == null and _default_crosser() == null:
-					return false
-				if target != null and (not state.player_reserve.has(target) or _pair_member(target)):
-					return false
 			CardData.EffectType.SWAP:
 				if target == null or target.pinned > 0 \
 						or not state.player_formation.has(target):
@@ -463,8 +457,7 @@ func _target_valid(card: CardData, target: Character) -> bool:
 	return false
 
 
-## Reserve men an ordinary crossing may take (the turn's opening, Reinforce),
-## in queue order. The prow pair is not among them: they cross only by trading
+## Reserve men the turn's opening may cross, in queue order. The prow pair is not among them: they cross only by trading
 ## with each other (docs/combat-design.md, the prow pair).
 func crossing_candidates() -> Array[Character]:
 	var out: Array[Character] = []
@@ -653,8 +646,6 @@ func _apply_effect(effect: Dictionary, target: Character, second_target: Charact
 				if not c.morale_immune():
 					c.max_morale += amount
 					c.morale += amount
-		CardData.EffectType.REINFORCE:
-			_cross_reserve(target if target != null else _default_crosser(), slot)
 		CardData.EffectType.SWAP:
 			_swap_men(target, second_target if second_target != null \
 					else _default_swap_partner(target))
@@ -800,7 +791,7 @@ func _apply_rider_move(rider: CardData.EffectType, move: Dictionary) -> void:
 ## The prow pair is active whenever the roster declares a prowman: then the
 ## captain and the prowman move only by trading places with each other (the
 ## Swap card, or the turn's free opening trade) or by the forced crossing in
-## _pair_exit — never by Reinforce, the opening's free crossing, or a swap
+## _pair_exit — never by the opening's free crossing or a swap
 ## with ordinary crew.
 func _pair_member(c: Character) -> bool:
 	return state.player_prowman != null \
@@ -848,7 +839,7 @@ func _pair_swap_legal(target: Character, second_target: Character) -> bool:
 	return second_target == null or not _pair_member(second_target)
 
 
-## The rail crossing itself, shared by the turn's opening and the Reinforce
+## The rail crossing itself, the turn's opening's free move (once shared with the
 ## card: a man off the ship takes the slot he was sent to, or — when that one
 ## is taken or none was named — the first free slot in reading order. A man
 ## fielded mid-battle opens his pattern from the top.

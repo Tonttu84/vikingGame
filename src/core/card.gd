@@ -20,7 +20,6 @@ enum EffectType {
 	DRAW,                      ## draw cards
 	WAR_CRY,                   ## +1 extra momentum per enemy killed this turn
 	GAIN_MOMENTUM,             ## +amount momentum (boarding maneuvers, rallying cards)
-	REINFORCE,                 ## field an ally from reserve (target optional; default first)
 	SWAP,                      ## targeted fielded ally trades places with a reserve ally
 	SEND_DEFENDERS_BELOW,      ## amount fielded enemies go to the BACK of their reserve
 	DEFENDERS_FORM_UP,         ## amount enemy reserves are fielded immediately

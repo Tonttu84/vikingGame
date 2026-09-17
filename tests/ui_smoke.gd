@@ -262,7 +262,7 @@ func check_fits_canvas(ui, stage: String) -> void:
 				", ".join(PackedStringArray(out.slice(0, 4)))])
 
 
-## Lighting the board must never MOVE it. Slots only become droppable once a
+## Lighting the board must never MOVE it. Slots only light up once a
 ## card is picked up, which re-renders the board — and every element that
 ## sized itself from its own text (the slot's label, a token's stat line, the
 ## sidebar's log) shifted the formation rows sideways at that exact moment, so
@@ -643,46 +643,6 @@ func _run() -> void:
 	check(ui.engine.state.player_formation.slots != slots_before,
 			"the mandatory rider actually moved a man")
 	check(ui._awaiting_action, "back to waiting after the rider resolves")
-
-	# Reinforce names the slot its man lands in: drag the card onto a lit
-	# empty slot, then pick who comes over the rail.
-	if ui.engine.outcome == CombatEngine.Outcome.NONE and ui._awaiting_action:
-		var reinforce: CardData = null
-		for c: CardData in ui.engine.state.hand:
-			if c.id == "reinforce":
-				reinforce = c
-		if reinforce == null:
-			reinforce = CardLibrary.reinforce()
-			_put_in_hand(ui, reinforce)
-		ui.engine.state.momentum = maxi(ui.engine.state.momentum, reinforce.cost)
-		ui.refresh(ui.engine.state)
-		var target_slot = null
-		for child in ui._player_back_row.get_children():
-			if child is SlotPanel and target_slot == null:
-				target_slot = child
-		check(target_slot != null, "an empty second-line slot to reinforce into")
-		if target_slot != null:
-			check(ui.can_drop_card_on_slot(reinforce, Character.Side.PLAYER,
-					target_slot.line, target_slot.col), "the empty slot takes Reinforce")
-			check(not ui.can_drop_card_on(reinforce, ui.engine.state.player_formation.fielded()[0]),
-					"a card that names a slot is not dropped on a man")
-			var index := Formation.slot_index(target_slot.line, target_slot.col)
-			var view = _card_view(ui, reinforce)
-			check(view != null and view.draggable, "the Reinforce card can be picked up")
-			await _drag(view.get_global_rect().get_center(),
-					target_slot.get_global_rect().get_center())
-			check(not ui._pick.is_empty(), "dropping Reinforce asks who comes over")
-			await check_explained(ui, "the Reinforce crosser pick", ["Reinforce",
-					"second crossing", PickText.slot_name_at(index),
-					"Cancel puts the card back"])
-			var crosser: Character = ui._pick["options"][0]["value"]
-			check(ui._pick_cancel_button.visible, "a card pick can still be backed out of")
-			ui.choose_pick(ui._pick["options"][0])
-			await _settle(ui)
-			check(ui.engine.state.player_formation.slots[index] == crosser,
-					"the man crossed into the slot the card was dropped on")
-	else:
-		skipped.append("the Reinforce slot drag (battle already decided)")
 
 	# The opening's FREE CROSSING, answered the way a player answers it: end
 	# the turn, catch the next one at its opening, press Reinforce, name the

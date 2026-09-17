@@ -2,7 +2,7 @@ extends TestCase
 ## The prow pair (officer system, first slice): the captain and the prowman
 ## are alternates. One of the pair must stand on the field; they trade
 ## places only with each other (the Swap card), never with ordinary crew,
-## and neither crosses by Reinforce or the turn's free opening. When the
+## and neither crosses by the turn's free opening. When the
 ## prowman leaves the field for good — slain or broken — the captain leaps
 ## the rail himself for 1 momentum; if the crew cannot pay, panic takes
 ## them and the battle is lost. Rulings from playtest discussion 2026-08-28.
@@ -46,29 +46,6 @@ func test_captain_cannot_take_the_free_crossing_while_the_pair_stands() -> void:
 	assert_true(eng.state.player_reserve.has(captain),
 			"the captain never crosses by the opening's free reinforcement")
 	assert_eq(eng.state.momentum, 6, "the refused free move fell back to the income")
-
-
-func test_reinforce_default_crosser_skips_the_captain() -> void:
-	var eng := _pair_engine(5)
-	var card := CardData.new("reinforce", "Reinforce", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.REINFORCE, "amount": 1}])
-	eng.state.hand.append(card)
-	await eng._play_card(card, null)
-	assert_false(eng.state.player_formation.has(eng.state.player_captain),
-			"the captain is skipped even at the head of the reserve queue")
-	var crew2: Character = eng.state.player_reserve[0] if not eng.state.player_reserve.is_empty() else null
-	assert_true(crew2 == eng.state.player_captain, "only the captain is left ashore")
-
-
-func test_reinforce_refuses_the_captain_as_explicit_target() -> void:
-	var eng := _pair_engine(5)
-	var card := CardData.new("reinforce", "Reinforce", 1, CardData.TargetType.NONE,
-			[{"type": CardData.EffectType.REINFORCE, "amount": 1}])
-	eng.state.hand.append(card)
-	await eng._play_card(card, eng.state.player_captain)
-	assert_true(eng.state.hand.has(card), "refused outright — card kept")
-	assert_eq(eng.state.momentum, 5, "nothing paid")
-	assert_true(eng.state.player_reserve.has(eng.state.player_captain))
 
 
 func test_swap_trades_prowman_for_captain() -> void:

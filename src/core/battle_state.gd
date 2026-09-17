@@ -43,7 +43,7 @@ const PRESS_MORALE_MARGIN := 2
 
 ## Where everyone stands (docs/lines-redesign.md): 4 columns x 2 lines per
 ## side. The slots themselves are the fielded cap; the rail bottleneck is the
-## crossing rate (the turn's opening, Reinforce/Trade Places), not a standing
+## crossing rate (the turn's opening, Trade Places), not a standing
 ## limit.
 var player_formation := Formation.new()
 var player_reserve: Array[Character] = []

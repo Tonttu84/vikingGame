@@ -411,3 +411,19 @@ func test_both_decks_pull_equally_to_port_and_starboard() -> void:
 		assert_true(port > 0, "%s deck carries the coin-flip riders at all" % deck_name)
 		assert_eq(port, starboard,
 				"%s deck: %d port vs %d starboard" % [deck_name, port, starboard])
+
+
+# --- The Reinforce card is gone (owner's ruling 2026-09-17) -------------------
+# The turn's opening crosses a man free every turn; a paid second crossing
+# on a card was the old rail toll wearing a new coat. The crossing itself
+# (_cross_reserve, crossing_candidates) lives on for the opening.
+
+func test_there_is_no_reinforce_card() -> void:
+	assert_false(CardLibrary.card_ids().has("reinforce"), "not a buildable id")
+	assert_true(CardLibrary.by_id("reinforce") == null, "by_id knows nothing of it")
+	assert_false(CardLibrary.new().has_method("reinforce"), "no constructor either")
+	assert_false(CardData.EffectType.has("REINFORCE"),
+			"and the effect type went with it — nothing is left to interpret")
+	for deck in [CardLibrary.starter_deck(), CardLibrary.veteran_deck()]:
+		for card: CardData in deck:
+			assert_true(card.id != "reinforce", "no deck carries one")

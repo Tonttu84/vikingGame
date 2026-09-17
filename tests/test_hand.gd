@@ -7,7 +7,6 @@ const E := Character.Side.ENEMY
 
 
 func test_retain_keyword_on_the_right_cards() -> void:
-	assert_true(CardLibrary.reinforce().retained, "reinforce waits for the right moment")
 	assert_true(CardLibrary.swap().retained, "swap waits for the right moment")
 	assert_true(CardLibrary.drag_him_back().retained, "the save waits in hand")
 	assert_false(CardLibrary.spear_volley().retained, "ordinary tactics cycle")
@@ -59,7 +58,7 @@ func test_the_refill_is_a_fixed_draw_not_a_top_up() -> void:
 		"player_field": [TestHelpers.grunt(P, "crew")],
 		"deck": CardLibrary.starter_deck(),
 	})
-	var keepers := [CardLibrary.reinforce(), CardLibrary.swap()]
+	var keepers := [CardLibrary.swap(), CardLibrary.drag_him_back()]
 	for k in keepers:
 		eng.state.hand.append(k)
 	await eng._player_turn()
@@ -73,7 +72,7 @@ func test_the_refill_stops_at_the_hand_ceiling() -> void:
 		"player_field": [TestHelpers.grunt(P, "crew")],
 		"deck": CardLibrary.starter_deck(),
 	})
-	var keepers := [CardLibrary.reinforce(), CardLibrary.swap(), CardLibrary.drag_him_back()]
+	var keepers := [CardLibrary.swap(), CardLibrary.swap(), CardLibrary.drag_him_back()]
 	for k in keepers:
 		eng.state.hand.append(k)
 	await eng._player_turn()
@@ -122,7 +121,7 @@ func test_a_retained_card_held_over_rides_on_top_of_the_deal() -> void:
 		"player_field": [TestHelpers.grunt(P, "crew")],
 		"deck": _cycling_deck(),
 	})
-	var keeper := CardLibrary.reinforce()
+	var keeper := CardLibrary.swap()
 	# Second from the top: the opening's income takes the top card, so the
 	# turn's end-cycle is what draws the keeper.
 	eng.state.deck.insert(eng.state.deck.size() - 1, keeper)
@@ -139,7 +138,7 @@ func test_retained_cards_survive_the_discard() -> void:
 		"player_field": [TestHelpers.grunt(P, "crew")],
 		"deck": CardLibrary.starter_deck(),
 	})
-	var keeper := CardLibrary.reinforce()
+	var keeper := CardLibrary.swap()
 	var cycler := CardLibrary.spear_volley()
 	eng.state.hand.append(keeper)
 	eng.state.hand.append(cycler)

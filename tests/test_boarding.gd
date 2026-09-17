@@ -163,65 +163,6 @@ func test_careful_assault_lets_defenders_form_up() -> void:
 	assert_eq(r2.morale, 7, "the whole crew is composed")
 
 
-func test_reinforce_card_fields_first_reserve_by_default() -> void:
-	var crew := TestHelpers.grunt(P, "crew")
-	var r1 := TestHelpers.grunt(P, "r1")
-	var r2 := TestHelpers.grunt(P, "r2")
-	var eng := TestHelpers.engine_for({"player_field": [crew], "player_reserve": [r1, r2]})
-	var card := CardLibrary.reinforce()
-	eng.state.hand.append(card)
-	eng.state.momentum = 1
-	await eng._play_card(card, null)
-	assert_true(eng.state.player_formation.has(r1), "first in reserve crosses")
-	assert_false(eng.state.player_reserve.has(r1))
-	assert_eq(eng.state.momentum, 0)
-
-
-func test_reinforce_card_places_into_a_chosen_slot() -> void:
-	var crew := TestHelpers.grunt(P, "crew")
-	var r1 := TestHelpers.grunt(P, "r1")
-	var eng := TestHelpers.engine_for({"player_field": [crew], "player_reserve": [r1]})
-	var card := CardLibrary.reinforce()
-	eng.state.hand.append(card)
-	eng.state.momentum = 1
-	await eng._play_card(card, r1, null, Formation.slot_index(Formation.BACK, 2))
-	assert_eq(eng.state.player_formation.at(Formation.BACK, 2), r1,
-			"Reinforce fields a man into the slot you choose")
-
-
-func test_reinforce_card_honors_an_explicit_target() -> void:
-	var crew := TestHelpers.grunt(P, "crew")
-	var r1 := TestHelpers.grunt(P, "r1")
-	var r2 := TestHelpers.grunt(P, "r2")
-	var eng := TestHelpers.engine_for({"player_field": [crew], "player_reserve": [r1, r2]})
-	var card := CardLibrary.reinforce()
-	eng.state.hand.append(card)
-	eng.state.momentum = 1
-	await eng._play_card(card, r2)
-	assert_true(eng.state.player_formation.has(r2), "the named man crosses")
-	assert_true(eng.state.player_reserve.has(r1))
-
-
-func test_reinforce_refused_when_field_full_or_reserve_empty() -> void:
-	var field: Array[Character] = []
-	for i in Formation.SLOT_COUNT:
-		field.append(TestHelpers.grunt(P, "p%d" % i))
-	var r1 := TestHelpers.grunt(P, "r1")
-	var eng := TestHelpers.engine_for({"player_field": field, "player_reserve": [r1]})
-	var card := CardLibrary.reinforce()
-	eng.state.hand.append(card)
-	eng.state.momentum = 5
-	await eng._play_card(card, null)
-	assert_true(eng.state.hand.has(card), "every slot is taken: refused, card kept")
-	assert_eq(eng.state.momentum, 5, "nothing paid")
-	var eng2 := TestHelpers.engine_for({"player_field": [TestHelpers.grunt(P, "solo")]})
-	var card2 := CardLibrary.reinforce()
-	eng2.state.hand.append(card2)
-	eng2.state.momentum = 5
-	await eng2._play_card(card2, null)
-	assert_true(eng2.state.hand.has(card2), "nobody left on the ship: refused")
-
-
 func test_swap_rotates_wounded_for_fresh() -> void:
 	var tired := TestHelpers.grunt(P, "tired")
 	tired.hp = 3

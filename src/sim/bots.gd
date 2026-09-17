@@ -76,14 +76,6 @@ class RandomBot:
 		return income
 
 	func choose_action(state: BattleState) -> Dictionary:
-		# Crossing men is still the highest priority once the opening is spent:
-		# the Reinforce card is the turn's SECOND crossing, and it is paid for.
-		var crosser := _crosser_for(state)
-		if not state.player_formation.is_full() and crosser != null:
-			for card in state.hand:
-				if card.id == "reinforce" and card.cost <= state.momentum:
-					return {"op": "play", "card": card, "target": crosser,
-							"slot": _random_free_slot(state)}
 		var playable: Array[CardData] = []
 		decision_points += 1
 		for card in state.hand:
