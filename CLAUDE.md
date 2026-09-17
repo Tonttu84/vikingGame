@@ -80,7 +80,19 @@ question still stay in the main conversation regardless of model.
 
 ## Where we are (keep this section current when finishing a work slice)
 
-Done: **the Reinforce card is gone** (owner's call 2026-09-17: "remove all
+Done: **the pick prompt moved onto the rail** (owner, 2026-09-17: the
+top-left corner "is a very bad place for it"). The short prompt ("Spear
+Volley — steps to PORT: which man?") and its Cancel button now float as a
+gold callout centred on the compass rail between the two decks, right
+between the men it asks you to click; the banner keeps the turn title.
+Zero layout cost: the rail is a plain Control of the compass row's own
+height (measured in `rail.ready`, after the theme font is in — measured
+earlier it reads 7px too tall) with the callout overlaid, sized so it
+sits in the two zones' padding and touches no token. Smoke asserts at
+every pick kind that the callout is up, says the pick's prompt, and
+intersects no token in the rows beside the rail. The explanation panel
+on the sidebar is unchanged.
+Earlier: **the Reinforce card is gone** (owner's call 2026-09-17: "remove all
 of the reinforce cards"). The opening's free crossing IS the crossing now;
 a paid second one on a card was the old rail toll in a new coat. Deleted:
 `CardLibrary.reinforce()`, the `REINFORCE` effect type and both engine

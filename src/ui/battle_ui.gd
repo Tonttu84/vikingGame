@@ -81,6 +81,10 @@ var _outcome_again: Button
 var _maneuver_layer: Control
 var _maneuver_options: HBoxContainer
 var _pick_cancel_button: Button
+## The pick prompt's callout, floating on the rail between the decks — where
+## the men to click are — instead of the banner in the top-left corner.
+var _rail_prompt: PanelContainer
+var _rail_prompt_label: Label
 var _opening_bar: HBoxContainer
 var _opening_buttons := {}
 var _debug_panel: DebugPanel
@@ -763,9 +767,12 @@ func _refresh_hud(state: BattleState) -> void:
 	var picking := not _pick.is_empty()
 	# The banner doubles as the prompt line: while the board is asking for a
 	# pick it says which card asked and what it wants.
-	_turn_label.text = _pick["prompt"] if picking else _turn_text
-	_turn_label.add_theme_color_override("font_color",
-			UIPalette.GOLD if picking else UIPalette.PARCHMENT)
+	_turn_label.text = _turn_text
+	# The prompt itself floats on the rail, between the decks: the owner's
+	# call — the top-left corner is nowhere near the men it asks you to click.
+	_rail_prompt.visible = picking
+	if picking:
+		_rail_prompt_label.text = _pick["prompt"]
 	_pick_cancel_button.visible = picking and _pick.get("cancellable", false)
 	# The bar is the only live control while the opening is unanswered; a pick
 	# it started hides it, and cancelling that pick brings it straight back.
@@ -970,7 +977,46 @@ func _build_rail() -> Control:
 	var starboard := UIPalette.label("STARBOARD ▶", UIPalette.FONT_SMALL, UIPalette.GOLD)
 	starboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rail.add_child(starboard)
-	return rail
+	# The rail row is a plain Control of the compass row's own height, so the
+	# prompt callout floating on it costs the table no layout at all: it is
+	# centred over the line and spills a few pixels into the two zones'
+	# padding, never onto a token.
+	var row := Control.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rail.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.add_child(rail)
+	# Measured once the labels have their theme font: measured before that,
+	# the compass row reports the default font's height, 7px too tall, and
+	# the table's few spare pixels go with it.
+	rail.ready.connect(func() -> void:
+		row.custom_minimum_size.y = rail.get_combined_minimum_size().y)
+	_rail_prompt = PanelContainer.new()
+	var style := UIPalette.panel(UIPalette.SEA_DARK, UIPalette.GOLD, 2, 5)
+	style.set_content_margin_all(3)
+	style.content_margin_left = 12
+	style.content_margin_right = 6
+	_rail_prompt.add_theme_stylebox_override("panel", style)
+	_rail_prompt.mouse_filter = Control.MOUSE_FILTER_PASS
+	_rail_prompt.visible = false
+	var inner := HBoxContainer.new()
+	inner.add_theme_constant_override("separation", 8)
+	_rail_prompt_label = UIPalette.label("", UIPalette.FONT_BODY, UIPalette.GOLD)
+	_rail_prompt_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	inner.add_child(_rail_prompt_label)
+	# Only card picks may be backed out of; a movement rider never shows this.
+	_pick_cancel_button = Button.new()
+	_pick_cancel_button.text = "Cancel"
+	_pick_cancel_button.visible = false
+	_pick_cancel_button.pressed.connect(cancel_pick)
+	inner.add_child(_pick_cancel_button)
+	_rail_prompt.add_child(inner)
+	row.add_child(_rail_prompt)
+	# Centred on the row and re-centred whenever the words change size.
+	_rail_prompt.resized.connect(func() -> void:
+		_rail_prompt.position = (row.size - _rail_prompt.size) / 2.0)
+	row.resized.connect(func() -> void:
+		_rail_prompt.position = (row.size - _rail_prompt.size) / 2.0)
+	return row
 
 
 func _build_top_bar() -> Control:
@@ -1009,12 +1055,6 @@ func _build_top_bar() -> Control:
 		_opening_bar.add_child(button)
 		_opening_buttons[op] = button
 	bar.add_child(_opening_bar)
-	# Only card picks may be backed out of; a movement rider never shows this.
-	_pick_cancel_button = Button.new()
-	_pick_cancel_button.text = "Cancel"
-	_pick_cancel_button.visible = false
-	_pick_cancel_button.pressed.connect(cancel_pick)
-	bar.add_child(_pick_cancel_button)
 	var rules := Button.new()
 	rules.text = "How it works"
 	rules.pressed.connect(func() -> void: _rules_dialog.popup_centered())

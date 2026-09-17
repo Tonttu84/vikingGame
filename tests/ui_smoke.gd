@@ -137,6 +137,20 @@ func check_explained(ui, stage: String, needles: Array) -> void:
 	check(covered.is_empty(),
 			"%s: the explanation covers nothing it asks you to click (%s)" % [
 					stage, ", ".join(covered)])
+	# The prompt callout on the rail (the owner's call: not the top-left
+	# corner) says the same short line the banner used to, floats between the
+	# decks, and covers no lit token either.
+	if not ui._pick.is_empty():
+		check(ui._rail_prompt.visible and ui._rail_prompt_label.text == ui._pick["prompt"],
+				"%s: the prompt callout is up on the rail and says \"%s\"" % [stage, ui._pick["prompt"]])
+		var callout: Rect2 = ui._rail_prompt.get_global_rect()
+		var callout_covers: Array[String] = []
+		for row in [ui._player_front_row, ui._player_back_row, ui._enemy_back_row]:
+			for t in _tokens_in(row):
+				if callout.intersects(t.get_global_rect()):
+					callout_covers.append(t.character.display_name)
+		check(callout_covers.is_empty(),
+				"%s: the callout on the rail touches no token (%s)" % [stage, ", ".join(callout_covers)])
 	await check_fits_canvas(ui, stage + " explained")
 
 
