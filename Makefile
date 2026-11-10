@@ -30,7 +30,7 @@ gate:            ## the local gate before every push (mirrors CI's jobs)
 limits:          ## report functions over the size limits (warnings only)
 	"$(BASH)" scripts/function_limits.sh
 
-test:            ## unit tests (~2s)
+test:            ## unit tests (~20s with the import)
 	"$(BASH)" scripts/test.sh
 
 sim:             ## balance sim; pass flags via ARGS="--n=500 --bot=none"

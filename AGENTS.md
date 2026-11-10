@@ -86,8 +86,6 @@ adding files (the scripts do this).
 - **Always qualify enum types in annotations**: `var side: Character.Side`,
   never `var side: Side`, even inside the declaring class (bare names break
   cross-script type matching at runtime).
-- `Character.engaged_with` is WeakRef-backed: mutual engagement must not
-  create RefCounted cycles. Rosters hold the strong references.
 - Card faces, slots, tokens and the sidebar are fixed boxes; text is fitted
   or clipped into them, never allowed to size its box. The canvas had ~5px of
   vertical headroom at 800px (2026-09-06): a new row must buy its own space.
@@ -99,7 +97,7 @@ adding files (the scripts do this).
   press would find the stale one.
 - `_begin_pick` takes the pick's explanation as a required argument.
 - Commit `.uid` files (Godot 4.4+ guidance); never commit `.godot/`.
-- `*.sh`, `Makefile` and `Dockerfile` keep LF endings (`.gitattributes`).
+- `*.sh`, `Makefile`, `Dockerfile` and `.githooks/*` keep LF endings (`.gitattributes`).
 - No model identifiers in commits, code, or comments.
 
 ## Layout

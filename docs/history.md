@@ -3,6 +3,7 @@
 The work-slice log that used to be the "Where we are" section of
 `CLAUDE.md`, moved here unchanged on 2026-11-10 (newest first). The current
 state lives in `AGENTS.md`; the shipped rules live in `docs/combat-design.md`.
+The heading below is historical: that section is now kept in `AGENTS.md`.
 
 ## Where we are (keep this section current when finishing a work slice)
 
