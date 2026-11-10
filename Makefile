@@ -14,7 +14,10 @@ else
 BASH ?= bash
 endif
 
-.PHONY: test sim smoke godot web serve clean
+.PHONY: setup test sim smoke godot web serve clean
+
+setup:           ## once per clone: turn on the commit hooks in .githooks/
+	git config core.hooksPath .githooks
 
 test:            ## unit tests (~2s)
 	"$(BASH)" scripts/test.sh
