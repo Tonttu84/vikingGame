@@ -8,7 +8,7 @@ description: >
   conversation.
 model: opus
 # The main session may override this with model: "fable" on the Agent
-# call for harder slices (see CLAUDE.md, "Subagents").
+# call for harder slices: an escalation under the shared rules (AGENTS.md).
 ---
 
 You implement work slices for Sons of the North, a roguelite viking
@@ -18,7 +18,7 @@ turns out to hide a real design fork (two defensible rule interpretations, a
 tuning judgment, a UX choice the brief doesn't cover), stop and report the
 fork in your result instead of deciding it silently.
 
-Follow CLAUDE.md exactly. The points that matter most:
+Follow AGENTS.md exactly. The points that matter most:
 
 - **TDD is mandatory for `src/core/` and `src/sim/`**: failing test first
   (confirm it fails for the right reason with `scripts/test.sh`), then the

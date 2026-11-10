@@ -105,7 +105,7 @@ Main
 
 - All randomness through one seeded RNG service → reproducible raids, easier
   balancing and bug reports.
-- **TDD on all rules code** (see CLAUDE.md): failing test first, minimum
+- **TDD on all rules code** (see AGENTS.md): failing test first, minimum
   implementation to green, refactor. A lightweight custom runner
   (`tests/run_tests.gd`, headless, ~2s) covers the pure-logic layer; the
   effect resolver and combat engine are the parts of this game that must
