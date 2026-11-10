@@ -14,10 +14,21 @@ else
 BASH ?= bash
 endif
 
-.PHONY: setup test sim smoke godot web serve clean
+.PHONY: setup gate limits test sim smoke godot web serve clean
 
 setup:           ## once per clone: turn on the commit hooks in .githooks/
 	git config core.hooksPath .githooks
+
+gate:            ## the local gate before every push (mirrors CI's jobs)
+	"$(BASH)" scripts/test.sh
+	"$(BASH)" scripts/sim.sh --n=200 --bot=none
+	"$(BASH)" scripts/sim.sh --n=200 --bot=random
+	"$(BASH)" scripts/ui_smoke.sh
+	"$(BASH)" scripts/export_web.sh
+	"$(BASH)" scripts/function_limits.sh
+
+limits:          ## report functions over the size limits (warnings only)
+	"$(BASH)" scripts/function_limits.sh
 
 test:            ## unit tests (~2s)
 	"$(BASH)" scripts/test.sh
