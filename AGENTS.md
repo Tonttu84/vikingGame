@@ -98,7 +98,8 @@ adding files (the scripts do this).
 - `_begin_pick` takes the pick's explanation as a required argument.
 - Commit `.uid` files (Godot 4.4+ guidance); never commit `.godot/`.
 - `*.sh`, `Makefile`, `Dockerfile` and `.githooks/*` keep LF endings (`.gitattributes`).
-- No model identifiers in commits, code, or comments.
+- No model identifiers in code or comments. Commit messages end with the
+  shared `Co-Authored-By: Claude ...` trailer (D7).
 
 ## Layout
 
